@@ -1,0 +1,24 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Configuration
+.env
+.env.local
+
+# Data & Storage
+data/storage/*
+!data/storage/.gitkeep
+pb_data/
+
+# Go
+vendor/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowKore SDK Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; background: #f4f4f9; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        pre { background: #272822; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px; }
+        button:hover { background: #0056b3; }
+        input { padding: 8px; margin-bottom: 10px; width: 100%; box-sizing: border-box; }
+        .status { margin-top: 20px; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 FlowKore SDK Test</h1>
+        <p>Abre la consola del navegador para ver más detalles.</p>
+
+        <div>
+            <h3>1. Auth</h3>
+            <input type="text" id="email" placeholder="Email" value="me@flowkore.com">
+            <input type="password" id="password" placeholder="Password" value="123">
+            <button onclick="login()">Login</button>
+            <button onclick="logout()" style="background: #dc3545;">Logout</button>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <h3>2. Records</h3>
+            <button onclick="getCollections()">Listar Colecciones</button>
+            <button onclick="getAnuncios()">Listar 'anuncios'</button>
+        </div>
+
+        <div id="status" class="status" style="display: none;"></div>
+        
+        <h3>Output:</h3>
+        <pre id="output">Esperando acción...</pre>
+    </div>
+
+    <script type="module">
+        import { FlowKore } from './sdk/flowkore.js';
+
+        const fk = new FlowKore('http://localhost:8090');
+        window.fk = fk; // For console debugging
+
+        const output = document.getElementById('output');
+        const status = document.getElementById('status');
+
+        function showStatus(msg, isError = false) {
+            status.innerText = msg;
+            status.style.display = 'block';
+            status.className = 'status ' + (isError ? 'error' : 'success');
+        }
+
+        window.login = async () => {
+            try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const res = await fk.auth.login(email, password);
+                output.innerText = JSON.stringify(res, null, 2);
+                showStatus('Login exitoso!');
+            } catch (err) {
+                showStatus(err.message, true);
+            }
+        };
+
+        window.logout = () => {
+            fk.auth.logout();
+            output.innerText = 'Sesión cerrada';
+            showStatus('Logout exitoso');
+        };
+
+        window.getCollections = async () => {
+            try {
+                const res = await fk._request('/api/collections');
+                output.innerText = JSON.stringify(res, null, 2);
+                showStatus('Colecciones obtenidas');
+            } catch (err) {
+                showStatus(err.message, true);
+            }
+        };
+
+        window.getAnuncios = async () => {
+            try {
+                const res = await fk.collection('anuncios').getList();
+                output.innerText = JSON.stringify(res, null, 2);
+                showStatus('Anuncios obtenidos');
+            } catch (err) {
+                showStatus(err.message, true);
+            }
+        };
+    </script>
+</body>
+</html>
