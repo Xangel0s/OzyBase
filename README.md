@@ -9,6 +9,7 @@ FlowKore allows you to create dynamic collections, manage authentication, handle
 - **🚀 High Performance**: Built with Go and Echo for maximum speed and efficiency.
 - **🏗️ Meta-Schema Ops**: Create and modify database collections via API at runtime.
 - **🔐 Auth System**: Built-in JWT authentication with granular ACL (Public/Auth/Admin).
+- **🛡️ Security Hardening**: Validation for strong passwords and email formats.
 - **⚡ Real-time**: Instant data synchronization using Server-Sent Events (SSE) and Postgres LISTEN/NOTIFY.
 - **📂 Storage**: Simple local file storage management.
 - **🛠️ JS SDK**: Zero-dependency JavaScript SDK for seamless frontend integration.
