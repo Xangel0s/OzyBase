@@ -1,0 +1,225 @@
+openapi: 3.0.3
+info:
+  title: FlowKore Core API 🚀
+  description: >
+    The official API documentation for FlowKore BaaS. 
+    Manage collections, records, authentication, and realtime subscriptions.
+  version: 1.0.0
+  contact:
+    name: FlowKore Team
+    url: https://github.com/Xangel0s/FlowKore
+
+servers:
+  - url: http://localhost:8090/api
+    description: Local development server
+
+paths:
+  /auth/signup:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid request or password too weak
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Log in and get a JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+
+  /collections:
+    get:
+      tags: [Collections]
+      summary: List all dynamic collections
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of collections
+    post:
+      tags: [Collections]
+      summary: Create a new dynamic collection (table)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionDefinition'
+      responses:
+        '201':
+          description: Collection created
+
+  /collections/{name}/records:
+    get:
+      tags: [Records]
+      summary: List records in a collection
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Array of records
+    post:
+      tags: [Records]
+      summary: Create a new record in a collection
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          description: Record created
+
+  /realtime:
+    get:
+      tags: [Realtime]
+      summary: Subscribe to database changes (SSE)
+      description: >
+        Establishes a Server-Sent Events connection to receive live updates.
+        Filter by collection using the `table` query parameter.
+      parameters:
+        - name: table
+          in: query
+          schema:
+            type: string
+        - name: token
+          in: query
+          schema:
+            type: string
+          description: JWT token for authorization (alternative to Bearer header)
+      responses:
+        '200':
+          description: SSE Stream started
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /files:
+    post:
+      tags: [Storage]
+      summary: Upload a file
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: File uploaded
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    AuthRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    CollectionDefinition:
+      type: object
+      required: [name, schema]
+      properties:
+        name:
+          type: string
+        list_rule:
+          type: string
+          enum: [public, auth, admin]
+        create_rule:
+          type: string
+          enum: [public, auth, admin]
+        schema:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldDefinition'
+
+    FieldDefinition:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [text, number, boolean, datetime, json, uuid]
+        required:
+          type: boolean
+        default:
+          type: string

@@ -15,6 +15,7 @@ import (
 	"github.com/Xangel0s/FlowKore/internal/core"
 	"github.com/Xangel0s/FlowKore/internal/data"
 	"github.com/Xangel0s/FlowKore/internal/realtime"
+	"github.com/Xangel0s/FlowKore/internal/typegen"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -41,6 +42,23 @@ func main() {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
+	// Check for CLI commands (Phase 3: TypeGen)
+	if len(os.Args) > 1 && os.Args[1] == "gen-types" {
+		outputPath := "./flowkore-types.ts"
+		for i, arg := range os.Args {
+			if arg == "--out" && i+1 < len(os.Args) {
+				outputPath = os.Args[i+1]
+			}
+		}
+
+		gen := typegen.NewGenerator(db)
+		if err := gen.Generate(outputPath); err != nil {
+			log.Fatalf("Failed to generate types: %v", err)
+		}
+		log.Printf("✅ Types generated successfully to %s", outputPath)
+		return
+	}
+
 	// Initialize Realtime components
 	broker := realtime.NewBroker()
 	go data.ListenDB(ctx, cfg.DatabaseURL, broker)
@@ -53,6 +71,16 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
+
+	// Security Hardening - Phase 1
+	// Rate Limiting: 20 requests per second per IP
+	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
+
+	// Security Headers (CSP, X-Frame-Options, HSTS, etc.)
+	e.Use(api.SecurityHeadersDefault())
+
+	// Request size limit: 10MB max
+	e.Use(middleware.BodyLimit("10M"))
 
 	// Initialize handlers
 	h := api.NewHandler(db)

@@ -17,8 +17,8 @@ type Collection struct {
 	ID         string             `json:"id"`
 	Name       string             `json:"name"`
 	Schema     []data.FieldSchema `json:"schema"`
-	ListRule   string             `json:"listRule"`
-	CreateRule string             `json:"createRule"`
+	ListRule   string             `json:"list_rule"`
+	CreateRule string             `json:"create_rule"`
 	CreatedAt  time.Time          `json:"created_at"`
 	UpdatedAt  time.Time          `json:"updated_at"`
 }
@@ -27,8 +27,8 @@ type Collection struct {
 type CreateCollectionRequest struct {
 	Name       string             `json:"name"`
 	Schema     []data.FieldSchema `json:"schema"`
-	ListRule   string             `json:"listRule"`   // "public", "auth", "admin"
-	CreateRule string             `json:"createRule"` // "auth", "admin"
+	ListRule   string             `json:"list_rule"`   // "public", "auth", "admin"
+	CreateRule string             `json:"create_rule"` // "auth", "admin"
 }
 
 // CreateCollection handles POST /api/collections

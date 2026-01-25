@@ -1,0 +1,38 @@
+[Unit]
+Description=FlowKore BaaS - Backend as a Service
+Documentation=https://github.com/Xangel0s/flowkore
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=flowkore
+Group=flowkore
+
+# Binary and working directory
+ExecStart=/opt/flowkore/flowkore
+WorkingDirectory=/opt/flowkore
+
+# Auto restart
+Restart=always
+RestartSec=5
+
+# Environment variables
+EnvironmentFile=/opt/flowkore/.env
+
+# Resource limits (Essential for Realtime/SSE performance)
+LimitNOFILE=65536
+LimitNPROC=65536
+
+# Security Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/flowkore/data
+
+# Timeouts
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
