@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/Xangel0s/FlowKore/internal/realtime"
+	"github.com/Xangel0s/OzyBase/internal/realtime"
 	"github.com/labstack/echo/v4"
 )
 
@@ -31,7 +31,7 @@ func (h *RealtimeHandler) Stream(c echo.Context) error {
 	defer h.Broker.Unsubscribe(eventChan)
 
 	// Send initial comment to keep connection alive
-	fmt.Fprintf(w, ": welcome to flowkore realtime\n\n")
+	fmt.Fprintf(w, ": welcome to OzyBase realtime\n\n")
 	w.Flush()
 
 	ctx := c.Request().Context()
@@ -50,3 +50,4 @@ func (h *RealtimeHandler) Stream(c echo.Context) error {
 		}
 	}
 }
+

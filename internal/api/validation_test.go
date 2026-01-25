@@ -159,3 +159,4 @@ func TestDefaultPasswordPolicy(t *testing.T) {
 	assert.True(t, policy.RequireNumber)
 	assert.True(t, policy.RequireSpecial)
 }
+

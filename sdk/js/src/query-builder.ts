@@ -1,5 +1,5 @@
 /**
- * FlowKore Query Builder
+ * OzyBase Query Builder
  * Fluent API for database operations (Supabase-style)
  * 
  * Usage:
@@ -12,18 +12,18 @@
  */
 
 import type {
-    FlowKoreResponse,
+    OzyBaseResponse,
     FilterOperator,
     FilterCondition,
     Row,
     InsertPayload,
     UpdatePayload,
 } from './types';
-import type { FlowKoreClient } from './client';
+import type { OzyBaseClient } from './client';
 
-export class FlowKoreQueryBuilder<T extends Record<string, unknown> = Record<string, unknown>> {
+export class OzyBaseQueryBuilder<T extends Record<string, unknown> = Record<string, unknown>> {
     private _table: string;
-    private _client: FlowKoreClient;
+    private _client: OzyBaseClient;
     private _columns: string = '*';
     private _filters: FilterCondition[] = [];
     private _order: { column: string; ascending: boolean }[] = [];
@@ -34,7 +34,7 @@ export class FlowKoreQueryBuilder<T extends Record<string, unknown> = Record<str
     private _method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET';
     private _body?: unknown;
 
-    constructor(client: FlowKoreClient, table: string) {
+    constructor(client: OzyBaseClient, table: string) {
         this._client = client;
         this._table = table;
     }
@@ -299,18 +299,18 @@ export class FlowKoreQueryBuilder<T extends Record<string, unknown> = Record<str
     /**
      * Execute the query and return results
      */
-    async then<TResult = FlowKoreResponse<T[]>>(
-        resolve?: (value: FlowKoreResponse<T[]>) => TResult | PromiseLike<TResult>,
+    async then<TResult = OzyBaseResponse<T[]>>(
+        resolve?: (value: OzyBaseResponse<T[]>) => TResult | PromiseLike<TResult>,
         reject?: (reason: unknown) => TResult | PromiseLike<TResult>
     ): Promise<TResult> {
         const result = await this.execute();
-        return resolve ? resolve(result as FlowKoreResponse<T[]>) : result as unknown as TResult;
+        return resolve ? resolve(result as OzyBaseResponse<T[]>) : result as unknown as TResult;
     }
 
     /**
      * Internal execute method
      */
-    private async execute(): Promise<FlowKoreResponse<T | T[] | null>> {
+    private async execute(): Promise<OzyBaseResponse<T | T[] | null>> {
         try {
             const url = this.buildUrl();
             const options = this.buildRequestOptions();
@@ -421,8 +421,9 @@ export class FlowKoreQueryBuilder<T extends Record<string, unknown> = Record<str
  * Create a new query builder for a table
  */
 export function createQueryBuilder<T extends Record<string, unknown> = Record<string, unknown>>(
-    client: FlowKoreClient,
+    client: OzyBaseClient,
     table: string
-): FlowKoreQueryBuilder<T> {
-    return new FlowKoreQueryBuilder<T>(client, table);
+): OzyBaseQueryBuilder<T> {
+    return new OzyBaseQueryBuilder<T>(client, table);
 }
+

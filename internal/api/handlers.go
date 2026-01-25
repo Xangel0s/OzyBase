@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Xangel0s/FlowKore/internal/data"
+	"github.com/Xangel0s/OzyBase/internal/data"
 	"github.com/labstack/echo/v4"
 )
 
@@ -47,3 +47,4 @@ func (h *Handler) Health(c echo.Context) error {
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 }
+

@@ -1,5 +1,5 @@
 /**
- * FlowKore Auth Module
+ * OzyBase Auth Module
  * Supabase-style authentication API
  * 
  * Usage:
@@ -15,9 +15,9 @@ import type {
     AuthResponse,
     SignUpCredentials,
     SignInCredentials,
-    FlowKoreError,
+    OzyBaseError,
 } from './types';
-import type { FlowKoreClient } from './client';
+import type { OzyBaseClient } from './client';
 
 // Storage interface for session persistence
 interface StorageAdapter {
@@ -63,8 +63,8 @@ export interface AuthConfig {
     storage?: StorageAdapter;
 }
 
-export class FlowKoreAuth {
-    private _client: FlowKoreClient;
+export class OzyBaseAuth {
+    private _client: OzyBaseClient;
     private _config: Required<AuthConfig>;
     private _storage: StorageAdapter;
     private _currentSession: Session | null = null;
@@ -72,12 +72,12 @@ export class FlowKoreAuth {
     private _refreshTimer?: ReturnType<typeof setTimeout>;
     private _listeners: Set<(event: AuthChangeEvent, session: Session | null) => void> = new Set();
 
-    constructor(client: FlowKoreClient, config?: AuthConfig) {
+    constructor(client: OzyBaseClient, config?: AuthConfig) {
         this._client = client;
         this._config = {
             autoRefreshToken: config?.autoRefreshToken ?? true,
             persistSession: config?.persistSession ?? true,
-            storageKey: config?.storageKey ?? 'flowkore-auth-token',
+            storageKey: config?.storageKey ?? 'OzyBase-auth-token',
             storage: config?.storage ?? (typeof localStorage !== 'undefined' ? browserStorage : memoryStorage),
         };
         this._storage = this._config.storage;
@@ -176,7 +176,7 @@ export class FlowKoreAuth {
     /**
      * Sign out the current user
      */
-    async signOut(): Promise<{ error: FlowKoreError | null }> {
+    async signOut(): Promise<{ error: OzyBaseError | null }> {
         try {
             await this._clearSession();
             return { error: null };
@@ -403,3 +403,4 @@ export type AuthChangeEvent =
     | 'TOKEN_REFRESHED'
     | 'USER_UPDATED'
     | 'PASSWORD_RECOVERY';
+

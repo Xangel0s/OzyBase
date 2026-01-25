@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Xangel0s/FlowKore/internal/data"
+	"github.com/Xangel0s/OzyBase/internal/data"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 )
@@ -104,3 +104,4 @@ func AccessMiddleware(db *data.DB, requirement string) echo.MiddlewareFunc {
 		}
 	}
 }
+

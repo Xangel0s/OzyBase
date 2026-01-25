@@ -1,35 +1,35 @@
-# @flowkore/sdk
+# @OzyBase/sdk
 
-The official JavaScript/TypeScript SDK for [FlowKore](https://github.com/Xangel0s/FlowKore) - a high-performance Backend-as-a-Service.
+The official JavaScript/TypeScript SDK for [OzyBase](https://github.com/Xangel0s/OzyBase) - a high-performance Backend-as-a-Service.
 
-> **Supabase-style API** - If you know Supabase, you know FlowKore.
+> **Supabase-style API** - If you know Supabase, you know OzyBase.
 
 ## Installation
 
 ```bash
-npm install @flowkore/sdk
+npm install @OzyBase/sdk
 # or
-pnpm add @flowkore/sdk
+pnpm add @OzyBase/sdk
 # or
-yarn add @flowkore/sdk
+yarn add @OzyBase/sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { createClient } from '@flowkore/sdk';
+import { createClient } from '@OzyBase/sdk';
 
 // Initialize the client
-const flowkore = createClient('https://your-api.com');
+const OzyBase = createClient('https://your-api.com');
 
 // Sign in
-const { data, error } = await flowkore.auth.signIn({
+const { data, error } = await OzyBase.auth.signIn({
   email: 'user@example.com',
   password: 'password123'
 });
 
 // Query data
-const { data: products } = await flowkore
+const { data: products } = await OzyBase
   .from('products')
   .select('*')
   .eq('active', true);
@@ -51,7 +51,7 @@ const { data: products } = await flowkore
 ### Sign Up
 
 ```typescript
-const { data, error } = await flowkore.auth.signUp({
+const { data, error } = await OzyBase.auth.signUp({
   email: 'new@user.com',
   password: 'SecurePass123!'
 });
@@ -66,7 +66,7 @@ if (error) {
 ### Sign In
 
 ```typescript
-const { data, error } = await flowkore.auth.signIn({
+const { data, error } = await OzyBase.auth.signIn({
   email: 'user@example.com',
   password: 'password123'
 });
@@ -75,20 +75,20 @@ const { data, error } = await flowkore.auth.signIn({
 ### Sign Out
 
 ```typescript
-await flowkore.auth.signOut();
+await OzyBase.auth.signOut();
 ```
 
 ### Get Current User
 
 ```typescript
-const { data: { user } } = await flowkore.auth.getUser();
+const { data: { user } } = await OzyBase.auth.getUser();
 console.log('Current user:', user);
 ```
 
 ### Listen to Auth Changes
 
 ```typescript
-flowkore.auth.onAuthStateChange((event, session) => {
+OzyBase.auth.onAuthStateChange((event, session) => {
   console.log('Auth event:', event);
   console.log('Session:', session);
 });
@@ -102,12 +102,12 @@ flowkore.auth.onAuthStateChange((event, session) => {
 
 ```typescript
 // Get all records
-const { data, error } = await flowkore
+const { data, error } = await OzyBase
   .from('products')
   .select('*');
 
 // Select specific columns
-const { data } = await flowkore
+const { data } = await OzyBase
   .from('products')
   .select('id, name, price');
 ```
@@ -141,7 +141,7 @@ const { data } = await flowkore
 ### Chaining Filters
 
 ```typescript
-const { data } = await flowkore
+const { data } = await OzyBase
   .from('products')
   .select('*')
   .eq('active', true)
@@ -155,7 +155,7 @@ const { data } = await flowkore
 
 ```typescript
 // Single insert
-const { data, error } = await flowkore
+const { data, error } = await OzyBase
   .from('products')
   .insert({
     name: 'New Product',
@@ -164,7 +164,7 @@ const { data, error } = await flowkore
   });
 
 // Bulk insert
-const { data } = await flowkore
+const { data } = await OzyBase
   .from('products')
   .insert([
     { name: 'Product 1', price: 10 },
@@ -175,7 +175,7 @@ const { data } = await flowkore
 ### Update Data
 
 ```typescript
-const { data, error } = await flowkore
+const { data, error } = await OzyBase
   .from('products')
   .update({ price: 149.99 })
   .eq('id', 'product-uuid');
@@ -184,7 +184,7 @@ const { data, error } = await flowkore
 ### Delete Data
 
 ```typescript
-const { data, error } = await flowkore
+const { data, error } = await OzyBase
   .from('products')
   .delete()
   .eq('id', 'product-uuid');
@@ -194,14 +194,14 @@ const { data, error } = await flowkore
 
 ```typescript
 // Get exactly one row (errors if 0 or >1)
-const { data, error } = await flowkore
+const { data, error } = await OzyBase
   .from('products')
   .select('*')
   .eq('id', 'product-uuid')
   .single();
 
 // Get one or null (no error if not found)
-const { data } = await flowkore
+const { data } = await OzyBase
   .from('products')
   .select('*')
   .eq('slug', 'my-product')
@@ -212,13 +212,13 @@ const { data } = await flowkore
 
 ```typescript
 // Limit results
-const { data } = await flowkore
+const { data } = await OzyBase
   .from('products')
   .select('*')
   .limit(10);
 
 // Offset pagination
-const { data } = await flowkore
+const { data } = await OzyBase
   .from('products')
   .select('*')
   .range(10, 19);  // items 10-19 (page 2)
@@ -231,7 +231,7 @@ const { data } = await flowkore
 ### Subscribe to Changes
 
 ```typescript
-const channel = flowkore
+const channel = OzyBase
   .channel('products')
   .on('INSERT', (payload) => {
     console.log('New product:', payload.new);
@@ -250,7 +250,7 @@ const channel = flowkore
 ### Subscribe to All Events
 
 ```typescript
-const channel = flowkore
+const channel = OzyBase
   .channel('products')
   .on('*', (payload) => {
     console.log(`${payload.eventType}:`, payload);
@@ -265,7 +265,7 @@ const channel = flowkore
 channel.unsubscribe();
 
 // Remove all channels
-flowkore.removeAllChannels();
+OzyBase.removeAllChannels();
 ```
 
 ---
@@ -274,16 +274,16 @@ flowkore.removeAllChannels();
 
 ### With Type Generation (Phase 3)
 
-After running `flowkore gen-types`:
+After running `OzyBase gen-types`:
 
 ```typescript
-import { createClient } from '@flowkore/sdk';
-import type { Database } from './types/flowkore';
+import { createClient } from '@OzyBase/sdk';
+import type { Database } from './types/OzyBase';
 
-const flowkore = createClient<Database>('https://your-api.com');
+const OzyBase = createClient<Database>('https://your-api.com');
 
 // Now you get full autocomplete!
-const { data } = await flowkore
+const { data } = await OzyBase
   .from('products')  // autocomplete table names
   .select('*')
   .eq('price', 100); // type-safe column names
@@ -300,7 +300,7 @@ interface Product {
   created_at: string;
 }
 
-const { data } = await flowkore
+const { data } = await OzyBase
   .from<Product>('products')
   .select('*');
 
@@ -312,7 +312,7 @@ const { data } = await flowkore
 ## Configuration
 
 ```typescript
-const flowkore = createClient('https://your-api.com', {
+const OzyBase = createClient('https://your-api.com', {
   // Custom headers
   headers: {
     'X-Custom-Header': 'value',
@@ -331,7 +331,7 @@ const flowkore = createClient('https://your-api.com', {
 
 ## Comparison with Supabase
 
-| Feature | Supabase | FlowKore |
+| Feature | Supabase | OzyBase |
 |---------|----------|----------|
 | `from('table')` | ✅ | ✅ |
 | `.select()` | ✅ | ✅ |
@@ -351,4 +351,5 @@ const flowkore = createClient('https://your-api.com', {
 
 MIT © [Xangel0s](https://github.com/Xangel0s)
 
-**FlowKore: Power in a single binary.** 🛡️🚀
+**OzyBase: Power in a single binary.** 🛡️🚀
+

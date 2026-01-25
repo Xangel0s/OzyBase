@@ -1,23 +1,23 @@
-# FlowKore Core 🛡️🚀
+# OzyBase Core 🛡️🚀
 
-![FlowKore Banner](./docs/banner.png)
+![OzyBase Banner](./docs/banner.jpg)
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/Xangel0s/FlowKore)](https://goreportcard.com/report/github.com/Xangel0s/FlowKore)
-[![Tests Passing](https://img.shields.io/badge/tests-passing-brightgreen.svg)](https://github.com/Xangel0s/FlowKore)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Xangel0s/OzyBase)](https://goreportcard.com/report/github.com/Xangel0s/OzyBase)
+[![Tests Passing](https://img.shields.io/badge/tests-passing-brightgreen.svg)](https://github.com/Xangel0s/OzyBase)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Single Binary](https://img.shields.io/badge/Single-Binary-blueviolet.svg)](#)
 
 **The high-performance, open-source Backend-as-a-Service (BaaS) for the next generation of apps.** 
 
-FlowKore allows you to create dynamic collections, manage authentication, handle real-time subscriptions, and store files with **zero configuration** and **minimal resource usage**.
+OzyBase allows you to create dynamic collections, manage authentication, handle real-time subscriptions, and store files with **zero configuration** and **minimal resource usage**.
 
-> **💡 Real World Fact:** FlowKore runs perfectly on a $5/mo VPS while others require $20-40/mo just to idle. **1/8 of the cost, same power.**
+> **💡 Real World Fact:** OzyBase runs perfectly on a $5/mo VPS while others require $20-40/mo just to idle. **1/8 of the cost, same power.**
 
 ---
 
-## ⚡ Why FlowKore?
+## ⚡ Why OzyBase?
 
-| Metric | Supabase (Docker) | PocketBase | **FlowKore-Core** |
+| Metric | Supabase (Docker) | PocketBase | **OzyBase-Core** |
 |--------|-------------------|------------|-------------------|
 | **Language** | Elixir/JS/Go | Go | **Go 🚀** |
 | **RAM at rest** | ~1.5 GB | ~20-50 MB | **< 30 MB ✅** |
@@ -54,11 +54,11 @@ cp .env.example .env
 ### 3. Run the Engine
 ```bash
 # Option A: Go Run
-go run ./cmd/flowkore
+go run ./cmd/OzyBase
 
 # Option B: Optimized Binary
-go build -ldflags="-s -w" -o flowkore ./cmd/flowkore
-./flowkore
+go build -ldflags="-s -w" -o OzyBase ./cmd/OzyBase
+./OzyBase
 ```
 
 ### 4. Create your first collection
@@ -70,23 +70,23 @@ curl -X POST http://localhost:8090/api/collections \
 
 ---
 
-## 💎 FlowKore SDK (The Developer Expirience)
+## 💎 OzyBase SDK (The Developer Expirience)
 
 We provide a **Supabase-style** JavaScript/TypeScript SDK for seamless integration.
 
 ```typescript
-import { createClient } from '@flowkore/sdk'
+import { createClient } from '@OzyBase/sdk'
 
-const flowkore = createClient('http://localhost:8090')
+const OzyBase = createClient('http://localhost:8090')
 
 // Full Autocomplete & Type Safety!
-const { data, error } = await flowkore
+const { data, error } = await OzyBase
   .from('products')
   .select('*')
   .eq('active', true)
 
 // Realtime just works
-flowkore.channel('products').on('INSERT', (payload) => {
+OzyBase.channel('products').on('INSERT', (payload) => {
   console.log('New product!', payload.new)
 }).subscribe()
 ```
@@ -115,6 +115,7 @@ flowkore.channel('products').on('INSERT', (payload) => {
 ---
 
 Developed with ❤️ by **Xangel0s**.  
-**FlowKore: Power in a single binary.** 🛡️🚀
+**OzyBase: Power in a single binary.** 🛡️🚀
+
 
 

@@ -1,13 +1,13 @@
 openapi: 3.0.3
 info:
-  title: FlowKore Core API 🚀
+  title: OzyBase Core API 🚀
   description: >
-    The official API documentation for FlowKore BaaS. 
+    The official API documentation for OzyBase BaaS. 
     Manage collections, records, authentication, and realtime subscriptions.
   version: 1.0.0
   contact:
-    name: FlowKore Team
-    url: https://github.com/Xangel0s/FlowKore
+    name: OzyBase Team
+    url: https://github.com/Xangel0s/OzyBase
 
 servers:
   - url: http://localhost:8090/api
@@ -223,3 +223,4 @@ components:
           type: boolean
         default:
           type: string
+

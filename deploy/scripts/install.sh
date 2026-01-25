@@ -1,29 +1,29 @@
 #!/bin/bash
 # deploy/scripts/install.sh
-# FlowKore Automated Linux Deployment Script
+# OzyBase Automated Linux Deployment Script
 
 set -e
 
 # Configuration
-INSTALL_DIR="/opt/flowkore"
-BIN_NAME="flowkore"
-SYSTEMD_PATH="/etc/systemd/system/flowkore.service"
-SYSCTL_PATH="/etc/sysctl.d/99-flowkore.conf"
-NGINX_AVAILABLE="/etc/nginx/sites-available/flowkore"
-NGINX_ENABLED="/etc/nginx/sites-enabled/flowkore"
+INSTALL_DIR="/opt/OzyBase"
+BIN_NAME="OzyBase"
+SYSTEMD_PATH="/etc/systemd/system/OzyBase.service"
+SYSCTL_PATH="/etc/sysctl.d/99-OzyBase.conf"
+NGINX_AVAILABLE="/etc/nginx/sites-available/OzyBase"
+NGINX_ENABLED="/etc/nginx/sites-enabled/OzyBase"
 
-echo "🚀 Starting FlowKore Installation..."
+echo "🚀 Starting OzyBase Installation..."
 
 # 1. Create Dedicated User
-if ! id "flowkore" &>/dev/null; then
-    echo "👤 Creating flowkore system user..."
-    sudo useradd --system --no-create-home --shell /usr/sbin/nologin flowkore
+if ! id "OzyBase" &>/dev/null; then
+    echo "👤 Creating OzyBase system user..."
+    sudo useradd --system --no-create-home --shell /usr/sbin/nologin OzyBase
 fi
 
 # 2. Setup Directories
 echo "📁 Setting up installation directories..."
 sudo mkdir -p $INSTALL_DIR/data
-sudo chown -R flowkore:flowkore $INSTALL_DIR
+sudo chown -R OzyBase:OzyBase $INSTALL_DIR
 
 # 3. Copy Application Files
 echo "📦 Deploying application files..."
@@ -46,19 +46,19 @@ fi
 
 # 4. Install Systemd Service
 echo "⚙️ Configuring systemd service..."
-if [ -f "./deploy/systemd/flowkore.service" ]; then
-    sudo cp ./deploy/systemd/flowkore.service $SYSTEMD_PATH
+if [ -f "./deploy/systemd/OzyBase.service" ]; then
+    sudo cp ./deploy/systemd/OzyBase.service $SYSTEMD_PATH
     sudo systemctl daemon-reload
-    sudo systemctl enable flowkore
-    echo "✅ FlowKore service enabled"
+    sudo systemctl enable OzyBase
+    echo "✅ OzyBase service enabled"
 else
-    echo "❌ Error: flowkore.service file not found in deploy/systemd/"
+    echo "❌ Error: OzyBase.service file not found in deploy/systemd/"
 fi
 
 # 5. Kernel Tuning
 echo "⚡ Optimizing kernel (sysctl)..."
-if [ -f "./deploy/sysctl/99-flowkore.conf" ]; then
-    sudo cp ./deploy/sysctl/99-flowkore.conf $SYSCTL_PATH
+if [ -f "./deploy/sysctl/99-OzyBase.conf" ]; then
+    sudo cp ./deploy/sysctl/99-OzyBase.conf $SYSCTL_PATH
     sudo sysctl -p $SYSCTL_PATH
     echo "✅ Kernel optimized"
 fi
@@ -66,8 +66,8 @@ fi
 # 6. Nginx Configuration
 if command -v nginx &>/dev/null; then
     echo "🌐 Configuring Nginx reverse proxy..."
-    if [ -f "./deploy/nginx/flowkore.conf" ]; then
-        sudo cp ./deploy/nginx/flowkore.conf $NGINX_AVAILABLE
+    if [ -f "./deploy/nginx/OzyBase.conf" ]; then
+        sudo cp ./deploy/nginx/OzyBase.conf $NGINX_AVAILABLE
         sudo ln -sf $NGINX_AVAILABLE $NGINX_ENABLED
         sudo nginx -t && sudo systemctl reload nginx
         echo "✅ Nginx configured"
@@ -77,10 +77,11 @@ else
 fi
 
 echo "===================================================="
-echo "✅ FlowKore Installation Complete!"
+echo "✅ OzyBase Installation Complete!"
 echo "===================================================="
 echo "Next Steps:"
 echo "1. Nano $INSTALL_DIR/.env   # Set DB credentials"
-echo "2. sudo systemctl start flowkore # Start the engine"
-echo "3. sudo journalctl -u flowkore -f # Watch logs"
+echo "2. sudo systemctl start OzyBase # Start the engine"
+echo "3. sudo journalctl -u OzyBase -f # Watch logs"
 echo "===================================================="
+

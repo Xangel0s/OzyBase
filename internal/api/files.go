@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/Xangel0s/FlowKore/internal/core"
+	"github.com/Xangel0s/OzyBase/internal/core"
 	"github.com/labstack/echo/v4"
 )
 
@@ -40,3 +40,4 @@ func (h *FileHandler) Upload(c echo.Context) error {
 		"url":      "/api/files/" + filename,
 	})
 }
+

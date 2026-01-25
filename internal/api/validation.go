@@ -155,3 +155,4 @@ func hasSpecialChar(s string) bool {
 	}
 	return false
 }
+

@@ -1,4 +1,4 @@
-module github.com/Xangel0s/FlowKore
+module github.com/Xangel0s/OzyBase
 
 go 1.25.5
 
@@ -30,3 +30,4 @@ require (
 	golang.org/x/time v0.14.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+

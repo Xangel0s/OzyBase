@@ -118,3 +118,4 @@ func rowsToMaps(rows pgx.Rows) ([]map[string]interface{}, error) {
 
 	return results, nil
 }
+

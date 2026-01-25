@@ -13,7 +13,7 @@ type FieldSchema struct {
 	Default  interface{} `json:"default,omitempty"`
 }
 
-// TypeMapping maps FlowKore types to PostgreSQL types
+// TypeMapping maps OzyBase types to PostgreSQL types
 var TypeMapping = map[string]string{
 	"text":     "TEXT",
 	"number":   "NUMERIC",
@@ -115,3 +115,4 @@ func formatDefault(value interface{}, fieldType string) string {
 		return fmt.Sprintf("'%v'", v)
 	}
 }
+

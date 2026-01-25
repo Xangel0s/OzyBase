@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"net/mail"
 
-	"github.com/Xangel0s/FlowKore/internal/core"
+	"github.com/Xangel0s/OzyBase/internal/core"
 	"github.com/labstack/echo/v4"
 )
 
@@ -63,3 +63,4 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		"user":  user,
 	})
 }
+

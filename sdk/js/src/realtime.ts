@@ -1,5 +1,5 @@
 /**
- * FlowKore Realtime Module
+ * OzyBase Realtime Module
  * Supabase-style realtime subscriptions using SSE
  * 
  * Usage:
@@ -16,7 +16,7 @@ import type {
     RealtimeCallback,
     RealtimeChannel,
 } from './types';
-import type { FlowKoreClient } from './client';
+import type { OzyBaseClient } from './client';
 
 interface RealtimeSubscription {
     event: RealtimeEvent;
@@ -25,8 +25,8 @@ interface RealtimeSubscription {
     filter?: string;
 }
 
-export class FlowKoreRealtimeChannel implements RealtimeChannel {
-    private _client: FlowKoreClient;
+export class OzyBaseRealtimeChannel implements RealtimeChannel {
+    private _client: OzyBaseClient;
     private _name: string;
     private _subscriptions: RealtimeSubscription[] = [];
     private _eventSource: EventSource | null = null;
@@ -36,7 +36,7 @@ export class FlowKoreRealtimeChannel implements RealtimeChannel {
     private _reconnectDelay: number = 1000;
     private _statusCallback?: (status: string) => void;
 
-    constructor(client: FlowKoreClient, name: string) {
+    constructor(client: OzyBaseClient, name: string) {
         this._client = client;
         this._name = name;
     }
@@ -108,7 +108,7 @@ export class FlowKoreRealtimeChannel implements RealtimeChannel {
 
     private _connect(): void {
         if (typeof EventSource === 'undefined') {
-            console.error('FlowKore Realtime: EventSource not available (server-side?)');
+            console.error('OzyBase Realtime: EventSource not available (server-side?)');
             this._statusCallback?.('ERROR');
             return;
         }
@@ -148,7 +148,7 @@ export class FlowKoreRealtimeChannel implements RealtimeChannel {
             });
 
         } catch (error) {
-            console.error('FlowKore Realtime: Connection failed', error);
+            console.error('OzyBase Realtime: Connection failed', error);
             this._statusCallback?.('ERROR');
         }
     }
@@ -185,7 +185,7 @@ export class FlowKoreRealtimeChannel implements RealtimeChannel {
 
             this._notifySubscribers(payload);
         } catch (e) {
-            console.error('FlowKore Realtime: Error parsing message', e);
+            console.error('OzyBase Realtime: Error parsing message', e);
         }
     }
 
@@ -204,7 +204,7 @@ export class FlowKoreRealtimeChannel implements RealtimeChannel {
 
             this._notifySubscribers(payload);
         } catch (e) {
-            console.error('FlowKore Realtime: Error parsing event', e);
+            console.error('OzyBase Realtime: Error parsing event', e);
         }
     }
 
@@ -218,12 +218,12 @@ export class FlowKoreRealtimeChannel implements RealtimeChannel {
             const delay = this._reconnectDelay * Math.pow(2, this._reconnectAttempts - 1);
 
             setTimeout(() => {
-                console.log(`FlowKore Realtime: Reconnecting (attempt ${this._reconnectAttempts})`);
+                console.log(`OzyBase Realtime: Reconnecting (attempt ${this._reconnectAttempts})`);
                 this._statusCallback?.('RECONNECTING');
                 this._connect();
             }, delay);
         } else {
-            console.error('FlowKore Realtime: Max reconnection attempts reached');
+            console.error('OzyBase Realtime: Max reconnection attempts reached');
             this._statusCallback?.('CLOSED');
         }
     }
@@ -267,11 +267,11 @@ export class FlowKoreRealtimeChannel implements RealtimeChannel {
 // Realtime Manager
 // ============================================================================
 
-export class FlowKoreRealtime {
-    private _client: FlowKoreClient;
-    private _channels: Map<string, FlowKoreRealtimeChannel> = new Map();
+export class OzyBaseRealtime {
+    private _client: OzyBaseClient;
+    private _channels: Map<string, OzyBaseRealtimeChannel> = new Map();
 
-    constructor(client: FlowKoreClient) {
+    constructor(client: OzyBaseClient) {
         this._client = client;
     }
 
@@ -279,12 +279,12 @@ export class FlowKoreRealtime {
      * Create or get a channel for a table
      * @param name - Table/channel name (use '*' for all tables)
      */
-    channel(name: string): FlowKoreRealtimeChannel {
+    channel(name: string): OzyBaseRealtimeChannel {
         if (this._channels.has(name)) {
             return this._channels.get(name)!;
         }
 
-        const channel = new FlowKoreRealtimeChannel(this._client, name);
+        const channel = new OzyBaseRealtimeChannel(this._client, name);
         this._channels.set(name, channel);
         return channel;
     }
@@ -292,7 +292,7 @@ export class FlowKoreRealtime {
     /**
      * Remove and unsubscribe a channel
      */
-    removeChannel(channel: FlowKoreRealtimeChannel): void {
+    removeChannel(channel: OzyBaseRealtimeChannel): void {
         channel.unsubscribe();
         for (const [name, ch] of this._channels) {
             if (ch === channel) {
@@ -312,3 +312,4 @@ export class FlowKoreRealtime {
         this._channels.clear();
     }
 }
+

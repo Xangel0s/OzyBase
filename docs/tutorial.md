@@ -1,10 +1,10 @@
-# Tutorial: Build your first App with FlowKore 🚀
+# Tutorial: Build your first App with OzyBase 🚀
 
-In this tutorial, we will build a simple **Realtime Task Manager** using React, FlowKore SDK, and TypeScript.
+In this tutorial, we will build a simple **Realtime Task Manager** using React, OzyBase SDK, and TypeScript.
 
 ## 1. Setup the Backend
 
-First, ensure FlowKore is running and create a `tasks` collection:
+First, ensure OzyBase is running and create a `tasks` collection:
 
 ```bash
 # Register an admin user (if you haven't)
@@ -33,7 +33,7 @@ curl -X POST http://localhost:8090/api/collections \
 Generate the TypeScript interfaces for your new collection:
 
 ```bash
-go run ./cmd/flowkore gen-types --out ./src/types/flowkore.ts
+go run ./cmd/OzyBase gen-types --out ./src/types/OzyBase.ts
 ```
 
 ## 3. Install the SDK
@@ -41,18 +41,18 @@ go run ./cmd/flowkore gen-types --out ./src/types/flowkore.ts
 In your React project:
 
 ```bash
-npm install @flowkore/sdk
+npm install @OzyBase/sdk
 ```
 
 ## 4. Connect with React
 
 ```tsx
 import React, { useEffect, useState } from 'react';
-import { createClient } from '@flowkore/sdk';
-import { Database } from './types/flowkore';
+import { createClient } from '@OzyBase/sdk';
+import { Database } from './types/OzyBase';
 
 // Initialize client with generated types
-const flowkore = createClient<Database>('http://localhost:8090');
+const OzyBase = createClient<Database>('http://localhost:8090');
 
 export const TaskApp = () => {
   const [tasks, setTasks] = useState<Database['public']['Tables']['tasks']['Row'][]>([]);
@@ -60,14 +60,14 @@ export const TaskApp = () => {
   useEffect(() => {
     // 1. Fetch initial tasks
     const fetchTasks = async () => {
-      const { data } = await flowkore.from('tasks').select('*');
+      const { data } = await OzyBase.from('tasks').select('*');
       if (data) setTasks(data);
     };
 
     fetchTasks();
 
     // 2. Subscribe to REALTIME updates
-    const channel = flowkore
+    const channel = OzyBase
       .channel('tasks')
       .on('INSERT', (payload) => {
         setTasks((prev) => [...prev, payload.new as any]);
@@ -80,8 +80,8 @@ export const TaskApp = () => {
   }, []);
 
   const addTask = async () => {
-    await flowkore.from('tasks').insert({
-      title: 'Learn FlowKore',
+    await OzyBase.from('tasks').insert({
+      title: 'Learn OzyBase',
       is_completed: false
     });
   };
@@ -102,7 +102,7 @@ export const TaskApp = () => {
 
 ## 5. Summary
 
-You've just built a scalable, type-safe, and realtime application using **FlowKore**.
+You've just built a scalable, type-safe, and realtime application using **OzyBase**.
 
 *   **Type Safety**: Your IDE now knows exactly what fields `tasks` has.
 *   **Realtime**: When another user adds a task, it appears instantly.
@@ -111,3 +111,4 @@ You've just built a scalable, type-safe, and realtime application using **FlowKo
 ---
 
 **Ready for more?** Check the [SDK Documentation](../sdk/js/README.md).
+

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Xangel0s/FlowKore/internal/data"
+	"github.com/Xangel0s/OzyBase/internal/data"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -78,3 +78,4 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 
 	return tokenString, &user, nil
 }
+

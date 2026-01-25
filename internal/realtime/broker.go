@@ -69,3 +69,4 @@ func (b *Broker) Unsubscribe(clientChan chan Event) {
 func (b *Broker) Broadcast(event Event) {
 	b.notifier <- event
 }
+

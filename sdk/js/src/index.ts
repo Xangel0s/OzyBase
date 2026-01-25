@@ -1,31 +1,31 @@
 /**
- * FlowKore SDK
- * The official JavaScript/TypeScript SDK for FlowKore BaaS
+ * OzyBase SDK
+ * The official JavaScript/TypeScript SDK for OzyBase BaaS
  * 
  * @packageDocumentation
- * @module @flowkore/sdk
+ * @module @OzyBase/sdk
  * 
  * @example
  * ```typescript
- * import { createClient } from '@flowkore/sdk';
+ * import { createClient } from '@OzyBase/sdk';
  * 
- * const flowkore = createClient('https://your-api.com');
+ * const OzyBase = createClient('https://your-api.com');
  * 
  * // Authentication
- * const { data, error } = await flowkore.auth.signIn({
+ * const { data, error } = await OzyBase.auth.signIn({
  *   email: 'user@example.com',
  *   password: 'password123'
  * });
  * 
  * // Database queries (Supabase-style)
- * const { data: products } = await flowkore
+ * const { data: products } = await OzyBase
  *   .from('products')
  *   .select('*')
  *   .eq('active', true)
  *   .order('created_at', { ascending: false });
  * 
  * // Realtime subscriptions
- * flowkore
+ * OzyBase
  *   .channel('products')
  *   .on('INSERT', (payload) => console.log('New:', payload.new))
  *   .subscribe();
@@ -33,25 +33,25 @@
  */
 
 // Main client
-export { createClient, FlowKoreClient } from './client';
-export type { FlowKoreClient as Client } from './client';
+export { createClient, OzyBaseClient } from './client';
+export type { OzyBaseClient as Client } from './client';
 
 // Query Builder
-export { FlowKoreQueryBuilder } from './query-builder';
+export { OzyBaseQueryBuilder } from './query-builder';
 
 // Auth
-export { FlowKoreAuth, type AuthChangeEvent } from './auth';
+export { OzyBaseAuth, type AuthChangeEvent } from './auth';
 
 // Realtime
-export { FlowKoreRealtime, FlowKoreRealtimeChannel } from './realtime';
+export { OzyBaseRealtime, OzyBaseRealtimeChannel } from './realtime';
 
 // Types
 export type {
     // Response types
-    FlowKoreResponse,
+    OzyBaseResponse,
     SingleResponse,
     ListResponse,
-    FlowKoreError,
+    OzyBaseError,
 
     // Auth types
     User,
@@ -82,7 +82,7 @@ export type {
     UploadOptions,
 
     // Configuration
-    FlowKoreClientOptions,
+    OzyBaseClientOptions,
 
     // TypeGen helpers
     Database,
@@ -94,3 +94,4 @@ export type {
 
 // Default export
 export { createClient as default } from './client';
+

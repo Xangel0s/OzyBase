@@ -27,8 +27,9 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # Generated Files
-flowkore-types.ts
+OzyBase-types.ts
 
 # OS
 .DS_Store
 Thumbs.db
+

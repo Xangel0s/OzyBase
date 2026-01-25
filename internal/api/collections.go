@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Xangel0s/FlowKore/internal/data"
+	"github.com/Xangel0s/OzyBase/internal/data"
 	"github.com/labstack/echo/v4"
 )
 
@@ -164,3 +164,4 @@ func (h *Handler) ListCollections(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, collections)
 }
+

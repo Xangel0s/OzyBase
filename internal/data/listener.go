@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/Xangel0s/FlowKore/internal/realtime"
+	"github.com/Xangel0s/OzyBase/internal/realtime"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -18,12 +18,12 @@ func ListenDB(ctx context.Context, databaseURL string, broker *realtime.Broker) 
 	}
 	defer conn.Close(ctx)
 
-	_, err = conn.Exec(ctx, "LISTEN flowkore_events")
+	_, err = conn.Exec(ctx, "LISTEN OzyBase_events")
 	if err != nil {
 		log.Fatalf("❌ Realtime Listener failed to execute LISTEN: %v", err)
 	}
 
-	log.Println("⚡ Realtime Listener active on channel 'flowkore_events'")
+	log.Println("⚡ Realtime Listener active on channel 'OzyBase_events'")
 
 	for {
 		select {
@@ -55,3 +55,4 @@ func ListenDB(ctx context.Context, databaseURL string, broker *realtime.Broker) 
 		}
 	}
 }
+

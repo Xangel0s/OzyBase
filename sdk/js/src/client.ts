@@ -1,42 +1,42 @@
 /**
- * FlowKore Client
+ * OzyBase Client
  * Main entry point - Supabase-style API
  * 
  * Usage:
- *   import { createClient } from '@flowkore/sdk';
+ *   import { createClient } from '@OzyBase/sdk';
  *   
- *   const flowkore = createClient('https://your-api.com');
+ *   const OzyBase = createClient('https://your-api.com');
  *   
  *   // Auth
- *   await flowkore.auth.signIn({ email, password });
+ *   await OzyBase.auth.signIn({ email, password });
  *   
  *   // Database queries
- *   const { data, error } = await flowkore
+ *   const { data, error } = await OzyBase
  *     .from('products')
  *     .select('*')
  *     .eq('active', true);
  *   
  *   // Realtime
- *   flowkore
+ *   OzyBase
  *     .channel('products')
  *     .on('INSERT', (payload) => console.log(payload))
  *     .subscribe();
  */
 
-import type { FlowKoreClientOptions, Database, TableName } from './types';
-import { FlowKoreQueryBuilder } from './query-builder';
-import { FlowKoreAuth } from './auth';
-import { FlowKoreRealtime, FlowKoreRealtimeChannel } from './realtime';
+import type { OzyBaseClientOptions, Database, TableName } from './types';
+import { OzyBaseQueryBuilder } from './query-builder';
+import { OzyBaseAuth } from './auth';
+import { OzyBaseRealtime, OzyBaseRealtimeChannel } from './realtime';
 
-export class FlowKoreClient<DB extends Database = Database> {
+export class OzyBaseClient<DB extends Database = Database> {
     private _baseUrl: string;
     private _headers: Record<string, string>;
     private _customFetch: typeof fetch;
 
-    public readonly auth: FlowKoreAuth;
-    private readonly _realtime: FlowKoreRealtime;
+    public readonly auth: OzyBaseAuth;
+    private readonly _realtime: OzyBaseRealtime;
 
-    constructor(url: string, options?: FlowKoreClientOptions) {
+    constructor(url: string, options?: OzyBaseClientOptions) {
         // Normalize URL (remove trailing slash)
         this._baseUrl = url.replace(/\/$/, '');
 
@@ -50,8 +50,8 @@ export class FlowKoreClient<DB extends Database = Database> {
         this._customFetch = options?.fetch ?? globalThis.fetch.bind(globalThis);
 
         // Initialize modules
-        this.auth = new FlowKoreAuth(this as any, options?.auth);
-        this._realtime = new FlowKoreRealtime(this as any);
+        this.auth = new OzyBaseAuth(this as any, options?.auth);
+        this._realtime = new OzyBaseRealtime(this as any);
     }
 
     // ============================================================================
@@ -95,12 +95,12 @@ export class FlowKoreClient<DB extends Database = Database> {
      */
     from<TableNameT extends TableName<DB> | string>(
         table: TableNameT
-    ): FlowKoreQueryBuilder<
+    ): OzyBaseQueryBuilder<
         TableNameT extends TableName<DB>
         ? DB[TableNameT]['Row']
         : Record<string, unknown>
     > {
-        return new FlowKoreQueryBuilder(this as any, table);
+        return new OzyBaseQueryBuilder(this as any, table);
     }
 
     // ============================================================================
@@ -127,14 +127,14 @@ export class FlowKoreClient<DB extends Database = Database> {
      * // Unsubscribe when done
      * channel.unsubscribe();
      */
-    channel(name: string): FlowKoreRealtimeChannel {
+    channel(name: string): OzyBaseRealtimeChannel {
         return this._realtime.channel(name);
     }
 
     /**
      * Remove a realtime channel
      */
-    removeChannel(channel: FlowKoreRealtimeChannel): void {
+    removeChannel(channel: OzyBaseRealtimeChannel): void {
         this._realtime.removeChannel(channel);
     }
 
@@ -250,20 +250,20 @@ export class FlowKoreClient<DB extends Database = Database> {
 // ============================================================================
 
 /**
- * Create a new FlowKore client
+ * Create a new OzyBase client
  * 
- * @param url - Your FlowKore API URL
+ * @param url - Your OzyBase API URL
  * @param options - Client configuration options
- * @returns FlowKore client instance
+ * @returns OzyBase client instance
  * 
  * @example
- * import { createClient } from '@flowkore/sdk';
+ * import { createClient } from '@OzyBase/sdk';
  * 
  * // Basic usage
- * const flowkore = createClient('https://your-api.com');
+ * const OzyBase = createClient('https://your-api.com');
  * 
  * // With options
- * const flowkore = createClient('https://your-api.com', {
+ * const OzyBase = createClient('https://your-api.com', {
  *   auth: {
  *     persistSession: true,
  *     autoRefreshToken: true,
@@ -273,16 +273,17 @@ export class FlowKoreClient<DB extends Database = Database> {
  *   },
  * });
  * 
- * // With TypeScript types (after running `flowkore gen-types`)
- * import { Database } from './types/flowkore';
- * const flowkore = createClient<Database>('https://your-api.com');
+ * // With TypeScript types (after running `OzyBase gen-types`)
+ * import { Database } from './types/OzyBase';
+ * const OzyBase = createClient<Database>('https://your-api.com');
  */
 export function createClient<DB extends Database = Database>(
     url: string,
-    options?: FlowKoreClientOptions
-): FlowKoreClient<DB> {
-    return new FlowKoreClient<DB>(url, options);
+    options?: OzyBaseClientOptions
+): OzyBaseClient<DB> {
+    return new OzyBaseClient<DB>(url, options);
 }
 
 // Default export for convenience
 export default createClient;
+

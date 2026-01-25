@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Xangel0s/FlowKore/internal/api"
-	"github.com/Xangel0s/FlowKore/internal/config"
-	"github.com/Xangel0s/FlowKore/internal/core"
-	"github.com/Xangel0s/FlowKore/internal/data"
+	"github.com/Xangel0s/OzyBase/internal/api"
+	"github.com/Xangel0s/OzyBase/internal/config"
+	"github.com/Xangel0s/OzyBase/internal/core"
+	"github.com/Xangel0s/OzyBase/internal/data"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
@@ -60,7 +60,7 @@ func TestIntegration_FullFlow(t *testing.T) {
 	e.GET("/api/collections/:name/records", h.ListRecords, authOptional, accessList)
 
 	// --- 1. Signup ---
-	testEmail := fmt.Sprintf("test_integration_%d@flowkore.io", time.Now().UnixNano())
+	testEmail := fmt.Sprintf("test_integration_%d@OzyBase.io", time.Now().UnixNano())
 	testPass := "Password123!"
 
 	signupBody, _ := json.Marshal(map[string]string{
@@ -153,3 +153,4 @@ func TestIntegration_FullFlow(t *testing.T) {
 	require.NotEmpty(t, items)
 	assert.Equal(t, "Integration Test Success", items[0]["title"])
 }
+

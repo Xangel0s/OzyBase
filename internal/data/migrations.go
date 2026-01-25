@@ -45,7 +45,7 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 		// Global notify function for realtime events
 		`CREATE OR REPLACE FUNCTION notify_event() RETURNS TRIGGER AS $$
 		BEGIN
-			PERFORM pg_notify('flowkore_events', row_to_json(NEW)::text);
+			PERFORM pg_notify('OzyBase_events', row_to_json(NEW)::text);
 			RETURN NEW;
 		END;
 		$$ LANGUAGE plpgsql;`,
@@ -60,3 +60,4 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 	log.Println("✅ Migrations completed successfully")
 	return nil
 }
+

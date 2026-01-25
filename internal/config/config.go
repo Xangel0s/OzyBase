@@ -19,7 +19,7 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://localhost:5432/flowkore?sslmode=disable"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://localhost:5432/OzyBase?sslmode=disable"),
 		Port:        getEnv("PORT", "8090"),
 		JWTSecret:   getEnv("JWT_SECRET", "super-secret-key-change-it"),
 	}
@@ -34,3 +34,4 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
+

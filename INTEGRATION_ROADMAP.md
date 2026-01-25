@@ -1,4 +1,4 @@
-# 🗺️ FlowKore-Core: Plan de Integración Unificado
+# 🗺️ OzyBase-Core: Plan de Integración Unificado
 
 > **Documento Maestro de Implementación por Fases**  
 > Última actualización: 25 de Enero, 2026  
@@ -22,7 +22,7 @@
 
 ## 📌 Resumen Ejecutivo
 
-FlowKore-Core es un Backend-as-a-Service (BaaS) de alto rendimiento escrito en Go. Este documento consolida todas las integraciones planificadas para elevar la Developer Experience (DX) al nivel de Supabase/PocketBase.
+OzyBase-Core es un Backend-as-a-Service (BaaS) de alto rendimiento escrito en Go. Este documento consolida todas las integraciones planificadas para elevar la Developer Experience (DX) al nivel de Supabase/PocketBase.
 
 ### Tecnologías Base
 | Componente | Tecnología |
@@ -58,22 +58,22 @@ Establecer la infraestructura base necesaria para las siguientes fases.
 ```bash
 # Paso 1: Clonar el repositorio
 git clone <repo-url>
-cd FlowKore-Core
+cd OzyBase-Core
 
 # Paso 2: Configurar variables de entorno
 cp .env.example .env
 # Editar .env con credenciales PostgreSQL
 
 # Paso 3: Verificar compilación
-go build ./cmd/flowkore
-./flowkore
+go build ./cmd/OzyBase
+./OzyBase
 ```
 
 #### 0.2 Estructura de Carpetas para Integraciones
 ```
-FlowKore-Core/
+OzyBase-Core/
 ├── cmd/
-│   └── flowkore/          # Binario principal
+│   └── OzyBase/          # Binario principal
 ├── internal/
 │   ├── api/               # Controladores API
 │   ├── meta/              # Operaciones Meta-Schema
@@ -214,10 +214,10 @@ func SecurityHeaders(next echo.HandlerFunc) echo.HandlerFunc {
 #### 1.3 Compilación Segura del Binario
 ```bash
 # Build optimizado y sin símbolos de debug
-go build -ldflags="-s -w" -o flowkore ./cmd/flowkore
+go build -ldflags="-s -w" -o OzyBase ./cmd/OzyBase
 
 # Verificar tamaño reducido
-ls -lh flowkore
+ls -lh OzyBase
 ```
 
 #### 1.4 Pruebas de Seguridad
@@ -253,7 +253,7 @@ go test ./internal/api -run TestSignup -v
 > **Dependencias:** Fase 1 completada
 
 ### Objetivos
-Crear una librería npm `@flowkore/js-sdk` para una integración elegante con aplicaciones frontend.
+Crear una librería npm `@OzyBase/js-sdk` para una integración elegante con aplicaciones frontend.
 
 ### Estructura del SDK
 ```
@@ -313,9 +313,9 @@ npm install -D typescript tsup vitest @types/node
 ```json
 // sdk/js/package.json
 {
-  "name": "@flowkore/js-sdk",
+  "name": "@OzyBase/js-sdk",
   "version": "0.1.0",
-  "description": "JavaScript SDK for FlowKore BaaS",
+  "description": "JavaScript SDK for OzyBase BaaS",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -334,7 +334,7 @@ npm install -D typescript tsup vitest @types/node
     "test": "vitest",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["flowkore", "baas", "backend", "sdk"],
+  "keywords": ["OzyBase", "baas", "backend", "sdk"],
   "license": "MIT"
 }
 ```
@@ -347,12 +347,12 @@ import { CollectionModule } from './collection';
 import { RealtimeModule } from './realtime';
 import { StorageModule } from './storage';
 
-export interface FlowKoreConfig {
+export interface OzyBaseConfig {
   baseUrl: string;
   headers?: Record<string, string>;
 }
 
-export class FlowKore {
+export class OzyBase {
   private _baseUrl: string;
   private _token: string | null = null;
   
@@ -400,27 +400,27 @@ export class FlowKore {
     
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new FlowKoreError(response.status, error.message || 'Request failed');
+      throw new OzyBaseError(response.status, error.message || 'Request failed');
     }
     
     return response.json();
   }
 }
 
-export class FlowKoreError extends Error {
+export class OzyBaseError extends Error {
   constructor(public status: number, message: string) {
     super(message);
-    this.name = 'FlowKoreError';
+    this.name = 'OzyBaseError';
   }
 }
 
-export default FlowKore;
+export default OzyBase;
 ```
 
 #### 2.5 Módulo de Autenticación
 ```typescript
 // sdk/js/src/auth.ts
-import type { FlowKore } from './client';
+import type { OzyBase } from './client';
 
 export interface AuthUser {
   id: string;
@@ -435,7 +435,7 @@ export interface AuthResponse {
 }
 
 export class AuthModule {
-  constructor(private client: FlowKore) {}
+  constructor(private client: OzyBase) {}
   
   async signup(email: string, password: string): Promise<AuthResponse> {
     const response = await this.client.request<AuthResponse>('/api/auth/signup', {
@@ -470,7 +470,7 @@ export class AuthModule {
 #### 2.6 Módulo de Colecciones (CRUD)
 ```typescript
 // sdk/js/src/collection.ts
-import type { FlowKore } from './client';
+import type { OzyBase } from './client';
 
 export interface ListOptions {
   page?: number;
@@ -495,7 +495,7 @@ export interface BaseRecord {
 
 export class CollectionModule<T = any> {
   constructor(
-    private client: FlowKore,
+    private client: OzyBase,
     private name: string
   ) {}
   
@@ -562,7 +562,7 @@ export interface RealtimeEvent<T> {
 #### 2.7 Módulo de Realtime (SSE)
 ```typescript
 // sdk/js/src/realtime.ts
-import type { FlowKore } from './client';
+import type { OzyBase } from './client';
 import type { RealtimeEvent, BaseRecord } from './collection';
 
 type Callback<T> = (event: RealtimeEvent<T>) => void;
@@ -571,7 +571,7 @@ export class RealtimeModule {
   private eventSource: EventSource | null = null;
   private subscriptions: Map<string, Set<Callback<any>>> = new Map();
   
-  constructor(private client: FlowKore) {}
+  constructor(private client: OzyBase) {}
   
   subscribe<T>(
     collection: string,
@@ -628,12 +628,12 @@ export class RealtimeModule {
         this.notifyCallbacks(globalKey, { action, record });
         
       } catch (e) {
-        console.error('FlowKore Realtime: Error parsing event', e);
+        console.error('OzyBase Realtime: Error parsing event', e);
       }
     };
     
     this.eventSource.onerror = () => {
-      console.error('FlowKore Realtime: Connection error, reconnecting...');
+      console.error('OzyBase Realtime: Connection error, reconnecting...');
       this.disconnect();
       setTimeout(() => this.ensureConnection(), 3000);
     };
@@ -658,20 +658,20 @@ export class RealtimeModule {
 #### 2.8 Punto de Entrada del SDK
 ```typescript
 // sdk/js/src/index.ts
-export { FlowKore, FlowKoreError } from './client';
-export type { FlowKoreConfig } from './client';
+export { OzyBase, OzyBaseError } from './client';
+export type { OzyBaseConfig } from './client';
 export type { AuthUser, AuthResponse } from './auth';
 export type { ListOptions, ListResult, BaseRecord, RealtimeEvent } from './collection';
 
-export default FlowKore;
+export default OzyBase;
 ```
 
 #### 2.9 Ejemplo de Uso Final
 ```javascript
-import FlowKore from '@flowkore/js-sdk';
+import OzyBase from '@OzyBase/js-sdk';
 
 // Inicializar cliente
-const client = new FlowKore('https://mi-api.com');
+const client = new OzyBase('https://mi-api.com');
 
 // Autenticación
 await client.auth.login('user@email.com', 'password123');
@@ -814,7 +814,7 @@ func (g *TypeGenerator) writeTypesFile(path string, collections []Collection) er
 }
 ```
 
-#### 3.3 Mapeo de Tipos FlowKore → TypeScript
+#### 3.3 Mapeo de Tipos OzyBase → TypeScript
 ```go
 // internal/typegen/types.go
 package typegen
@@ -833,8 +833,8 @@ var typeMapping = map[string]string{
     "url":      "string",
 }
 
-func MapType(flowkoreType string) string {
-    if ts, ok := typeMapping[flowkoreType]; ok {
+func MapType(OzyBaseType string) string {
+    if ts, ok := typeMapping[OzyBaseType]; ok {
         return ts
     }
     return "any"
@@ -847,11 +847,11 @@ func MapType(flowkoreType string) string {
 package typegen
 
 const typesTemplate = `/**
- * Auto-generated by FlowKore CLI
+ * Auto-generated by OzyBase CLI
  * Generated at: {{.GeneratedAt}}
  * 
  * DO NOT EDIT MANUALLY
- * Run 'flowkore gen-types' to regenerate
+ * Run 'OzyBase gen-types' to regenerate
  */
 
 /** Base record type with common fields */
@@ -870,20 +870,20 @@ export interface {{.Name | ToPascalCase}} extends BaseRecord {
 {{end}}
 
 /** Database schema with all collections */
-export interface FlowKoreSchema {
+export interface OzyBaseSchema {
 {{range .Collections}}  {{.Name}}: {{.Name | ToPascalCase}};
 {{end}}}
 
 /** Type-safe collection names */
-export type CollectionName = keyof FlowKoreSchema;
+export type CollectionName = keyof OzyBaseSchema;
 
-export default FlowKoreSchema;
+export default OzyBaseSchema;
 `
 ```
 
 #### 3.5 Comando CLI
 ```go
-// cmd/flowkore/main.go (agregar subcomando)
+// cmd/OzyBase/main.go (agregar subcomando)
 package main
 
 import (
@@ -891,13 +891,13 @@ import (
     "fmt"
     "os"
     
-    "flowkore/internal/typegen"
+    "OzyBase/internal/typegen"
 )
 
 func main() {
     if len(os.Args) > 1 && os.Args[1] == "gen-types" {
         genTypesCmd := flag.NewFlagSet("gen-types", flag.ExitOnError)
-        output := genTypesCmd.String("out", "./src/types/flowkore.d.ts", "Output path for types")
+        output := genTypesCmd.String("out", "./src/types/OzyBase.d.ts", "Output path for types")
         
         genTypesCmd.Parse(os.Args[2:])
         
@@ -925,18 +925,18 @@ func runGenTypes(outputPath string) error {
 #### 3.6 Uso del Generador
 ```bash
 # Generar tipos en ubicación por defecto
-./flowkore gen-types
+./OzyBase gen-types
 
 # Generar en ubicación personalizada
-./flowkore gen-types --out ./frontend/src/types/db.d.ts
+./OzyBase gen-types --out ./frontend/src/types/db.d.ts
 ```
 
 #### 3.7 Ejemplo de Salida Generada
 ```typescript
-// ./src/types/flowkore.d.ts (archivo generado)
+// ./src/types/OzyBase.d.ts (archivo generado)
 
 /**
- * Auto-generated by FlowKore CLI
+ * Auto-generated by OzyBase CLI
  * Generated at: 2026-01-25T10:00:00Z
  * 
  * DO NOT EDIT MANUALLY
@@ -961,22 +961,22 @@ export interface Categorias extends BaseRecord {
   icono: string | null;
 }
 
-export interface FlowKoreSchema {
+export interface OzyBaseSchema {
   productos: Productos;
   categorias: Categorias;
 }
 
-export type CollectionName = keyof FlowKoreSchema;
+export type CollectionName = keyof OzyBaseSchema;
 
-export default FlowKoreSchema;
+export default OzyBaseSchema;
 ```
 
 #### 3.8 Integración con SDK (Uso Tipado)
 ```typescript
-import FlowKore from '@flowkore/js-sdk';
-import type { Productos, Categorias } from './types/flowkore';
+import OzyBase from '@OzyBase/js-sdk';
+import type { Productos, Categorias } from './types/OzyBase';
 
-const client = new FlowKore('https://mi-api.com');
+const client = new OzyBase('https://mi-api.com');
 
 // ✅ Autocompletado completo
 const productos = await client.collection<Productos>('productos').getList();
@@ -1001,44 +1001,44 @@ productos.items.forEach(p => {
 > **Dependencias:** Fase 1 completada
 
 ### Objetivos
-Preparar FlowKore para despliegue en servidores Linux con alto rendimiento y seguridad.
+Preparar OzyBase para despliegue en servidores Linux con alto rendimiento y seguridad.
 
 ### Tareas
 
 #### 4.1 Creación de Usuario Dedicado
 ```bash
 # Paso 1: Crear usuario sin shell (seguridad)
-sudo useradd --system --no-create-home --shell /usr/sbin/nologin flowkore
+sudo useradd --system --no-create-home --shell /usr/sbin/nologin OzyBase
 
 # Paso 2: Crear directorio de trabajo
-sudo mkdir -p /opt/flowkore
-sudo chown flowkore:flowkore /opt/flowkore
+sudo mkdir -p /opt/OzyBase
+sudo chown OzyBase:OzyBase /opt/OzyBase
 ```
 
 #### 4.2 Servicio Systemd
 ```ini
-# /etc/systemd/system/flowkore.service
+# /etc/systemd/system/OzyBase.service
 [Unit]
-Description=FlowKore BaaS - Backend as a Service
-Documentation=https://github.com/Xangel0s/flowkore
+Description=OzyBase BaaS - Backend as a Service
+Documentation=https://github.com/Xangel0s/OzyBase
 After=network.target postgresql.service
 Wants=postgresql.service
 
 [Service]
 Type=simple
-User=flowkore
-Group=flowkore
+User=OzyBase
+Group=OzyBase
 
 # Binario y directorio
-ExecStart=/opt/flowkore/flowkore
-WorkingDirectory=/opt/flowkore
+ExecStart=/opt/OzyBase/OzyBase
+WorkingDirectory=/opt/OzyBase
 
 # Reinicio automático
 Restart=always
 RestartSec=5
 
 # Variables de entorno
-EnvironmentFile=/opt/flowkore/.env
+EnvironmentFile=/opt/OzyBase/.env
 
 # Límites de recursos
 LimitNOFILE=65536
@@ -1048,7 +1048,7 @@ LimitNPROC=65536
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/flowkore/data
+ReadWritePaths=/opt/OzyBase/data
 
 # Timeouts
 TimeoutStartSec=30
@@ -1064,24 +1064,24 @@ WantedBy=multi-user.target
 sudo systemctl daemon-reload
 
 # Habilitar inicio automático
-sudo systemctl enable flowkore
+sudo systemctl enable OzyBase
 
 # Iniciar/Parar/Reiniciar
-sudo systemctl start flowkore
-sudo systemctl stop flowkore
-sudo systemctl restart flowkore
+sudo systemctl start OzyBase
+sudo systemctl stop OzyBase
+sudo systemctl restart OzyBase
 
 # Ver logs
-sudo journalctl -u flowkore -f
+sudo journalctl -u OzyBase -f
 
 # Ver estado
-sudo systemctl status flowkore
+sudo systemctl status OzyBase
 ```
 
 #### 4.4 Configuración de Nginx (Reverse Proxy)
 ```nginx
-# /etc/nginx/sites-available/flowkore
-upstream flowkore_backend {
+# /etc/nginx/sites-available/OzyBase
+upstream OzyBase_backend {
     server 127.0.0.1:8090;
     keepalive 32;
 }
@@ -1124,7 +1124,7 @@ server {
     
     # Proxy principal
     location / {
-        proxy_pass http://flowkore_backend;
+        proxy_pass http://OzyBase_backend;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -1139,7 +1139,7 @@ server {
     
     # Endpoint de realtime (SSE)
     location /api/realtime {
-        proxy_pass http://flowkore_backend;
+        proxy_pass http://OzyBase_backend;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_buffering off;
@@ -1152,7 +1152,7 @@ server {
 #### 4.5 Habilitar Configuración de Nginx
 ```bash
 # Crear enlace simbólico
-sudo ln -s /etc/nginx/sites-available/flowkore /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/OzyBase /etc/nginx/sites-enabled/
 
 # Verificar configuración
 sudo nginx -t
@@ -1175,7 +1175,7 @@ sudo certbot renew --dry-run
 
 #### 4.7 Optimización del Kernel (Sysctl)
 ```bash
-# /etc/sysctl.d/99-flowkore.conf
+# /etc/sysctl.d/99-OzyBase.conf
 
 # Aumentar conexiones máximas
 net.core.somaxconn = 4096
@@ -1199,7 +1199,7 @@ net.ipv4.tcp_keepalive_probes = 3
 
 #### 4.8 Aplicar Configuración del Kernel
 ```bash
-sudo sysctl -p /etc/sysctl.d/99-flowkore.conf
+sudo sysctl -p /etc/sysctl.d/99-OzyBase.conf
 ```
 
 #### 4.9 Script de Despliegue Automatizado
@@ -1209,26 +1209,26 @@ sudo sysctl -p /etc/sysctl.d/99-flowkore.conf
 
 set -e
 
-echo "🚀 FlowKore Installation Script"
+echo "🚀 OzyBase Installation Script"
 echo "================================"
 
 # Variables
-FLOWKORE_VERSION=${1:-"latest"}
-INSTALL_DIR="/opt/flowkore"
+OzyBase_VERSION=${1:-"latest"}
+INSTALL_DIR="/opt/OzyBase"
 
 # Crear usuario
-echo "📦 Creating flowkore user..."
-sudo useradd --system --no-create-home --shell /usr/sbin/nologin flowkore 2>/dev/null || true
+echo "📦 Creating OzyBase user..."
+sudo useradd --system --no-create-home --shell /usr/sbin/nologin OzyBase 2>/dev/null || true
 
 # Crear directorio
 echo "📁 Setting up directories..."
 sudo mkdir -p $INSTALL_DIR/data
-sudo chown -R flowkore:flowkore $INSTALL_DIR
+sudo chown -R OzyBase:OzyBase $INSTALL_DIR
 
 # Descargar binario (ajustar URL)
-echo "⬇️ Downloading FlowKore..."
-# sudo wget -O $INSTALL_DIR/flowkore https://releases.flowkore.dev/$FLOWKORE_VERSION/flowkore-linux-amd64
-# sudo chmod +x $INSTALL_DIR/flowkore
+echo "⬇️ Downloading OzyBase..."
+# sudo wget -O $INSTALL_DIR/OzyBase https://releases.OzyBase.dev/$OzyBase_VERSION/OzyBase-linux-amd64
+# sudo chmod +x $INSTALL_DIR/OzyBase
 
 # Copiar archivo .env de ejemplo
 echo "⚙️ Setting up environment..."
@@ -1239,16 +1239,16 @@ fi
 
 # Instalar servicio systemd
 echo "🔧 Installing systemd service..."
-sudo cp deploy/systemd/flowkore.service /etc/systemd/system/
+sudo cp deploy/systemd/OzyBase.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable flowkore
+sudo systemctl enable OzyBase
 
 echo "✅ Installation complete!"
 echo ""
 echo "Next steps:"
 echo "  1. Edit $INSTALL_DIR/.env"
-echo "  2. Run: sudo systemctl start flowkore"
-echo "  3. Check status: sudo systemctl status flowkore"
+echo "  2. Run: sudo systemctl start OzyBase"
+echo "  3. Check status: sudo systemctl status OzyBase"
 ```
 
 ### Entregables
@@ -1340,7 +1340,7 @@ func TestFullUserFlow(t *testing.T) {
 # docs/openapi.yaml
 openapi: 3.0.3
 info:
-  title: FlowKore API
+  title: OzyBase API
   version: 1.0.0
   description: Backend-as-a-Service API
 
@@ -1430,9 +1430,9 @@ Semana 11-13:  ████████████████ Fase 5: Docs/Tes
 
 ### 🏆 Ventaja Competitiva: Comparativa de Recursos
 
-Esta es la **MAYOR VENTAJA** de FlowKore: el enfoque "Single Binary" de Go.
+Esta es la **MAYOR VENTAJA** de OzyBase: el enfoque "Single Binary" de Go.
 
-| Métrica | Supabase (Docker) | FlowKore-Core | Diferencia |
+| Métrica | Supabase (Docker) | OzyBase-Core | Diferencia |
 |---------|-------------------|---------------|------------|
 | **RAM en reposo** | ~1.5 GB | < 30 MB | **50x menos** |
 | **Tamaño del binario** | ~2 GB (imágenes) | < 20 MB | **100x menos** |
@@ -1447,20 +1447,20 @@ Esta es la **MAYOR VENTAJA** de FlowKore: el enfoque "Single Binary" de Go.
 │                                                              │
 │  Supabase:  ████████████████████████████████████████  1.5GB │
 │                                                              │
-│  FlowKore:  █  30MB                                          │
+│  OzyBase:  █  30MB                                          │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 > **💡 Mensaje para el README:**  
-> *"FlowKore corre en un VPS de $5 mientras que Supabase necesita uno de $40.  
+> *"OzyBase corre en un VPS de $5 mientras que Supabase necesita uno de $40.  
 > Mismas funcionalidades, 1/8 del costo."*
 
 ---
 
 ## 🔗 Referencias
 
-- **Repositorio**: FlowKore-Core
+- **Repositorio**: OzyBase-Core
 - **Documentos Relacionados**:
   - [FUTURE_INTEGRATIONS.md](./FUTURE_INTEGRATIONS.md)
   - [SECURITY_HARDENING.md](./SECURITY_HARDENING.md)
@@ -1468,5 +1468,6 @@ Esta es la **MAYOR VENTAJA** de FlowKore: el enfoque "Single Binary" de Go.
 
 ---
 
-*Documento creado por FlowKore Team - Enero 2026*  
-**FlowKore: Potencia en un solo binario.** 🛡️🚀
+*Documento creado por OzyBase Team - Enero 2026*  
+**OzyBase: Potencia en un solo binario.** 🛡️🚀
+

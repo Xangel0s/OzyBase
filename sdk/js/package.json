@@ -1,7 +1,7 @@
 {
-  "name": "@flowkore/sdk",
+  "name": "@OzyBase/sdk",
   "version": "0.1.0",
-  "description": "The official JavaScript/TypeScript SDK for FlowKore BaaS - Supabase-style API",
+  "description": "The official JavaScript/TypeScript SDK for OzyBase BaaS - Supabase-style API",
   "author": "Xangel0s",
   "license": "MIT",
   "type": "module",
@@ -34,7 +34,7 @@
     "prepublishOnly": "npm run build"
   },
   "keywords": [
-    "flowkore",
+    "OzyBase",
     "baas",
     "backend-as-a-service",
     "supabase-alternative",
@@ -46,7 +46,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Xangel0s/FlowKore"
+    "url": "https://github.com/Xangel0s/OzyBase"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
@@ -58,3 +58,4 @@
     "node": ">=18.0.0"
   }
 }
+
