@@ -64,10 +64,12 @@ func (h *Handler) ListRecords(c echo.Context) error {
 		})
 	}
 
+	orderBy := c.QueryParam("order")
+
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 10*time.Second)
 	defer cancel()
 
-	records, err := h.DB.ListRecords(ctx, collectionName)
+	records, err := h.DB.ListRecords(ctx, collectionName, orderBy)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": err.Error(),
@@ -104,4 +106,3 @@ func (h *Handler) GetRecord(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, record)
 }
-

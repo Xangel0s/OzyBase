@@ -1,35 +1,32 @@
 # Binaries
 *.exe
-*.exe~
 *.dll
 *.so
 *.dylib
 bin/
 dist/
+build/
+OzyBase
+OzyBase.exe
+flowkore.exe
 
-# Configuration
-.env
-.env.local
-
-# Data & Storage
-data/storage/*
-!data/storage/.gitkeep
-pb_data/
-
-# Go
-vendor/
-
-# Node.js
+# Dependencies
 node_modules/
+
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
+*.log
 
-# Generated Files
-OzyBase-types.ts
-
-# OS
+# Environment
+.env
+.env.local
 .DS_Store
-Thumbs.db
 
+# IDEs
+.vscode/
+.idea/
+
+# Temp
+tmp/

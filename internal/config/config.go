@@ -1,37 +1,79 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
 )
 
-// Config holds all configuration for the application
 type Config struct {
 	DatabaseURL string
 	Port        string
 	JWTSecret   string
 }
 
-// Load reads configuration from environment variables and .env file
 func Load() (*Config, error) {
-	// Load .env file if it exists (ignore error if not found)
 	_ = godotenv.Load()
 
+	// Validate required PostgreSQL variables
+	required := []string{"DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME"}
+	allSet := true
+	for _, env := range required {
+		if os.Getenv(env) == "" {
+			allSet = false
+			break
+		}
+	}
+
+	var dbURL string
+	if allSet {
+		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+			os.Getenv("DB_USER"),
+			os.Getenv("DB_PASSWORD"),
+			os.Getenv("DB_HOST"),
+			os.Getenv("DB_PORT"),
+			os.Getenv("DB_NAME"),
+			getEnv("DB_SSLMODE", "disable"),
+		)
+	} else {
+		dbURL = getEnv("DATABASE_URL", "postgres://localhost:5432/OzyBase?sslmode=disable")
+	}
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = getOrGenerateSecret()
+	}
+
 	cfg := &Config{
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://localhost:5432/OzyBase?sslmode=disable"),
+		DatabaseURL: dbURL,
 		Port:        getEnv("PORT", "8090"),
-		JWTSecret:   getEnv("JWT_SECRET", "super-secret-key-change-it"),
+		JWTSecret:   jwtSecret,
 	}
 
 	return cfg, nil
 }
 
-// getEnv reads an environment variable or returns a default value
+func getOrGenerateSecret() string {
+	const secretFile = ".ozy_secret"
+	if data, err := os.ReadFile(secretFile); err == nil {
+		return string(data)
+	}
+
+	b := make([]byte, 64)
+	if _, err := rand.Read(b); err != nil {
+		return "emergency-static-secret-should-never-happen"
+	}
+	secret := hex.EncodeToString(b)
+	_ = os.WriteFile(secretFile, []byte(secret), 0600)
+	return secret
+}
+
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return defaultValue
 }
-

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Xangel0s/OzyBase/internal/api"
+	ozyauth "github.com/Xangel0s/OzyBase/internal/auth"
 	"github.com/Xangel0s/OzyBase/internal/config"
 	"github.com/Xangel0s/OzyBase/internal/core"
 	"github.com/Xangel0s/OzyBase/internal/data"
@@ -21,17 +22,26 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Printf("❌ Failed to start OzyBase: %v", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	// Connect to database
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	db, err := data.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer db.Close()
 
@@ -39,10 +49,45 @@ func main() {
 
 	// Run migrations
 	if err := db.RunMigrations(ctx); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	// Check for CLI commands (Phase 3: TypeGen)
+	// Auto-setup admin user
+	ozyauth.EnsureAdminUser(db)
+
+	// CLI Commands handling
+	if handleCLI(db) {
+		return nil
+	}
+
+	// Initialize Server Components
+	e := setupEcho(db, cfg)
+
+	// Start server
+	addr := fmt.Sprintf(":%s", cfg.Port)
+	go func() {
+		log.Printf("🚀 OzyBase server starting on http://localhost%s", addr)
+		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	// Wait for interruption
+	<-ctx.Done()
+	log.Println("🛑 Shutting down server...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := e.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("failed to shutdown server: %w", err)
+	}
+
+	log.Println("👋 Server exited")
+	return nil
+}
+
+func handleCLI(db *data.DB) bool {
 	if len(os.Args) > 1 && os.Args[1] == "gen-types" {
 		outputPath := "./OzyBase-types.ts"
 		for i, arg := range os.Args {
@@ -56,14 +101,12 @@ func main() {
 			log.Fatalf("Failed to generate types: %v", err)
 		}
 		log.Printf("✅ Types generated successfully to %s", outputPath)
-		return
+		return true
 	}
+	return false
+}
 
-	// Initialize Realtime components
-	broker := realtime.NewBroker()
-	go data.ListenDB(ctx, cfg.DatabaseURL, broker)
-
-	// Initialize Echo
+func setupEcho(db *data.DB, cfg *config.Config) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 
@@ -71,79 +114,103 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
-
-	// Security Hardening - Phase 1
-	// Rate Limiting: 20 requests per second per IP
 	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
-
-	// Security Headers (CSP, X-Frame-Options, HSTS, etc.)
 	e.Use(api.SecurityHeadersDefault())
-
-	// Request size limit: 10MB max
 	e.Use(middleware.BodyLimit("10M"))
 
-	// Initialize handlers
+	// Services and Handlers
+	broker := realtime.NewBroker()
+	go data.ListenDB(context.Background(), cfg.DatabaseURL, broker)
+
 	h := api.NewHandler(db)
 	authService := core.NewAuthService(db, cfg.JWTSecret)
 	authHandler := api.NewAuthHandler(authService)
 	realtimeHandler := api.NewRealtimeHandler(broker)
 	fileHandler := api.NewFileHandler("./data/storage")
 
-	// Middlewares
+	// API Groups and Middlewares
 	authRequired := api.AuthMiddleware(cfg.JWTSecret, false)
 	authOptional := api.AuthMiddleware(cfg.JWTSecret, true)
 	accessList := api.AccessMiddleware(db, "list")
 	accessCreate := api.AccessMiddleware(db, "create")
 
-	// Routes
 	apiGroup := e.Group("/api")
-	apiGroup.GET("/health", h.Health)
-	apiGroup.GET("/realtime", realtimeHandler.Stream)
+	{
+		apiGroup.GET("/health", h.Health)
+		apiGroup.GET("/realtime", realtimeHandler.Stream)
 
-	// Auth Routes (Public)
-	authGroup := apiGroup.Group("/auth")
-	authGroup.POST("/signup", authHandler.Signup)
-	authGroup.POST("/login", authHandler.Login)
+		// Auth
+		authGroup := apiGroup.Group("/auth")
+		authGroup.POST("/login", authHandler.Login)
+		// Signup is now protected, only an authenticated user (admin) can create others
+		authGroup.POST("/signup", authHandler.Signup, authRequired)
 
-	// Files API
-	apiGroup.POST("/files", fileHandler.Upload, authRequired)
-	e.Static("/api/files", "./data/storage")
+		// Files
+		apiGroup.POST("/files", fileHandler.Upload, authRequired)
+		e.Static("/api/files", "./data/storage")
 
-	// Collections API (Protected - only for system admins ideally, but let's keep authRequired for now)
-	collectionsGroup := apiGroup.Group("/collections", authRequired)
-	collectionsGroup.POST("", h.CreateCollection)
-	collectionsGroup.GET("", h.ListCollections)
+		// Collections
+		collectionsGroup := apiGroup.Group("/collections", authRequired)
+		collectionsGroup.POST("", h.CreateCollection)
+		collectionsGroup.GET("", h.ListCollections)
 
-	// Records API (ACL Protected)
-	// We use authOptional so that the middleware can identify the user if a token is present,
-	// but doesn't block the request yet. AccessMiddleware will decide based on the rule.
-	apiGroup.POST("/collections/:name/records", h.CreateRecord, authOptional, accessCreate)
-	apiGroup.GET("/collections/:name/records", h.ListRecords, authOptional, accessList)
-	apiGroup.GET("/collections/:name/records/:id", h.GetRecord, authOptional, accessList)
+		apiGroup.GET("/schema/:name", h.GetTableSchema, authRequired)
 
-	// Start server in goroutine
-	go func() {
-		addr := fmt.Sprintf(":%s", cfg.Port)
-		log.Printf("🚀 OzyBase server starting on http://localhost%s", addr)
-		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
-		}
-	}()
+		// Records
+		apiGroup.POST("/collections/:name/records", h.CreateRecord, authOptional, accessCreate)
+		apiGroup.GET("/collections/:name/records", h.ListRecords, authOptional, accessList)
+		apiGroup.GET("/collections/:name/records/:id", h.GetRecord, authOptional, accessList)
 
-	// Graceful shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	log.Println("🛑 Shutting down server...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := e.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		// Tables (Generic/Dashboard endpoints) - Now PROTECTED
+		apiGroup.GET("/tables/:name", h.ListRecords, authRequired)
+		apiGroup.POST("/tables/:name/rows", h.CreateRecord, authRequired)
 	}
 
-	log.Println("👋 Server exited")
+	// Create users table for demo if missing
+	ensureUsersTable(db)
+
+	// Static Frontend (SPA)
+	api.RegisterStaticRoutes(e)
+
+	return e
 }
 
+func ensureUsersTable(db *data.DB) {
+	ctx := context.Background()
+	// Check if 'users' table exists in _v_collections
+	var exists bool
+	err := db.Pool.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM _v_collections WHERE name = 'users')").Scan(&exists)
+	if err != nil || exists {
+		return
+	}
+
+	log.Println("🛠️ Creating 'users' collection for the first time...")
+
+	// Simple mock schema registration
+	// We'll just create the table directly for this demo if it's missing from Postgres too
+	_, _ = db.Pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS users (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			email TEXT,
+			username TEXT,
+			is_verified BOOLEAN DEFAULT FALSE,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		)
+	`)
+
+	// Register in metadata
+	_, _ = db.Pool.Exec(ctx, `
+		INSERT INTO _v_collections (name, schema_def, list_rule, create_rule)
+		VALUES ('users', '[]', 'public', 'public')
+		ON CONFLICT DO NOTHING
+	`)
+
+	// Insert some mock data
+	_, _ = db.Pool.Exec(ctx, `
+		INSERT INTO users (email, username, is_verified) VALUES
+		('alex.smith@example.com', 'asmith', true),
+		('jordan.doe@company.org', 'jdoe', false)
+		ON CONFLICT DO NOTHING
+	`)
+}

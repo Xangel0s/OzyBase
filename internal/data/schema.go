@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"fmt"
 	"strings"
 )
@@ -116,3 +117,69 @@ func formatDefault(value interface{}, fieldType string) string {
 	}
 }
 
+// GetTableSchema fetches the schema of a table from information_schema
+func (db *DB) GetTableSchema(ctx context.Context, tableName string) ([]FieldSchema, error) {
+	if !isValidIdentifier(tableName) {
+		return nil, fmt.Errorf("invalid table name: %s", tableName)
+	}
+
+	query := `
+		SELECT column_name, data_type, is_nullable
+		FROM information_schema.columns
+		WHERE table_name = $1
+		  AND table_schema = 'public'
+		ORDER BY ordinal_position
+	`
+
+	rows, err := db.Pool.Query(ctx, query, tableName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query table schema: %w", err)
+	}
+	defer rows.Close()
+
+	var schema []FieldSchema
+	for rows.Next() {
+		var colName, dataType, isNullable string
+
+		if err := rows.Scan(&colName, &dataType, &isNullable); err != nil {
+			return nil, fmt.Errorf("failed to scan column schema: %w", err)
+		}
+
+		// Skip internal columns as they are standard across OzyBase tables
+		if colName == "id" || colName == "created_at" || colName == "updated_at" {
+			continue
+		}
+
+		schema = append(schema, FieldSchema{
+			Name:     colName,
+			Type:     mapPostgresTypeToOzy(dataType),
+			Required: isNullable == "NO",
+		})
+	}
+
+	if len(schema) == 0 {
+		return nil, fmt.Errorf("table not found or has no columns: %s", tableName)
+	}
+
+	return schema, nil
+}
+
+func mapPostgresTypeToOzy(pgType string) string {
+	pgType = strings.ToUpper(pgType)
+	switch {
+	case strings.Contains(pgType, "TEXT") || strings.Contains(pgType, "VARCHAR") || strings.Contains(pgType, "CHARACTER"):
+		return "text"
+	case strings.Contains(pgType, "NUMERIC") || strings.Contains(pgType, "INT") || strings.Contains(pgType, "DOUBLE") || strings.Contains(pgType, "PRECISION"):
+		return "number"
+	case strings.Contains(pgType, "BOOL"):
+		return "boolean"
+	case strings.Contains(pgType, "TIMESTAMP"):
+		return "datetime"
+	case strings.Contains(pgType, "JSON"):
+		return "json"
+	case strings.Contains(pgType, "UUID"):
+		return "uuid"
+	default:
+		return "text"
+	}
+}

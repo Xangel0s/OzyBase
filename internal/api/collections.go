@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -134,34 +133,74 @@ func (h *Handler) ListCollections(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
 	defer cancel()
 
-	rows, err := h.DB.Pool.Query(ctx, `
-		SELECT id, name, schema_def, list_rule, create_rule, created_at, updated_at
-		FROM _v_collections
-		ORDER BY created_at DESC
-	`)
+	// Fetch all tables from information_schema
+	tables, err := h.DB.ListTables(ctx)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to fetch collections",
+			"error": "Failed to fetch tables: " + err.Error(),
 		})
 	}
-	defer rows.Close()
 
-	var collections []Collection
-	for rows.Next() {
-		var col Collection
-		var schemaJSON []byte
-		if err := rows.Scan(&col.ID, &col.Name, &schemaJSON, &col.ListRule, &col.CreateRule, &col.CreatedAt, &col.UpdatedAt); err != nil {
-			log.Printf("Error scanning collection: %v", err)
-			continue
+	// Fetch metadata from _v_collections to match details
+	rows, err := h.DB.Pool.Query(ctx, `
+		SELECT name, schema_def, list_rule, create_rule, created_at, updated_at
+		FROM _v_collections
+	`)
+
+	metaMap := make(map[string]Collection)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var col Collection
+			var schemaJSON []byte
+			if err := rows.Scan(&col.Name, &schemaJSON, &col.ListRule, &col.CreateRule, &col.CreatedAt, &col.UpdatedAt); err == nil {
+				json.Unmarshal(schemaJSON, &col.Schema)
+				metaMap[col.Name] = col
+			}
 		}
-		json.Unmarshal(schemaJSON, &col.Schema)
-		collections = append(collections, col)
 	}
 
-	if collections == nil {
-		collections = []Collection{}
+	// Combine information
+	var result []Collection
+	for _, tableName := range tables {
+		if meta, ok := metaMap[tableName]; ok {
+			result = append(result, meta)
+		} else {
+			// Basic entry for non-OzyBase managed tables
+			result = append(result, Collection{
+				Name:       tableName,
+				ListRule:   "public",
+				CreateRule: "admin",
+				Schema:     []data.FieldSchema{}, // Will be filled by dynamic introspection on select
+			})
+		}
 	}
 
-	return c.JSON(http.StatusOK, collections)
+	if result == nil {
+		result = []Collection{}
+	}
+
+	return c.JSON(http.StatusOK, result)
 }
 
+// GetTableSchema handles GET /api/schema/:name
+func (h *Handler) GetTableSchema(c echo.Context) error {
+	tableName := c.Param("name")
+	if tableName == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Table name is required",
+		})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
+	defer cancel()
+
+	schema, err := h.DB.GetTableSchema(ctx, tableName)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, schema)
+}
