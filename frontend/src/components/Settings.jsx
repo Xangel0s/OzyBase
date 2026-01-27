@@ -22,13 +22,26 @@ import {
 const Settings = () => {
     const [activeTab, setActiveTab] = useState('general');
     const [projectName, setProjectName] = useState('vlaberapp');
+    const [showPassword, setShowPassword] = useState(false);
     const projectId = 'elicsuhhgyfukbdfaiun';
+
+    // Connection info - these would come from environment/config in production
+    const connectionInfo = {
+        host: 'localhost',
+        port: '5432',
+        database: 'ozybase',
+        user: 'postgres',
+        password: 'yourpassword',
+        uri: 'postgresql://postgres:[YOUR-PASSWORD]@localhost:5432/ozybase',
+        poolerUri: 'postgresql://postgres.[PROJECT_REF]:[YOUR-PASSWORD]@pooler.ozybase.io:6543/ozybase'
+    };
 
     const menuSections = [
         {
             title: 'PROJECT SETTINGS',
             items: [
                 { id: 'general', name: 'General', icon: SettingsIcon },
+                { id: 'database', name: 'Database', icon: Database },
                 { id: 'compute', name: 'Compute and Disk', icon: Database },
                 { id: 'infrastructure', name: 'Infrastructure', icon: Shield },
                 { id: 'integrations', name: 'Integrations', icon: Zap },
@@ -176,6 +189,131 @@ const Settings = () => {
         </div>
     );
 
+    const renderDatabase = () => (
+        <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div>
+                <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">Database Settings</h2>
+                <p className="text-zinc-500 text-sm font-medium">Connection strings and environment variables for your app.</p>
+            </div>
+
+            {/* Connection String Card */}
+            <div className="bg-[#171717]/50 border border-[#2e2e2e] rounded-3xl overflow-hidden shadow-2xl">
+                <div className="p-8 space-y-8">
+                    <h3 className="text-sm font-black text-white uppercase tracking-widest border-l-4 border-primary pl-4">Connection String</h3>
+
+                    {/* Tabs */}
+                    <div className="flex gap-2 border-b border-[#2e2e2e] pb-4">
+                        {['URI', 'Parameters', 'JDBC', 'Pooler'].map((tab, i) => (
+                            <button key={tab} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${i === 0 ? 'bg-primary text-black' : 'bg-[#1a1a1a] text-zinc-500 hover:text-white border border-[#2e2e2e]'}`}>
+                                {tab}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Direct Connection */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-black text-zinc-200 uppercase tracking-widest">Direct connection</p>
+                                <p className="text-[10px] text-zinc-600 font-bold tracking-widest mt-1">Ideal for applications with persistent and long-lived connections.</p>
+                            </div>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-green-500 bg-green-500/10 px-2 py-1 rounded border border-green-500/20">Active</span>
+                        </div>
+
+                        <div className="bg-[#0c0c0c] p-4 rounded-xl border border-[#2e2e2e] font-mono text-xs text-zinc-400 flex items-center justify-between">
+                            <span className="break-all">{connectionInfo.uri}</span>
+                            <button className="ml-4 p-2 bg-[#1a1a1a] rounded-lg border border-[#2e2e2e] hover:border-zinc-500 transition-all text-zinc-400 hover:text-white">
+                                <Copy size={14} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Connection Parameters Table */}
+                    <div className="space-y-4">
+                        <p className="text-xs font-black text-zinc-200 uppercase tracking-widest">View parameters</p>
+                        <div className="bg-[#0c0c0c] rounded-xl border border-[#2e2e2e] overflow-hidden">
+                            <table className="w-full">
+                                <tbody className="divide-y divide-[#2e2e2e]/50">
+                                    <tr className="hover:bg-zinc-900/30">
+                                        <td className="px-4 py-3 text-xs font-bold text-zinc-500 uppercase tracking-widest w-32">Host</td>
+                                        <td className="px-4 py-3 text-xs text-zinc-300 font-mono">{connectionInfo.host}</td>
+                                        <td className="px-4 py-3 text-right">
+                                            <button className="p-1 text-zinc-600 hover:text-white"><Copy size={12} /></button>
+                                        </td>
+                                    </tr>
+                                    <tr className="hover:bg-zinc-900/30">
+                                        <td className="px-4 py-3 text-xs font-bold text-zinc-500 uppercase tracking-widest">Port</td>
+                                        <td className="px-4 py-3 text-xs text-zinc-300 font-mono">{connectionInfo.port}</td>
+                                        <td className="px-4 py-3 text-right">
+                                            <button className="p-1 text-zinc-600 hover:text-white"><Copy size={12} /></button>
+                                        </td>
+                                    </tr>
+                                    <tr className="hover:bg-zinc-900/30">
+                                        <td className="px-4 py-3 text-xs font-bold text-zinc-500 uppercase tracking-widest">Database</td>
+                                        <td className="px-4 py-3 text-xs text-zinc-300 font-mono">{connectionInfo.database}</td>
+                                        <td className="px-4 py-3 text-right">
+                                            <button className="p-1 text-zinc-600 hover:text-white"><Copy size={12} /></button>
+                                        </td>
+                                    </tr>
+                                    <tr className="hover:bg-zinc-900/30">
+                                        <td className="px-4 py-3 text-xs font-bold text-zinc-500 uppercase tracking-widest">User</td>
+                                        <td className="px-4 py-3 text-xs text-zinc-300 font-mono">{connectionInfo.user}</td>
+                                        <td className="px-4 py-3 text-right">
+                                            <button className="p-1 text-zinc-600 hover:text-white"><Copy size={12} /></button>
+                                        </td>
+                                    </tr>
+                                    <tr className="hover:bg-zinc-900/30">
+                                        <td className="px-4 py-3 text-xs font-bold text-zinc-500 uppercase tracking-widest">Password</td>
+                                        <td className="px-4 py-3 text-xs text-zinc-300 font-mono">
+                                            {showPassword ? connectionInfo.password : '••••••••••••'}
+                                        </td>
+                                        <td className="px-4 py-3 text-right flex gap-1 justify-end">
+                                            <button onClick={() => setShowPassword(!showPassword)} className="p-1 text-zinc-600 hover:text-white">
+                                                {showPassword ? <Lock size={12} /> : <Key size={12} />}
+                                            </button>
+                                            <button className="p-1 text-zinc-600 hover:text-white"><Copy size={12} /></button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Session Pooler Card */}
+            <div className="bg-[#171717]/50 border border-[#2e2e2e] rounded-3xl overflow-hidden shadow-2xl">
+                <div className="p-8 space-y-6">
+                    <h3 className="text-sm font-black text-white uppercase tracking-widest border-l-4 border-blue-500 pl-4">Session Pooler</h3>
+                    <p className="text-[11px] text-zinc-600 font-bold tracking-widest -mt-2">For serverless functions and short-lived connections. Connects via port 6543.</p>
+
+                    <div className="bg-[#0c0c0c] p-4 rounded-xl border border-[#2e2e2e] font-mono text-xs text-zinc-400 flex items-center justify-between">
+                        <span className="break-all">{connectionInfo.poolerUri}</span>
+                        <button className="ml-4 p-2 bg-[#1a1a1a] rounded-lg border border-[#2e2e2e] hover:border-zinc-500 transition-all text-zinc-400 hover:text-white">
+                            <Copy size={14} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Reset Password Card */}
+            <div className="bg-[#111111] border border-[#2e2e2e] rounded-3xl p-8 flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                    <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-500">
+                        <Lock size={24} />
+                    </div>
+                    <div>
+                        <p className="text-xs font-black text-white uppercase tracking-widest">Reset your database password</p>
+                        <p className="text-[10px] text-zinc-600 uppercase font-black tracking-widest mt-1">You may reset your database password in your project's Database Settings</p>
+                    </div>
+                </div>
+                <button className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2 text-red-500 hover:bg-red-500/20 transition-all text-[10px] font-black uppercase tracking-widest">
+                    Reset Password
+                </button>
+            </div>
+        </div>
+    );
+
     return (
         <div className="flex h-full bg-[#111111] animate-in fade-in duration-500 overflow-hidden">
             {/* Sidebar Navigation */}
@@ -193,8 +331,8 @@ const Settings = () => {
                                         key={item.id}
                                         onClick={() => !item.external && setActiveTab(item.id)}
                                         className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all group ${activeTab === item.id
-                                                ? 'bg-zinc-900 border border-zinc-800 text-primary font-bold'
-                                                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40 border border-transparent'
+                                            ? 'bg-zinc-900 border border-zinc-800 text-primary font-bold'
+                                            : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40 border border-transparent'
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">
@@ -218,17 +356,18 @@ const Settings = () => {
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#111111]">
                 <div className="max-w-4xl mx-auto py-12 px-12">
-                    {activeTab === 'general' ? renderGeneral() : (
-                        <div className="flex flex-col items-center justify-center h-[60vh] text-center">
-                            <div className="w-20 h-20 bg-zinc-900 border border-zinc-800 rounded-3xl flex items-center justify-center text-zinc-800 mb-6">
-                                <SettingsIcon size={40} className="animate-spin-slow" />
+                    {activeTab === 'general' ? renderGeneral() :
+                        activeTab === 'database' ? renderDatabase() : (
+                            <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+                                <div className="w-20 h-20 bg-zinc-900 border border-zinc-800 rounded-3xl flex items-center justify-center text-zinc-800 mb-6">
+                                    <SettingsIcon size={40} className="animate-spin-slow" />
+                                </div>
+                                <h3 className="text-xl font-black text-zinc-600 italic tracking-tighter uppercase mb-2">Module Under Construction</h3>
+                                <p className="text-xs text-zinc-700 font-bold uppercase tracking-widest max-w-xs leading-relaxed">
+                                    This settings sub-module is being provisioned across our global edge network.
+                                </p>
                             </div>
-                            <h3 className="text-xl font-black text-zinc-600 italic tracking-tighter uppercase mb-2">Module Under Construction</h3>
-                            <p className="text-xs text-zinc-700 font-bold uppercase tracking-widest max-w-xs leading-relaxed">
-                                This settings sub-module is being provisioned across our global edge network.
-                            </p>
-                        </div>
-                    )}
+                        )}
                 </div>
             </div>
 

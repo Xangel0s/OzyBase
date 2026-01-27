@@ -40,3 +40,47 @@ func (db *DB) Health(ctx context.Context) error {
 	return db.Pool.Ping(ctx)
 }
 
+// ListSchemas returns a list of all schema names in the database
+func (db *DB) ListSchemas(ctx context.Context) ([]string, error) {
+	rows, err := db.Pool.Query(ctx, `
+		SELECT schema_name 
+		FROM information_schema.schemata 
+		WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+		ORDER BY schema_name
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var schemas []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err == nil {
+			schemas = append(schemas, s)
+		}
+	}
+	return schemas, nil
+}
+
+// ListTables returns a list of table names in the public schema
+func (db *DB) ListTables(ctx context.Context) ([]string, error) {
+	rows, err := db.Pool.Query(ctx, `
+		SELECT table_name
+		FROM information_schema.tables
+		WHERE table_schema = 'public'
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tables []string
+	for rows.Next() {
+		var t string
+		if err := rows.Scan(&t); err == nil {
+			tables = append(tables, t)
+		}
+	}
+	return tables, nil
+}

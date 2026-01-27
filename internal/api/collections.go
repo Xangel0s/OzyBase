@@ -204,3 +204,33 @@ func (h *Handler) GetTableSchema(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, schema)
 }
+
+// ListSchemas handles GET /api/schemas
+func (h *Handler) ListSchemas(c echo.Context) error {
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
+	defer cancel()
+
+	schemas, err := h.DB.ListSchemas(ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to list schemas: " + err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, schemas)
+}
+
+// GetVisualizeSchema handles GET /api/collections/visualize
+func (h *Handler) GetVisualizeSchema(c echo.Context) error {
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
+	defer cancel()
+
+	schema, err := h.DB.GetDatabaseSchema(ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to fetch database schema: " + err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, schema)
+}

@@ -19,6 +19,7 @@ import (
 	"github.com/Xangel0s/OzyBase/internal/typegen"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -103,6 +104,31 @@ func handleCLI(db *data.DB) bool {
 		log.Printf("✅ Types generated successfully to %s", outputPath)
 		return true
 	}
+
+	if len(os.Args) > 1 && os.Args[1] == "reset-admin" {
+		ctx := context.Background()
+		email := "system@ozybase.local"
+		newPass := "admin123"
+
+		if len(os.Args) > 2 {
+			newPass = os.Args[2]
+		}
+
+		log.Printf("🔐 Resetting password for %s...", email)
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPass), 12)
+		if err != nil {
+			log.Fatalf("Failed to hash password: %v", err)
+		}
+
+		_, err = db.Pool.Exec(ctx, "UPDATE _v_users SET password_hash = $1 WHERE email = $2", string(hashedPassword), email)
+		if err != nil {
+			log.Fatalf("Failed to update password: %v", err)
+		}
+
+		log.Printf("✅ Admin password reset successfully to: %s", newPass)
+		return true
+	}
 	return false
 }
 
@@ -153,6 +179,8 @@ func setupEcho(db *data.DB, cfg *config.Config) *echo.Echo {
 		collectionsGroup := apiGroup.Group("/collections", authRequired)
 		collectionsGroup.POST("", h.CreateCollection)
 		collectionsGroup.GET("", h.ListCollections)
+		collectionsGroup.GET("/schemas", h.ListSchemas) // New Endpoint
+		collectionsGroup.GET("/visualize", h.GetVisualizeSchema)
 
 		apiGroup.GET("/schema/:name", h.GetTableSchema, authRequired)
 
@@ -211,6 +239,25 @@ func ensureUsersTable(db *data.DB) {
 		INSERT INTO users (email, username, is_verified) VALUES
 		('alex.smith@example.com', 'asmith', true),
 		('jordan.doe@company.org', 'jdoe', false)
+		ON CONFLICT DO NOTHING
+	`)
+
+	// Create 'posts' table with Foreign Key to demonstrate visualizer connections
+	_, _ = db.Pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS posts (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+			title TEXT NOT NULL,
+			content TEXT,
+			published BOOLEAN DEFAULT FALSE,
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		)
+	`)
+
+	// Register 'posts' in metadata
+	_, _ = db.Pool.Exec(ctx, `
+		INSERT INTO _v_collections (name, schema_def, list_rule, create_rule)
+		VALUES ('posts', '[]', 'public', 'public')
 		ON CONFLICT DO NOTHING
 	`)
 }

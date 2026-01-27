@@ -113,6 +113,7 @@ const TableEditor = ({ tableName }) => {
                     </button>
                 </div>
 
+
                 <div className="flex items-center gap-3">
                     <div className="relative group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-primary transition-colors" size={14} />

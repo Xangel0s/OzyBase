@@ -103,35 +103,6 @@ func (db *DB) ListRecords(ctx context.Context, collectionName string, orderBy st
 	return rowsToMaps(rows)
 }
 
-// ListTables returns a list of all user-defined tables in the public schema
-func (db *DB) ListTables(ctx context.Context) ([]string, error) {
-	query := `
-		SELECT table_name 
-		FROM information_schema.tables 
-		WHERE table_schema = 'public' 
-		  AND table_type = 'BASE TABLE'
-		  AND table_name NOT LIKE '\_v\_%'
-		ORDER BY table_name
-	`
-
-	rows, err := db.Pool.Query(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list tables: %w", err)
-	}
-	defer rows.Close()
-
-	var tables []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return nil, err
-		}
-		tables = append(tables, name)
-	}
-
-	return tables, nil
-}
-
 // GetRecord fetches a single record by ID
 func (db *DB) GetRecord(ctx context.Context, collectionName, id string) (map[string]interface{}, error) {
 	if !isValidIdentifier(collectionName) {

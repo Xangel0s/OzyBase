@@ -35,9 +35,14 @@ import {
     Globe,
     Cpu,
     History,
-    CreditCard
+    CreditCard,
+    Server,
+    Check
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
+
+import CreateTableModal from './CreateTableModal';
+import ConnectionModal from './ConnectionModal';
 
 const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuViewSelect }) => {
     const [dbStatus, setDbStatus] = useState('Checking...');
@@ -46,6 +51,18 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
     const [isSidebarPinned, setIsSidebarPinned] = useState(false);
     const [isSidebarHovered, setIsSidebarHovered] = useState(false);
     const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+    const [isCreateTableModalOpen, setIsCreateTableModalOpen] = useState(false);
+    const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
+    const [schemas, setSchemas] = useState(['public']);
+    const [selectedSchema, setSelectedSchema] = useState('public');
+    const [isSchemaDropdownOpen, setIsSchemaDropdownOpen] = useState(false);
+
+    const loadTables = () => {
+        fetchWithAuth('/api/collections')
+            .then(res => res.json())
+            .then(data => setTables(data))
+            .catch(err => console.error("Failed to load tables", err));
+    };
 
     useEffect(() => {
         // Status check
@@ -55,10 +72,22 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
             .catch(() => setDbStatus('Disconnected'));
 
         // Load tables
-        fetchWithAuth('/api/collections')
+        loadTables();
+
+        // Load schemas
+        fetchWithAuth('/api/collections/schemas')
             .then(res => res.json())
-            .then(data => setTables(data))
-            .catch(err => console.error("Failed to load tables", err));
+            .then(data => {
+                if (Array.isArray(data)) {
+                    setSchemas(data);
+                } else {
+                    setSchemas(['public']);
+                }
+            })
+            .catch(err => {
+                console.error("Failed to load schemas", err);
+                setSchemas(['public']);
+            });
 
         const storedUser = localStorage.getItem('ozy_user');
         if (storedUser) setUser(JSON.parse(storedUser));
@@ -72,7 +101,8 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
 
     const primaryNav = [
         { id: 'overview', icon: Home, label: 'Home' },
-        { id: 'database', icon: Table2, label: 'Database' },
+        { id: 'tables', icon: Table2, label: 'Table Editor' },
+        { id: 'database', icon: Database, label: 'Database' },
         { id: 'sql', icon: Terminal, label: 'SQL Editor' },
         { type: 'separator' },
         { id: 'auth', icon: Lock, label: 'Authentication' },
@@ -91,16 +121,146 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
 
     // --- Explorer Sidebar Submodules Content ---
     const renderExplorerContent = () => {
-        const currentModule = selectedTable ? 'database' : selectedView;
+        let currentModule = selectedView;
+        if (selectedView === 'table') currentModule = 'tables';
+        if (selectedView === 'visualizer') currentModule = 'database';
+        if (['intro', 'auth_api', 'db_api', 'storage_api', 'realtime_api', 'edge_api', 'sdk'].includes(selectedView)) currentModule = 'docs';
+        if (['wrappers', 'webhooks', 'cron', 'extensions', 'vault', 'graphql'].includes(selectedView)) currentModule = 'integrations';
 
-        if (currentModule === 'database' || selectedView === 'table') {
+
+        if (currentModule === 'sql') {
             return (
                 <div className="space-y-6">
                     <div>
-                        <div className="flex items-center justify-between px-3 mb-4">
-                            <h4 className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em]">All Collections</h4>
-                            <button className="text-zinc-700 hover:text-primary transition-colors"><Plus size={12} /></button>
+                        <div className="mb-4 px-2">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#111111] border border-[#2e2e2e] rounded-md group focus-within:border-zinc-500 transition-colors">
+                                <Search size={12} className="text-zinc-600 group-focus-within:text-white" />
+                                <input
+                                    type="text"
+                                    placeholder="Search queries..."
+                                    className="bg-transparent border-none text-xs text-white placeholder:text-zinc-600 focus:outline-none w-full"
+                                />
+                                <button className="text-zinc-600 hover:text-white"><Plus size={14} /></button>
+                            </div>
                         </div>
+
+                        <div className="space-y-4 px-2">
+                            {/* SHARED */}
+                            <div>
+                                <button className="flex items-center gap-2 px-1 py-1 w-full text-left text-[10px] font-bold text-zinc-500 hover:text-zinc-300 uppercase tracking-widest transition-colors">
+                                    <ChevronDown size={12} className="-rotate-90" /> SHARED
+                                </button>
+                            </div>
+
+                            {/* FAVORITES */}
+                            <div>
+                                <button className="flex items-center gap-2 px-1 py-1 w-full text-left text-[10px] font-bold text-zinc-500 hover:text-zinc-300 uppercase tracking-widest transition-colors">
+                                    <ChevronDown size={12} className="-rotate-90" /> FAVORITES
+                                </button>
+                            </div>
+
+                            {/* PRIVATE */}
+                            <div>
+                                <button className="flex items-center gap-2 px-1 py-1 w-full text-left text-[10px] font-bold text-zinc-500 hover:text-zinc-300 uppercase tracking-widest transition-colors mb-2">
+                                    <ChevronDown size={12} /> PRIVATE (3)
+                                </button>
+                                <div className="pl-2 space-y-0.5">
+                                    {[
+                                        "Normalize scans status...",
+                                        "Migrate scans status...",
+                                        "User Profiles, Scans..."
+                                    ].map((item, i) => (
+                                        <button
+                                            key={i}
+                                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-left truncate transition-colors group ${i === 1 ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:bg-zinc-900 hover:text-zinc-300'}`}
+                                        >
+                                            <div className="min-w-[14px] h-[14px] rounded border border-zinc-700 flex items-center justify-center bg-[#111111] text-[8px] font-black text-zinc-500 group-hover:border-zinc-500">SQL</div>
+                                            <span className="truncate">{item}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* COMMUNITY */}
+                            <div>
+                                <button className="flex items-center gap-2 px-1 py-1 w-full text-left text-[10px] font-bold text-zinc-500 hover:text-zinc-300 uppercase tracking-widest transition-colors mb-1">
+                                    <ChevronDown size={12} className="-rotate-90" /> COMMUNITY
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="px-3 mt-auto">
+                        <button className="w-full py-2 bg-[#1a1a1a] border border-[#2e2e2e] rounded text-[10px] font-bold text-zinc-400 hover:text-white hover:border-zinc-500 transition-all">
+                            View running queries
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        if (currentModule === 'tables') {
+            return (
+                <div className="space-y-6">
+                    <div>
+                        <div className="mb-4 px-2 relative">
+                            {/* Schema Selector */}
+                            <button
+                                onClick={() => setIsSchemaDropdownOpen(!isSchemaDropdownOpen)}
+                                className="w-full flex items-center justify-between px-3 py-2 bg-[#171717] border border-[#2e2e2e] hover:border-zinc-500 text-zinc-300 rounded-lg transition-all text-xs font-bold mb-2 group"
+                            >
+                                <span className="flex items-center gap-2">
+                                    <span className="text-zinc-500 font-normal">schema</span>
+                                    {selectedSchema}
+                                </span>
+                                <ChevronDown size={14} className={`text-zinc-500 transition-transform ${isSchemaDropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {isSchemaDropdownOpen && (
+                                <div className="absolute top-full left-2 right-2 z-50 bg-[#1a1a1a] border border-[#2e2e2e] rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="p-2 border-b border-[#2e2e2e]">
+                                        <div className="flex items-center gap-2 px-2 py-1 bg-[#111111] rounded border border-[#2e2e2e]">
+                                            <Search size={12} className="text-zinc-500" />
+                                            <input
+                                                type="text"
+                                                placeholder="Find schema..."
+                                                className="bg-transparent border-none text-xs text-white placeholder:text-zinc-600 focus:outline-none w-full"
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
+                                        {schemas.map(s => (
+                                            <button
+                                                key={s}
+                                                onClick={() => {
+                                                    setSelectedSchema(s);
+                                                    setIsSchemaDropdownOpen(false);
+                                                }}
+                                                className={`w-full text-left px-3 py-1.5 text-xs rounded-md flex items-center justify-between group ${selectedSchema === s ? 'bg-primary/10 text-primary font-bold' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}`}
+                                            >
+                                                {s}
+                                                {selectedSchema === s && <Check size={12} />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={() => setIsCreateTableModalOpen(true)}
+                                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#171717] border border-[#2e2e2e] hover:border-zinc-500 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-lg transition-all text-xs font-bold uppercase tracking-wide group shadow-sm"
+                            >
+                                <Plus size={14} className="text-zinc-500 group-hover:text-primary transition-colors" />
+                                New table
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between px-3 mb-2">
+                            <h4 className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em]">All Tables</h4>
+                            <button className="text-zinc-700 hover:text-primary transition-colors"><Search size={12} /></button>
+                        </div>
+
                         <div className="space-y-0.5">
                             {tables.map((t) => (
                                 <button
@@ -115,6 +275,31 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                                     <span className="truncate">{t.name}</span>
                                 </button>
                             ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (currentModule === 'database') {
+            return (
+                <div className="space-y-6">
+                    <div>
+                        <div className="flex items-center justify-between px-3 mb-2 pt-0">
+                            <h4 className="text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em]">Database Management</h4>
+                        </div>
+
+                        <div className="space-y-0.5 mb-4">
+                            <button
+                                onClick={() => onTableSelect('__visualizer__')}
+                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all group ${selectedTable === '__visualizer__'
+                                    ? 'bg-zinc-900 text-primary font-bold border border-[#2e2e2e]/50 shadow-xl'
+                                    : 'text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/40 border border-transparent'
+                                    }`}
+                            >
+                                <LayoutGrid size={14} className={selectedTable === '__visualizer__' ? 'text-primary' : 'text-zinc-800 group-hover:text-zinc-500'} />
+                                <span className="truncate">Schema Visualizer</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -151,11 +336,28 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                 { id: 'live', name: 'Live Tail', icon: Activity },
                 { id: 'alerts', name: 'Alerts', icon: Bell }
             ],
+            docs: [
+                { id: 'intro', name: 'Getting Started', icon: Home },
+                { id: 'auth_api', name: 'Authentication', icon: Lock },
+                { id: 'db_api', name: 'Database & SQL', icon: Database },
+                { id: 'storage_api', name: 'Storage', icon: FolderOpen },
+                { id: 'realtime_api', name: 'Realtime', icon: MousePointer2 },
+                { id: 'edge_api', name: 'Edge Functions', icon: Zap },
+                { id: 'sdk', name: 'Client SDKs', icon: Code }
+            ],
             settings: [
                 { id: 'general', name: 'General', icon: Settings },
                 { id: 'infrastructure', name: 'Infrastructure', icon: Server },
                 { id: 'billing', name: 'Billing', icon: CreditCard },
                 { id: 'api_keys', name: 'API Keys', icon: Key }
+            ],
+            integrations: [
+                { id: 'wrappers', name: 'Wrappers', icon: Globe },
+                { id: 'webhooks', name: 'Webhooks', icon: Zap },
+                { id: 'cron', name: 'Cron Jobs', icon: History },
+                { id: 'extensions', name: 'PG Extensions', icon: Cpu },
+                { id: 'vault', name: 'Vault', icon: Shield },
+                { id: 'graphql', name: 'GraphQL', icon: Code }
             ]
         };
 
@@ -167,12 +369,15 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
         return (
             <div className="space-y-6 animate-in fade-in duration-300">
                 <div>
-                    <h4 className="px-3 mb-4 text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em]">{currentModule} Management</h4>
+                    <h4 className="px-3 mb-4 text-[9px] font-black text-zinc-600 uppercase tracking-[0.2em]">
+                        {currentModule === 'docs' ? 'Documentation' : `${currentModule} Management`}
+                    </h4>
                     <div className="space-y-0.5">
                         {activeSubmenu.map((item) => (
                             <button
                                 key={item.id}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/40 transition-all group"
+                                onClick={() => onMenuViewSelect(item.id)}
+                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all group ${selectedView === item.id ? 'bg-zinc-900 text-primary font-bold' : 'text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/40'}`}
                             >
                                 <item.icon size={14} className="text-zinc-800 group-hover:text-zinc-500" />
                                 <span className="truncate font-medium">{item.name}</span>
@@ -209,14 +414,18 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                     {primaryNav.map((item, i) => {
                         if (item.type === 'separator') return <div key={i} className="h-[1px] bg-[#2e2e2e] my-2 mx-2 shrink-0" />;
 
-                        const isActive = (item.id === 'database' && (selectedView === 'database' || selectedView === 'table')) || (selectedView === item.id);
+                        const isActive = (item.id === 'tables' && (selectedView === 'tables' || selectedView === 'table')) ||
+                            (item.id === 'database' && (selectedView === 'database' || selectedView === 'visualizer')) ||
+                            (selectedView === item.id);
 
                         return (
                             <button
                                 key={item.id}
                                 onClick={() => {
-                                    if (item.id === 'database' && tables.length > 0) {
+                                    if (item.id === 'tables' && tables.length > 0) {
                                         onTableSelect(tables[0].name);
+                                    } else if (item.id === 'database') {
+                                        onTableSelect('__visualizer__');
                                     } else {
                                         onMenuViewSelect(item.id);
                                     }
@@ -308,9 +517,12 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 px-3 py-1 bg-[#171717] rounded-full border border-[#2e2e2e]">
+                        <div
+                            onClick={() => setIsConnectionModalOpen(true)}
+                            className="flex items-center gap-2 px-3 py-1 bg-[#171717] rounded-full border border-[#2e2e2e] cursor-pointer hover:border-zinc-500 transition-all group"
+                        >
                             <div className={`w-1.5 h-1.5 rounded-full ${dbStatus === 'Connected' ? 'bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.4)]' : 'bg-red-500'}`} />
-                            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em]">{dbStatus}</span>
+                            <span className="text-[9px] font-black text-zinc-500 group-hover:text-zinc-300 uppercase tracking-[0.2em] transition-colors">{dbStatus}</span>
                         </div>
 
                         <div className="h-4 w-[1px] bg-[#2e2e2e] mx-1" />
@@ -350,6 +562,20 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                     scrollbar-width: none;
                 }
             `}} />
+
+            <CreateTableModal
+                isOpen={isCreateTableModalOpen}
+                onClose={() => setIsCreateTableModalOpen(false)}
+                schema={selectedSchema}
+                onTableCreated={() => {
+                    loadTables();
+                }}
+            />
+
+            <ConnectionModal
+                isOpen={isConnectionModalOpen}
+                onClose={() => setIsConnectionModalOpen(false)}
+            />
         </div>
     );
 };

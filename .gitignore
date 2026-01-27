@@ -6,7 +6,7 @@
 bin/
 dist/
 build/
-OzyBase
+/OzyBase
 OzyBase.exe
 flowkore.exe
 

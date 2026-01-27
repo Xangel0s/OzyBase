@@ -16,12 +16,15 @@ type FieldSchema struct {
 
 // TypeMapping maps OzyBase types to PostgreSQL types
 var TypeMapping = map[string]string{
-	"text":     "TEXT",
-	"number":   "NUMERIC",
-	"boolean":  "BOOLEAN",
-	"datetime": "TIMESTAMPTZ",
-	"json":     "JSONB",
-	"uuid":     "UUID",
+	"text":        "TEXT",
+	"number":      "NUMERIC",
+	"boolean":     "BOOLEAN",
+	"datetime":    "TIMESTAMPTZ",
+	"timestamptz": "TIMESTAMPTZ",
+	"timestamp":   "TIMESTAMP",
+	"json":        "JSONB",
+	"uuid":        "UUID",
+	"int8":        "BIGINT",
 }
 
 // BuildCreateTableSQL generates a CREATE TABLE statement from a schema definition
@@ -182,4 +185,105 @@ func mapPostgresTypeToOzy(pgType string) string {
 	default:
 		return "text"
 	}
+}
+
+// DatabaseSchema represents the full schema of the database
+type DatabaseSchema struct {
+	Tables        []TableDefinition   `json:"tables"`
+	Relationships []TableRelationship `json:"relationships"`
+}
+
+type TableDefinition struct {
+	Name    string        `json:"name"`
+	Columns []FieldSchema `json:"columns"`
+}
+
+type TableRelationship struct {
+	FromTable string `json:"from_table"`
+	FromCol   string `json:"from_col"`
+	ToTable   string `json:"to_table"`
+	ToCol     string `json:"to_col"`
+}
+
+// GetDatabaseSchema fetches the full schema for visualization
+func (db *DB) GetDatabaseSchema(ctx context.Context) (*DatabaseSchema, error) {
+	// 1. Get all tables
+	tables, err := db.ListTables(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var schema DatabaseSchema
+
+	// 2. Get columns for each table
+	for _, tableName := range tables {
+		// reuse GetTableSchema logic but include system cols for visualization
+		query := `
+			SELECT column_name, data_type, is_nullable
+			FROM information_schema.columns
+			WHERE table_name = $1
+			  AND table_schema = 'public'
+			ORDER BY ordinal_position
+		`
+		rows, err := db.Pool.Query(ctx, query, tableName)
+		if err != nil {
+			continue // skip table on error
+		}
+
+		var cols []FieldSchema
+		for rows.Next() {
+			var colName, dataType, isNullable string
+			if err := rows.Scan(&colName, &dataType, &isNullable); err == nil {
+				cols = append(cols, FieldSchema{
+					Name:     colName,
+					Type:     mapPostgresTypeToOzy(dataType), // simplified type
+					Required: isNullable == "NO",
+				})
+			}
+		}
+		rows.Close()
+
+		schema.Tables = append(schema.Tables, TableDefinition{
+			Name:    tableName,
+			Columns: cols,
+		})
+	}
+
+	// 3. Get relationships (Foreign Keys)
+	relQuery := `
+		SELECT
+			tc.table_name, 
+			kcu.column_name, 
+			ccu.table_name AS foreign_table_name,
+			ccu.column_name AS foreign_column_name 
+		FROM 
+			information_schema.table_constraints AS tc 
+			JOIN information_schema.key_column_usage AS kcu
+			  ON tc.constraint_name = kcu.constraint_name
+			  AND tc.table_schema = kcu.table_schema
+			JOIN information_schema.constraint_column_usage AS ccu
+			  ON ccu.constraint_name = tc.constraint_name
+			  AND ccu.table_schema = tc.table_schema
+		WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public';
+	`
+
+	rows, err := db.Pool.Query(ctx, relQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch relationships: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var fromTable, fromCol, toTable, toCol string
+		if err := rows.Scan(&fromTable, &fromCol, &toTable, &toCol); err == nil {
+			schema.Relationships = append(schema.Relationships, TableRelationship{
+				FromTable: fromTable,
+				FromCol:   fromCol,
+				ToTable:   toTable,
+				ToCol:     toCol,
+			})
+		}
+	}
+
+	return &schema, nil
 }

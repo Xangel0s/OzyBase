@@ -67,36 +67,7 @@ const SQLEditor = () => {
 
     return (
         <div className="flex h-full bg-[#111111] animate-in fade-in duration-500 overflow-hidden">
-            {/* Sidebar Queries History */}
-            <div className="w-64 border-r border-[#2e2e2e] bg-[#0c0c0c] flex flex-col">
-                <div className="px-4 py-3 border-b border-[#2e2e2e] flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Query Library</span>
-                    <button className="text-zinc-700 hover:text-zinc-200"><Plus size={14} /></button>
-                </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-                    {history.map((q, i) => (
-                        <div
-                            key={i}
-                            onClick={() => setQuery(q)}
-                            className="p-3 rounded-lg hover:bg-zinc-900 border border-transparent hover:border-zinc-800 cursor-pointer transition-all group"
-                        >
-                            <div className="flex items-center gap-2 mb-2">
-                                <Terminal size={12} className="text-zinc-600 group-hover:text-primary transition-colors" />
-                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-tighter">Untitled Query {i + 1}</span>
-                            </div>
-                            <p className="text-[10px] font-mono text-zinc-600 leading-relaxed truncate group-hover:text-zinc-400">
-                                {q}
-                            </p>
-                        </div>
-                    ))}
-                </div>
-                <div className="p-4 bg-zinc-900/20 border-t border-[#2e2e2e]">
-                    <button className="w-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">
-                        <History size={14} />
-                        View Execution Logs
-                    </button>
-                </div>
-            </div>
+
 
             {/* Editor Area */}
             <div className="flex-1 flex flex-col min-w-0">
