@@ -44,6 +44,7 @@ import { fetchWithAuth } from '../utils/api';
 
 import CreateTableModal from './CreateTableModal';
 import ConnectionModal from './ConnectionModal';
+import NotificationCenter from './NotificationCenter';
 
 const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuViewSelect }) => {
     const [dbStatus, setDbStatus] = useState('Checking...');
@@ -58,6 +59,8 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
     const [schemas, setSchemas] = useState(['public']);
     const [selectedSchema, setSelectedSchema] = useState('public');
     const [isSchemaDropdownOpen, setIsSchemaDropdownOpen] = useState(false);
+    const [healthIssues, setHealthIssues] = useState([]);
+    const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
     const loadTables = () => {
         fetchWithAuth('/api/collections')
@@ -118,8 +121,21 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                 setSchemas(['public']);
             });
 
+        // Load health issues
+        const fetchHealth = () => {
+            fetchWithAuth('/api/project/health')
+                .then(res => res.json())
+                .then(data => setHealthIssues(data))
+                .catch(err => console.error("Failed to fetch health info", err));
+        };
+
+        fetchHealth();
+        const healthInterval = setInterval(fetchHealth, 10000); // Check every 10s
+
         const storedUser = localStorage.getItem('ozy_user');
         if (storedUser) setUser(JSON.parse(storedUser));
+
+        return () => clearInterval(healthInterval);
     }, []);
 
     const handleLogout = () => {
@@ -564,14 +580,51 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
 
                         <div className="h-4 w-[1px] bg-[#2e2e2e] mx-1" />
 
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                                className={`w-8 h-8 rounded-lg bg-zinc-900 border border-[#2e2e2e] flex items-center justify-center transition-all ${healthIssues.length > 0 ? 'text-amber-500 border-amber-500/30' : 'text-zinc-500 hover:text-white hover:border-zinc-600'}`}
+                            >
+                                <Bell size={16} className={healthIssues.some(i => i.type === 'security') ? 'animate-bounce' : ''} />
+                                {healthIssues.length > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-[#111111] flex items-center justify-center text-[7px] font-black text-white">
+                                        {healthIssues.length}
+                                    </span>
+                                )}
+                            </button>
+
+                            <NotificationCenter
+                                isOpen={isNotificationOpen}
+                                onClose={() => setIsNotificationOpen(false)}
+                                issues={healthIssues}
+                            />
+                        </div>
+
                         <div
-                            className="w-8 h-8 rounded-lg bg-zinc-900 border border-[#2e2e2e] flex items-center justify-center text-primary text-[10px] font-black cursor-pointer hover:border-primary/50 transition-all"
+                            className="w-8 h-8 rounded-lg bg-zinc-900 border border-[#2e2e2e] flex items-center justify-center text-primary text-[10px] font-black cursor-pointer hover:border-primary/50 transition-all font-mono"
                             onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
                         >
                             {user?.email?.charAt(0).toUpperCase() || 'A'}
                         </div>
                     </div>
                 </header>
+
+                {healthIssues.filter(i => i.type === 'security').length > 2 && (
+                    <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-2 flex items-center justify-between animate-in slide-in-from-top-full duration-500">
+                        <div className="flex items-center gap-3">
+                            <Shield size={14} className="text-red-500" />
+                            <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">
+                                Critical Security Alert: {healthIssues.filter(i => i.type === 'security').length} tables missing Row Level Security
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => onMenuViewSelect('advisors')}
+                            className="text-[9px] font-black bg-red-500 text-white px-3 py-1 rounded uppercase tracking-widest hover:bg-red-600 transition-colors"
+                        >
+                            Fix Now
+                        </button>
+                    </div>
+                )}
 
                 <main className="flex-1 overflow-hidden relative">
                     {children}
