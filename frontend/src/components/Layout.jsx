@@ -45,6 +45,7 @@ import { fetchWithAuth } from '../utils/api';
 import CreateTableModal from './CreateTableModal';
 import ConnectionModal from './ConnectionModal';
 import NotificationCenter from './NotificationCenter';
+import AutoFixModal from './AutoFixModal';
 
 const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuViewSelect }) => {
     const [dbStatus, setDbStatus] = useState('Checking...');
@@ -61,6 +62,9 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
     const [isSchemaDropdownOpen, setIsSchemaDropdownOpen] = useState(false);
     const [healthIssues, setHealthIssues] = useState([]);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+    const [selectedFixIssue, setSelectedFixIssue] = useState(null);
+    const [isAutoFixModalOpen, setIsAutoFixModalOpen] = useState(false);
+    const [isBannerDismissed, setIsBannerDismissed] = useState(false);
 
     const loadTables = () => {
         fetchWithAuth('/api/collections')
@@ -132,11 +136,41 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
         fetchHealth();
         const healthInterval = setInterval(fetchHealth, 10000); // Check every 10s
 
+        // Re-show banner every 10 minutes if still not fixed
+        const bannerReminderInterval = setInterval(() => {
+            setIsBannerDismissed(false);
+        }, 10 * 60 * 1000);
+
         const storedUser = localStorage.getItem('ozy_user');
         if (storedUser) setUser(JSON.parse(storedUser));
 
-        return () => clearInterval(healthInterval);
+        return () => {
+            clearInterval(healthInterval);
+            clearInterval(bannerReminderInterval);
+        };
     }, []);
+
+    const handleApplyFix = async (issue) => {
+        try {
+            const res = await fetchWithAuth('/api/project/health/fix', {
+                method: 'POST',
+                body: JSON.stringify({
+                    type: issue.type,
+                    issue: issue.title
+                })
+            });
+            if (res.ok) {
+                // Refresh health after fix
+                fetchWithAuth('/api/project/health')
+                    .then(res => res.json())
+                    .then(data => setHealthIssues(data));
+            } else {
+                alert("Failed to apply fix. This might require manual technical intervention.");
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
 
     const handleLogout = () => {
         localStorage.removeItem('ozy_token');
@@ -597,6 +631,11 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                                 isOpen={isNotificationOpen}
                                 onClose={() => setIsNotificationOpen(false)}
                                 issues={healthIssues}
+                                onIssueAction={(issue) => {
+                                    setSelectedFixIssue(issue);
+                                    setIsAutoFixModalOpen(true);
+                                    setIsNotificationOpen(false);
+                                }}
                             />
                         </div>
 
@@ -609,20 +648,29 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                     </div>
                 </header>
 
-                {healthIssues.filter(i => i.type === 'security').length > 2 && (
-                    <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-2 flex items-center justify-between animate-in slide-in-from-top-full duration-500">
+                {healthIssues.filter(i => i.type === 'security').length > 2 && !isBannerDismissed && (
+                    <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-2 flex items-center justify-between animate-in slide-in-from-top-full duration-500 shadow-[0_4px_12px_rgba(239,68,68,0.1)]">
                         <div className="flex items-center gap-3">
-                            <Shield size={14} className="text-red-500" />
+                            <Shield size={14} className="text-red-500 animate-pulse" />
                             <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">
                                 Critical Security Alert: {healthIssues.filter(i => i.type === 'security').length} tables missing Row Level Security
                             </p>
                         </div>
-                        <button
-                            onClick={() => onMenuViewSelect('advisors')}
-                            className="text-[9px] font-black bg-red-500 text-white px-3 py-1 rounded uppercase tracking-widest hover:bg-red-600 transition-colors"
-                        >
-                            Fix Now
-                        </button>
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => onMenuViewSelect('advisors')}
+                                className="text-[9px] font-black bg-red-500 text-white px-3 py-1 rounded-md uppercase tracking-widest hover:bg-red-600 hover:scale-105 transition-all shadow-lg"
+                            >
+                                Fix Now
+                            </button>
+                            <button
+                                onClick={() => setIsBannerDismissed(true)}
+                                className="p-1 text-red-500/50 hover:text-red-500 transition-colors bg-red-500/5 hover:bg-red-500/10 rounded"
+                                title="Dismiss for 10 minutes"
+                            >
+                                <X size={14} />
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -665,6 +713,13 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
             <ConnectionModal
                 isOpen={isConnectionModalOpen}
                 onClose={() => setIsConnectionModalOpen(false)}
+            />
+
+            <AutoFixModal
+                isOpen={isAutoFixModalOpen}
+                issue={selectedFixIssue}
+                onClose={() => setIsAutoFixModalOpen(false)}
+                onConfirm={handleApplyFix}
             />
         </div>
     );

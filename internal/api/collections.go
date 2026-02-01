@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Xangel0s/OzyBase/internal/data"
@@ -521,4 +522,44 @@ func (h *Handler) GetHealthIssues(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, issues)
+}
+
+// FixHealthRequest represents a request to fix a health issue
+type FixHealthRequest struct {
+	Type  string `json:"type"`
+	Issue string `json:"issue"`
+}
+
+// FixHealthIssues handles POST /api/project/health/fix
+func (h *Handler) FixHealthIssues(c echo.Context) error {
+	var req FixHealthRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 10*time.Second)
+	defer cancel()
+
+	if req.Type == "security" && strings.Contains(req.Issue, "Row Level Security") {
+		// Extract table name from issue title: "Table `tablename` does not have..."
+		parts := strings.Split(req.Issue, "`")
+		if len(parts) < 3 {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Could not identify table"})
+		}
+		tableName := parts[1]
+
+		if !data.IsValidIdentifier(tableName) {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid table name"})
+		}
+
+		// Apply RLS
+		sql := fmt.Sprintf("ALTER TABLE %s ENABLE ROW LEVEL SECURITY", tableName)
+		if _, err := h.DB.Pool.Exec(ctx, sql); err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to enable RLS: " + err.Error()})
+		}
+
+		return c.JSON(http.StatusOK, map[string]string{"message": "RLS enabled successfully"})
+	}
+
+	return c.JSON(http.StatusNotFound, map[string]string{"error": "Fix strategy not found for this issue"})
 }

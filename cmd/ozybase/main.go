@@ -196,6 +196,7 @@ func setupEcho(h *api.Handler, cfg *config.Config) *echo.Echo {
 		// Project Info
 		apiGroup.GET("/project/info", h.GetProjectInfo, authRequired)
 		apiGroup.GET("/project/health", h.GetHealthIssues, authRequired)
+		apiGroup.POST("/project/health/fix", h.FixHealthIssues, authRequired)
 		apiGroup.GET("/project/logs", h.GetLogs, authRequired)
 
 		// Extensions
