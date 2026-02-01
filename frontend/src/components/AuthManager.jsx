@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Users,
     UserPlus,
@@ -17,11 +17,43 @@ import {
 } from 'lucide-react';
 
 const AuthManager = () => {
-    const [users] = useState([
-        { id: 'usr_1', email: 'john@gmail.com', role: 'admin', provider: 'Google', created: '2 days ago' },
-        { id: 'usr_2', email: 'sarah.smith@io.com', role: 'authenticated', provider: 'Email', created: '1 week ago' },
-        { id: 'usr_3', email: 'dev_alex@ozy.io', role: 'anon', provider: 'GitHub', created: '3 hours ago' }
-    ]);
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({
+        total: 0,
+        authorized: 0,
+        oauth: 0,
+        rate: '99.9%'
+    });
+
+    useEffect(() => {
+        fetchUsers();
+    }, []);
+
+    const fetchUsers = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('ozy_token');
+            const res = await fetch('/api/tables/users', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                setUsers(data);
+                setStats(prev => ({
+                    ...prev,
+                    total: data.length,
+                    authorized: data.filter(u => u.is_verified).length
+                }));
+            }
+        } catch (error) {
+            console.error('Failed to fetch users:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-[#171717] animate-in fade-in duration-500 overflow-hidden">
@@ -55,10 +87,10 @@ const AuthManager = () => {
                 {/* Subnav / Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {[
-                        { label: 'Total Users', val: '2.4k', icon: Users, color: 'text-primary' },
-                        { label: 'Authorized', val: '1.9k', icon: BadgeCheck, color: 'text-green-500' },
-                        { label: 'Oauth Prov', val: '4 active', icon: Shield, color: 'text-blue-500' },
-                        { label: 'Login Rate', val: '99.9%', icon: Activity, color: 'text-primary' }
+                        { label: 'Total Users', val: stats.total, icon: Users, color: 'text-primary' },
+                        { label: 'Authorized', val: stats.authorized, icon: BadgeCheck, color: 'text-green-500' },
+                        { label: 'Oauth Prov', val: '0 active', icon: Shield, color: 'text-blue-500' },
+                        { label: 'Login Rate', val: stats.rate, icon: Activity, color: 'text-primary' }
                     ].map((s, i) => (
                         <div key={i} className="bg-[#111111] border border-[#2e2e2e] rounded-2xl p-4 flex items-center justify-between group">
                             <div>
@@ -85,56 +117,76 @@ const AuthManager = () => {
                                 />
                             </div>
                         </div>
+                        <button
+                            onClick={fetchUsers}
+                            className="text-[10px] font-black uppercase text-zinc-500 hover:text-primary transition-colors"
+                        >
+                            Refresh Data
+                        </button>
                     </div>
 
                     <table className="w-full text-left">
                         <thead>
                             <tr className="bg-[#0c0c0c] text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 border-b border-[#2e2e2e]">
                                 <th className="px-8 py-5">Identities</th>
-                                <th className="px-8 py-5">Application Role</th>
-                                <th className="px-8 py-5">Provider</th>
-                                <th className="px-8 py-5">Issued</th>
+                                <th className="px-8 py-5">Verification</th>
+                                <th className="px-8 py-5">Username</th>
+                                <th className="px-8 py-5">Joined</th>
                                 <th className="px-8 py-5 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#2e2e2e]/50 text-zinc-400">
-                            {users.map((u) => (
-                                <tr key={u.id} className="hover:bg-zinc-900/40 transition-colors group">
-                                    <td className="px-8 py-5">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-600 group-hover:text-primary transition-colors">
-                                                <User size={18} />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-sm font-bold text-zinc-100 uppercase tracking-tight">{u.email}</h3>
-                                                <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest leading-none mt-1">{u.id}</p>
-                                            </div>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan="5" className="px-8 py-20 text-center">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Synchronizing Identity Vault...</p>
                                         </div>
-                                    </td>
-                                    <td className="px-8 py-5">
-                                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${u.role === 'admin' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                                                u.role === 'authenticated' ? 'bg-green-500/10 text-green-500 border-green-500/20' :
-                                                    'bg-zinc-800 text-zinc-500 border-zinc-700'
-                                            }`}>
-                                            {u.role}
-                                        </span>
-                                    </td>
-                                    <td className="px-8 py-5">
-                                        <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                                            {u.provider === 'Email' ? <Mail size={14} /> : <BadgeCheck size={14} />}
-                                            <span className="text-xs font-bold uppercase tracking-widest">{u.provider}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-5 text-xs font-black text-zinc-600 uppercase tracking-tight">
-                                        {u.created}
-                                    </td>
-                                    <td className="px-8 py-5 text-right">
-                                        <button className="p-2 text-zinc-700 hover:text-zinc-200 transition-colors">
-                                            <MoreVertical size={16} />
-                                        </button>
                                     </td>
                                 </tr>
-                            ))}
+                            ) : users.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" className="px-8 py-20 text-center">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">No users found in database</p>
+                                    </td>
+                                </tr>
+                            ) : (
+                                users.map((u) => (
+                                    <tr key={u.id} className="hover:bg-zinc-900/40 transition-colors group">
+                                        <td className="px-8 py-5">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-600 group-hover:text-primary transition-colors">
+                                                    <User size={18} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-sm font-bold text-zinc-100 uppercase tracking-tight">{u.email}</h3>
+                                                    <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest leading-none mt-1">{u.id}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-5">
+                                            <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${u.is_verified ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}>
+                                                {u.is_verified ? 'Verified' : 'Pending'}
+                                            </span>
+                                        </td>
+                                        <td className="px-8 py-5">
+                                            <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                <AtSign size={14} />
+                                                <span className="text-xs font-bold uppercase tracking-widest">{u.username || 'n/a'}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-5 text-xs font-black text-zinc-600 uppercase tracking-tight">
+                                            {new Date(u.created_at).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-8 py-5 text-right">
+                                            <button className="p-2 text-zinc-700 hover:text-zinc-200 transition-colors">
+                                                <MoreVertical size={16} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>

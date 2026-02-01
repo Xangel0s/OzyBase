@@ -15,6 +15,7 @@ import (
 	"github.com/Xangel0s/OzyBase/internal/config"
 	"github.com/Xangel0s/OzyBase/internal/core"
 	"github.com/Xangel0s/OzyBase/internal/data"
+	"github.com/Xangel0s/OzyBase/internal/realtime"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
@@ -42,7 +43,9 @@ func TestIntegration_FullFlow(t *testing.T) {
 
 	// Setup Echo
 	e := echo.New()
-	h := api.NewHandler(db)
+	broker := realtime.NewBroker()
+	dispatcher := realtime.NewWebhookDispatcher(db.Pool)
+	h := api.NewHandler(db, broker, dispatcher)
 	authService := core.NewAuthService(db, cfg.JWTSecret)
 	authHandler := api.NewAuthHandler(authService)
 
@@ -116,6 +119,12 @@ func TestIntegration_FullFlow(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, rec.Code)
 
+	// Verify metadata exists
+	var count int
+	err = db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_collections WHERE name = $1", collectionName).Scan(&count)
+	require.NoError(t, err)
+	fmt.Printf("DEBUG: Collection %s count in metadata: %d\n", collectionName, count)
+
 	// --- 4. Insert Record ---
 	recordBody, _ := json.Marshal(map[string]interface{}{
 		"title": "Integration Test Success",
@@ -148,9 +157,11 @@ func TestIntegration_FullFlow(t *testing.T) {
 
 	var items []map[string]interface{}
 	err = json.Unmarshal(rec.Body.Bytes(), &items)
+	if err != nil {
+		fmt.Printf("DEBUG: Response Body: %s\n", rec.Body.String())
+	}
 	require.NoError(t, err)
 
 	require.NotEmpty(t, items)
 	assert.Equal(t, "Integration Test Success", items[0]["title"])
 }
-

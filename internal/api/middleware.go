@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Xangel0s/OzyBase/internal/data"
 	"github.com/golang-jwt/jwt/v5"
@@ -75,8 +76,8 @@ func AccessMiddleware(db *data.DB, requirement string) echo.MiddlewareFunc {
 			}
 
 			var rule string
-			err := db.Pool.QueryRow(c.Request().Context(), 
-				fmt.Sprintf("SELECT %s FROM _v_collections WHERE name = $1", column), 
+			err := db.Pool.QueryRow(c.Request().Context(),
+				fmt.Sprintf("SELECT %s FROM _v_collections WHERE name = $1", column),
 				collectionName).Scan(&rule)
 
 			if err != nil {
@@ -105,3 +106,50 @@ func AccessMiddleware(db *data.DB, requirement string) echo.MiddlewareFunc {
 	}
 }
 
+// MetricsMiddleware tracks activity for the dashboard
+func MetricsMiddleware(m *Metrics) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			start := time.Now()
+			err := next(c)
+			stop := time.Now()
+
+			path := c.Path()
+			if path == "" {
+				path = c.Request().URL.Path
+			}
+
+			// Don't log metrics/logs requests to avoid infinite recursion noise
+			if strings.HasPrefix(path, "/api/project/info") || strings.HasPrefix(path, "/api/project/logs") {
+				return err
+			}
+
+			m.Lock()
+			if strings.HasPrefix(path, "/api/collections") || strings.HasPrefix(path, "/api/tables") {
+				m.DbRequests++
+			} else if strings.HasPrefix(path, "/api/auth") {
+				m.AuthRequests++
+			} else if strings.HasPrefix(path, "/api/files") {
+				m.StorageRequests++
+			}
+			m.Unlock()
+
+			// Add to logs
+			latency := stop.Sub(start)
+			status := c.Response().Status
+
+			m.AddLog(LogEntry{
+				ID:        time.Now().UnixNano(),
+				Time:      stop.Format("15:04:05"),
+				Method:    c.Request().Method,
+				Path:      path,
+				Status:    status,
+				Latency:   fmt.Sprintf("%v", latency.Truncate(time.Millisecond)),
+				IP:        c.RealIP(),
+				Timestamp: stop,
+			})
+
+			return err
+		}
+	}
+}

@@ -37,7 +37,7 @@ function App() {
             case 'table': return <TableEditor tableName={selectedTable} />;
             case 'tables': return <TableEditor tableName={null} />;
             case 'visualizer': return <SchemaVisualizer />;
-            case 'overview': return <Overview onTableSelect={handleTableSelect} />;
+            case 'overview': return <Overview onTableSelect={handleTableSelect} onViewSelect={setSelectedView} />;
             case 'sql': return <SQLEditor />;
             case 'auth': return <AuthManager />;
             case 'storage': return <StorageManager />;

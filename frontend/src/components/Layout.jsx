@@ -37,7 +37,8 @@ import {
     History,
     CreditCard,
     Server,
-    Check
+    Check,
+    Trash2
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
 
@@ -48,6 +49,7 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
     const [dbStatus, setDbStatus] = useState('Checking...');
     const [tables, setTables] = useState([]);
     const [user, setUser] = useState(null);
+    const [projectInfo, setProjectInfo] = useState(null);
     const [isSidebarPinned, setIsSidebarPinned] = useState(false);
     const [isSidebarHovered, setIsSidebarHovered] = useState(false);
     const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
@@ -64,12 +66,39 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
             .catch(err => console.error("Failed to load tables", err));
     };
 
+    const handleDeleteTable = async (tableName, e) => {
+        e.stopPropagation();
+        if (!window.confirm(`Are you sure you want to delete table "${tableName}"? This action cannot be undone.`)) return;
+
+        try {
+            const res = await fetchWithAuth(`/api/collections/${tableName}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                loadTables();
+                if (selectedTable === tableName) {
+                    onTableSelect(null);
+                }
+            } else {
+                alert('Failed to delete table');
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     useEffect(() => {
         // Status check
         fetchWithAuth('/api/health')
             .then(res => res.json())
             .then(data => setDbStatus(data.database === 'connected' ? 'Connected' : 'Degraded'))
             .catch(() => setDbStatus('Disconnected'));
+
+        // Load Project Info
+        fetchWithAuth('/api/project/info')
+            .then(res => res.json())
+            .then(data => setProjectInfo(data))
+            .catch(err => console.error("Failed to load project info", err));
 
         // Load tables
         loadTables();
@@ -266,13 +295,21 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                                 <button
                                     key={t.name}
                                     onClick={() => onTableSelect(t.name)}
-                                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all group ${selectedTable === t.name
+                                    className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-xs transition-all group ${selectedTable === t.name
                                         ? 'bg-zinc-900 text-primary font-bold border border-[#2e2e2e]/50 shadow-xl'
                                         : 'text-zinc-600 hover:text-zinc-300 hover:bg-zinc-900/40 border border-transparent'
                                         }`}
                                 >
-                                    <Table2 size={14} className={selectedTable === t.name ? 'text-primary' : 'text-zinc-800 group-hover:text-zinc-500'} />
-                                    <span className="truncate">{t.name}</span>
+                                    <div className="flex items-center gap-3 truncate">
+                                        <Table2 size={14} className={selectedTable === t.name ? 'text-primary' : 'text-zinc-800 group-hover:text-zinc-500'} />
+                                        <span className="truncate">{t.name}</span>
+                                    </div>
+                                    <div
+                                        onClick={(e) => handleDeleteTable(t.name, e)}
+                                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 hover:bg-zinc-800 rounded transition-all"
+                                    >
+                                        <Trash2 size={12} />
+                                    </div>
                                 </button>
                             ))}
                         </div>
@@ -509,7 +546,7 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                     <div className="flex items-center gap-2 text-[11px] font-bold tracking-tight">
                         <span className="text-zinc-600 hover:text-zinc-400 cursor-pointer transition-colors uppercase tracking-[0.1em]">OzyBase</span>
                         <span className="text-zinc-800 text-lg font-thin">/</span>
-                        <span className="text-zinc-600 hover:text-zinc-400 cursor-pointer transition-colors uppercase tracking-[0.1em]">Production</span>
+                        <span className="text-zinc-600 hover:text-zinc-400 cursor-pointer transition-colors uppercase tracking-[0.1em]">{projectInfo?.database || 'Production'}</span>
                         <span className="text-zinc-800 text-lg font-thin">/</span>
                         <span className="bg-zinc-900 text-primary border border-primary/20 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest shadow-[0_0_10px_rgba(254,254,0,0.05)]">
                             {selectedTable || selectedView}

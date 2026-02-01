@@ -9,14 +9,23 @@ import {
     Key,
     Loader2,
     Check,
-    Plus
+    Plus,
+    Edit2
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
 
-const AddRowModal = ({ isOpen, onClose, schema, tableName, onRecordAdded }) => {
+const AddRowModal = ({ isOpen, onClose, schema, tableName, onRecordAdded, initialData }) => {
     const [formData, setFormData] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState(null);
+
+    React.useEffect(() => {
+        if (initialData) {
+            setFormData(initialData);
+        } else {
+            setFormData({});
+        }
+    }, [initialData, isOpen]);
 
     if (!isOpen) return null;
 
@@ -28,7 +37,7 @@ const AddRowModal = ({ isOpen, onClose, schema, tableName, onRecordAdded }) => {
     };
 
     const getTypeIcon = (type) => {
-        const t = type.toLowerCase();
+        const t = (type || '').toLowerCase();
         if (t.includes('uuid')) return <Key size={16} className="text-zinc-500" />;
         if (t.includes('text') || t.includes('char')) return <AtSign size={16} className="text-zinc-500" />;
         if (t.includes('time') || t.includes('date')) return <Calendar size={16} className="text-zinc-500" />;
@@ -61,6 +70,7 @@ const AddRowModal = ({ isOpen, onClose, schema, tableName, onRecordAdded }) => {
                 <input
                     type="datetime-local"
                     required={required}
+                    value={val ? new Date(val).toISOString().slice(0, 16) : ''}
                     className="w-full bg-[#111111] border border-[#2e2e2e] rounded-md px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-primary/50"
                     onChange={(e) => handleInputChange(name, e.target.value)}
                 />
@@ -98,14 +108,19 @@ const AddRowModal = ({ isOpen, onClose, schema, tableName, onRecordAdded }) => {
         setError(null);
 
         try {
-            const res = await fetchWithAuth(`/api/tables/${tableName}/rows`, {
-                method: 'POST',
+            const isEdit = !!initialData;
+            const url = isEdit
+                ? `/api/tables/${tableName}/rows/${initialData.id}`
+                : `/api/tables/${tableName}/rows`;
+
+            const res = await fetchWithAuth(url, {
+                method: isEdit ? 'PATCH' : 'POST',
                 body: JSON.stringify(formData),
             });
 
             if (!res.ok) {
                 const errData = await res.json();
-                throw new Error(errData.error || 'Failed to insert row');
+                throw new Error(errData.error || 'Failed to process row');
             }
 
             onRecordAdded();
@@ -118,16 +133,16 @@ const AddRowModal = ({ isOpen, onClose, schema, tableName, onRecordAdded }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-full max-w-lg bg-[#171717] border border-[#2e2e2e] rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-5xl bg-[#171717] border border-[#2e2e2e] rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-[#2e2e2e]">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Plus className="text-primary" size={18} />
+                            {initialData ? <Edit2 className="text-primary" size={18} /> : <Plus className="text-primary" size={18} />}
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Insert New Row</h3>
+                            <h3 className="text-sm font-bold text-white uppercase tracking-wider">{initialData ? 'Update Row' : 'Insert New Row'}</h3>
                             <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Table: {tableName}</p>
                         </div>
                     </div>
@@ -138,28 +153,30 @@ const AddRowModal = ({ isOpen, onClose, schema, tableName, onRecordAdded }) => {
 
                 {/* Form */}
                 <form onSubmit={handleSubmit}>
-                    <div className="px-6 py-8 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                    <div className="px-6 py-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
                         {error && (
                             <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-md text-red-500 text-xs font-medium uppercase tracking-wide">
                                 Error: {error}
                             </div>
                         )}
 
-                        {schema.map((col) => (
-                            <div key={col.name} className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <label className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                                        {getTypeIcon(col.type)}
-                                        {col.name}
-                                        {col.required && <span className="text-primary">*</span>}
-                                    </label>
-                                    <span className="text-[8px] font-bold text-zinc-700 uppercase tracking-tighter bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">
-                                        {col.type}
-                                    </span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
+                            {schema.map((col) => (
+                                <div key={col.name} className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <label className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                                            {getTypeIcon(col.type)}
+                                            {col.name}
+                                            {col.required && <span className="text-primary">*</span>}
+                                        </label>
+                                        <span className="text-[8px] font-bold text-zinc-700 uppercase tracking-tighter bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">
+                                            {col.type}
+                                        </span>
+                                    </div>
+                                    {renderInput(col)}
                                 </div>
-                                {renderInput(col)}
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
 
                     {/* Footer */}
@@ -179,12 +196,12 @@ const AddRowModal = ({ isOpen, onClose, schema, tableName, onRecordAdded }) => {
                             {isSubmitting ? (
                                 <>
                                     <Loader2 size={16} className="animate-spin" />
-                                    Inserting...
+                                    {initialData ? 'Updating...' : 'Inserting...'}
                                 </>
                             ) : (
                                 <>
-                                    <Check size={16} strokeWidth={3} />
-                                    Insert Row
+                                    {initialData ? <Check size={16} strokeWidth={3} /> : <Plus size={16} strokeWidth={3} />}
+                                    {initialData ? 'Update Row' : 'Insert Row'}
                                 </>
                             )}
                         </button>

@@ -41,3 +41,14 @@ func (h *FileHandler) Upload(c echo.Context) error {
 	})
 }
 
+// List handles GET /api/files
+func (h *FileHandler) List(c echo.Context) error {
+	files, err := core.ListFiles(h.StorageDir)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to list files: " + err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, files)
+}

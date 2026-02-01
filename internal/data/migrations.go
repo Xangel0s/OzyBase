@@ -44,11 +44,41 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 
 		// Global notify function for realtime events
 		`CREATE OR REPLACE FUNCTION notify_event() RETURNS TRIGGER AS $$
+		DECLARE
+			payload JSONB;
 		BEGIN
-			PERFORM pg_notify('OzyBase_events', row_to_json(NEW)::text);
-			RETURN NEW;
+			payload = jsonb_build_object(
+				'table', TG_TABLE_NAME,
+				'action', TG_OP,
+				'data', CASE 
+					WHEN TG_OP = 'DELETE' THEN row_to_json(OLD)::jsonb
+					ELSE row_to_json(NEW)::jsonb
+				END
+			);
+			PERFORM pg_notify('ozy_events', payload::text);
+			RETURN NULL;
 		END;
 		$$ LANGUAGE plpgsql;`,
+
+		// Secrets / Vault
+		`CREATE TABLE IF NOT EXISTS _v_secrets (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			key VARCHAR(255) UNIQUE NOT NULL,
+			value TEXT NOT NULL,
+			description TEXT,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
+
+		// Webhooks
+		`CREATE TABLE IF NOT EXISTS _v_webhooks (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			name VARCHAR(255) NOT NULL,
+			url TEXT NOT NULL,
+			events VARCHAR(100) NOT NULL, -- e.g. "INSERT,UPDATE"
+			status VARCHAR(20) DEFAULT 'active',
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
 	}
 
 	for i, migration := range migrations {
@@ -60,4 +90,3 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 	log.Println("✅ Migrations completed successfully")
 	return nil
 }
-

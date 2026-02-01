@@ -16,15 +16,25 @@ type FieldSchema struct {
 
 // TypeMapping maps OzyBase types to PostgreSQL types
 var TypeMapping = map[string]string{
+	"int2":        "INT2",
+	"int4":        "INT4",
+	"int8":        "INT8",
+	"float4":      "FLOAT4",
+	"float8":      "FLOAT8",
+	"numeric":     "NUMERIC",
+	"json":        "JSON",
+	"jsonb":       "JSONB",
 	"text":        "TEXT",
-	"number":      "NUMERIC",
-	"boolean":     "BOOLEAN",
-	"datetime":    "TIMESTAMPTZ",
-	"timestamptz": "TIMESTAMPTZ",
-	"timestamp":   "TIMESTAMP",
-	"json":        "JSONB",
+	"varchar":     "VARCHAR",
 	"uuid":        "UUID",
-	"int8":        "BIGINT",
+	"date":        "DATE",
+	"time":        "TIME",
+	"timetz":      "TIMETZ",
+	"timestamp":   "TIMESTAMP",
+	"timestamptz": "TIMESTAMPTZ",
+	"bool":        "BOOL",
+	"boolean":     "BOOLEAN",
+	"bytea":       "BYTEA",
 }
 
 // BuildCreateTableSQL generates a CREATE TABLE statement from a schema definition
@@ -38,7 +48,7 @@ func BuildCreateTableSQL(tableName string, schema []FieldSchema) (string, error)
 	}
 
 	// Validate table name (prevent SQL injection)
-	if !isValidIdentifier(tableName) {
+	if !IsValidIdentifier(tableName) {
 		return "", fmt.Errorf("invalid table name: %s", tableName)
 	}
 
@@ -48,7 +58,7 @@ func BuildCreateTableSQL(tableName string, schema []FieldSchema) (string, error)
 	columns = append(columns, "id UUID PRIMARY KEY DEFAULT gen_random_uuid()")
 
 	for _, field := range schema {
-		if !isValidIdentifier(field.Name) {
+		if !IsValidIdentifier(field.Name) {
 			return "", fmt.Errorf("invalid field name: %s", field.Name)
 		}
 
@@ -81,8 +91,8 @@ func BuildCreateTableSQL(tableName string, schema []FieldSchema) (string, error)
 	return sql, nil
 }
 
-// isValidIdentifier checks if a string is a valid SQL identifier
-func isValidIdentifier(name string) bool {
+// IsValidIdentifier checks if a string is a valid SQL identifier
+func IsValidIdentifier(name string) bool {
 	if len(name) == 0 || len(name) > 63 {
 		return false
 	}
@@ -122,7 +132,7 @@ func formatDefault(value interface{}, fieldType string) string {
 
 // GetTableSchema fetches the schema of a table from information_schema
 func (db *DB) GetTableSchema(ctx context.Context, tableName string) ([]FieldSchema, error) {
-	if !isValidIdentifier(tableName) {
+	if !IsValidIdentifier(tableName) {
 		return nil, fmt.Errorf("invalid table name: %s", tableName)
 	}
 
@@ -170,18 +180,42 @@ func (db *DB) GetTableSchema(ctx context.Context, tableName string) ([]FieldSche
 func mapPostgresTypeToOzy(pgType string) string {
 	pgType = strings.ToUpper(pgType)
 	switch {
-	case strings.Contains(pgType, "TEXT") || strings.Contains(pgType, "VARCHAR") || strings.Contains(pgType, "CHARACTER"):
-		return "text"
-	case strings.Contains(pgType, "NUMERIC") || strings.Contains(pgType, "INT") || strings.Contains(pgType, "DOUBLE") || strings.Contains(pgType, "PRECISION"):
-		return "number"
-	case strings.Contains(pgType, "BOOL"):
-		return "boolean"
-	case strings.Contains(pgType, "TIMESTAMP"):
-		return "datetime"
+	case strings.Contains(pgType, "INT2"):
+		return "int2"
+	case strings.Contains(pgType, "INT4") || pgType == "INTEGER":
+		return "int4"
+	case strings.Contains(pgType, "INT8") || pgType == "BIGINT":
+		return "int8"
+	case strings.Contains(pgType, "FLOAT4") || strings.Contains(pgType, "REAL"):
+		return "float4"
+	case strings.Contains(pgType, "FLOAT8") || strings.Contains(pgType, "DOUBLE PRECISION"):
+		return "float8"
+	case strings.Contains(pgType, "NUMERIC"):
+		return "numeric"
+	case strings.Contains(pgType, "JSONB"):
+		return "jsonb"
 	case strings.Contains(pgType, "JSON"):
 		return "json"
-	case strings.Contains(pgType, "UUID"):
+	case pgType == "UUID":
 		return "uuid"
+	case pgType == "DATE":
+		return "date"
+	case pgType == "TIMETZ":
+		return "timetz"
+	case pgType == "TIME":
+		return "time"
+	case strings.Contains(pgType, "TIMESTAMPTZ"):
+		return "timestamptz"
+	case strings.Contains(pgType, "TIMESTAMP"):
+		return "timestamp"
+	case pgType == "BOOL" || pgType == "BOOLEAN":
+		return "bool"
+	case strings.Contains(pgType, "VARCHAR"):
+		return "varchar"
+	case strings.Contains(pgType, "TEXT"):
+		return "text"
+	case pgType == "BYTEA":
+		return "bytea"
 	default:
 		return "text"
 	}
@@ -286,4 +320,49 @@ func (db *DB) GetDatabaseSchema(ctx context.Context) (*DatabaseSchema, error) {
 	}
 
 	return &schema, nil
+}
+
+// AddColumn adds a new column to an existing table
+func (db *DB) AddColumn(ctx context.Context, tableName string, field FieldSchema) error {
+	if !IsValidIdentifier(tableName) || !IsValidIdentifier(field.Name) {
+		return fmt.Errorf("invalid table or column name")
+	}
+
+	pgType, ok := TypeMapping[strings.ToLower(field.Type)]
+	if !ok {
+		return fmt.Errorf("unknown type: %s", field.Type)
+	}
+
+	sql := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableName, field.Name, pgType)
+	if field.Required {
+		sql += " NOT NULL"
+	}
+	if field.Default != nil {
+		sql += fmt.Sprintf(" DEFAULT %s", formatDefault(field.Default, field.Type))
+	}
+
+	_, err := db.Pool.Exec(ctx, sql)
+	return err
+}
+
+// DeleteColumn removes a column from an existing table
+func (db *DB) DeleteColumn(ctx context.Context, tableName string, columnName string) error {
+	if !IsValidIdentifier(tableName) || !IsValidIdentifier(columnName) {
+		return fmt.Errorf("invalid table or column name")
+	}
+
+	sql := fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", tableName, columnName)
+	_, err := db.Pool.Exec(ctx, sql)
+	return err
+}
+
+// DeleteTable drops an existing table
+func (db *DB) DeleteTable(ctx context.Context, tableName string) error {
+	if !IsValidIdentifier(tableName) {
+		return fmt.Errorf("invalid table name: %s", tableName)
+	}
+
+	sql := fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", tableName)
+	_, err := db.Pool.Exec(ctx, sql)
+	return err
 }

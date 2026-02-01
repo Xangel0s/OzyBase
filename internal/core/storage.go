@@ -44,3 +44,36 @@ func SaveFile(fileHeader *multipart.FileHeader, storageDir string) (string, erro
 	return safeFilename, nil
 }
 
+// FileInfo represents basic file metadata
+type FileInfo struct {
+	Name string `json:"name"`
+	Size int64  `json:"size"`
+	Path string `json:"path"`
+}
+
+// ListFiles returns a list of files in the storage directory
+func ListFiles(storageDir string) ([]FileInfo, error) {
+	entries, err := os.ReadDir(storageDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []FileInfo{}, nil
+		}
+		return nil, err
+	}
+
+	var files []FileInfo
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			files = append(files, FileInfo{
+				Name: entry.Name(),
+				Size: info.Size(),
+				Path: "/api/files/" + entry.Name(),
+			})
+		}
+	}
+	return files, nil
+}

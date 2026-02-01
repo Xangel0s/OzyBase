@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -105,4 +106,81 @@ func (h *Handler) GetRecord(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, record)
+}
+
+// UpdateRecord handles PATCH /api/collections/:name/records/:id
+func (h *Handler) UpdateRecord(c echo.Context) error {
+	collectionName := c.Param("name")
+	recordID := c.Param("id")
+
+	if collectionName == "" || recordID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Collection name and record ID are required",
+		})
+	}
+
+	var data map[string]interface{}
+	if err := json.NewDecoder(c.Request().Body).Decode(&data); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid JSON body: " + err.Error(),
+		})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
+	defer cancel()
+
+	err := h.DB.UpdateRecord(ctx, collectionName, recordID, data)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": err.Error(),
+		})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// DeleteRecord handles DELETE /api/collections/:name/records/:id
+func (h *Handler) DeleteRecord(c echo.Context) error {
+	collectionName := c.Param("name")
+	recordID := c.Param("id")
+
+	if collectionName == "" || recordID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Collection name and record ID are required",
+		})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
+	defer cancel()
+
+	err := h.DB.DeleteRecord(ctx, collectionName, recordID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": err.Error(),
+		})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// ImportRecords handles POST /api/tables/:name/import
+func (h *Handler) ImportRecords(c echo.Context) error {
+	collectionName := c.Param("name")
+	if collectionName == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Name required"})
+	}
+
+	var records []map[string]interface{}
+	if err := json.NewDecoder(c.Request().Body).Decode(&records); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid JSON array"})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 30*time.Second)
+	defer cancel()
+
+	if err := h.DB.BulkInsertRecord(ctx, collectionName, records); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": fmt.Sprintf("Imported %d records", len(records))})
 }

@@ -13,11 +13,32 @@ import {
 } from 'lucide-react';
 
 const EdgeFunctions = () => {
-    const [functions] = useState([
-        { id: 1, name: 'stripe-webhook', status: 'Active', method: 'POST', url: '/functions/stripe-webhook', lastRun: '2 mins ago' },
-        { id: 2, name: 'send-welcome-email', status: 'Active', method: 'POST', url: '/functions/send-welcome-email', lastRun: '1 hour ago' },
-        { id: 3, name: 'image-optimizer', status: 'Paused', method: 'GET', url: '/functions/image-optimizer', lastRun: 'Yesterday' }
-    ]);
+    const [functions, setFunctions] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchFunctions();
+    }, []);
+
+    const fetchFunctions = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('ozy_token');
+            const res = await fetch('/api/functions', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                setFunctions(data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch functions:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-[#171717] animate-in fade-in duration-500">
@@ -48,9 +69,9 @@ const EdgeFunctions = () => {
                 {/* Info Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
                     {[
-                        { title: 'Total Executions', value: '1.2k', icon: Play, color: 'text-primary' },
-                        { title: 'Avg. Latency', value: '42ms', icon: Cpu, color: 'text-green-500' },
-                        { title: 'Global Regions', value: '24', icon: Globe, color: 'text-blue-500' },
+                        { title: 'Total Executions', value: '0', icon: Play, color: 'text-primary' },
+                        { title: 'Avg. Latency', value: '0ms', icon: Cpu, color: 'text-green-500' },
+                        { title: 'Global Regions', value: '1', icon: Globe, color: 'text-blue-500' },
                     ].map((card, i) => (
                         <div key={i} className="bg-[#111111] border border-[#2e2e2e] rounded-xl p-4 flex items-center gap-4">
                             <div className={`w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center ${card.color}`}>
@@ -77,6 +98,12 @@ const EdgeFunctions = () => {
                                 className="bg-[#0c0c0c] border border-[#2e2e2e] rounded-lg pl-9 pr-4 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-primary/50 w-64 transition-all"
                             />
                         </div>
+                        <button
+                            onClick={fetchFunctions}
+                            className="text-[10px] font-black uppercase text-zinc-500 hover:text-primary transition-colors"
+                        >
+                            Refresh
+                        </button>
                     </div>
 
                     <table className="w-full text-left">
@@ -90,38 +117,48 @@ const EdgeFunctions = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#2e2e2e]/50">
-                            {functions.map((fn) => (
-                                <tr key={fn.id} className="hover:bg-zinc-900/40 transition-colors group">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors">
-                                                <Code size={16} />
-                                            </div>
-                                            <span className="text-sm font-bold text-zinc-200">{fn.name}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${fn.status === 'Active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-zinc-600'}`} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{fn.status}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2 font-mono text-[10px] text-zinc-500 bg-[#171717] px-2 py-1 rounded border border-[#2e2e2e] w-fit">
-                                            {fn.url}
-                                            <ExternalLink size={10} className="hover:text-primary cursor-pointer" />
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-xs text-zinc-600 uppercase font-bold tracking-tight">
-                                        {fn.lastRun}
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button className="p-2 text-zinc-600 hover:text-zinc-200 transition-colors">
-                                            <MoreVertical size={16} />
-                                        </button>
-                                    </td>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan="5" className="px-6 py-10 text-center text-zinc-500 text-xs font-bold uppercase">Loading...</td>
                                 </tr>
-                            ))}
+                            ) : functions.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" className="px-6 py-10 text-center text-zinc-500 text-xs font-bold uppercase">No functions deployed</td>
+                                </tr>
+                            ) : (
+                                functions.map((fn) => (
+                                    <tr key={fn.id} className="hover:bg-zinc-900/40 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors">
+                                                    <Code size={16} />
+                                                </div>
+                                                <span className="text-sm font-bold text-zinc-200">{fn.name}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-1.5 h-1.5 rounded-full ${fn.status === 'Active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-zinc-600'}`} />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{fn.status}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2 font-mono text-[10px] text-zinc-500 bg-[#171717] px-2 py-1 rounded border border-[#2e2e2e] w-fit">
+                                                {fn.url}
+                                                <ExternalLink size={10} className="hover:text-primary cursor-pointer" />
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-xs text-zinc-600 uppercase font-bold tracking-tight">
+                                            {fn.lastRun}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button className="p-2 text-zinc-600 hover:text-zinc-200 transition-colors">
+                                                <MoreVertical size={16} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>

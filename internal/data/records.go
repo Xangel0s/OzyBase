@@ -11,7 +11,7 @@ import (
 // InsertRecord inserts a record into a dynamic collection table
 // Returns the new record ID
 func (db *DB) InsertRecord(ctx context.Context, collectionName string, data map[string]interface{}) (string, error) {
-	if !isValidIdentifier(collectionName) {
+	if !IsValidIdentifier(collectionName) {
 		return "", fmt.Errorf("invalid collection name: %s", collectionName)
 	}
 
@@ -26,7 +26,7 @@ func (db *DB) InsertRecord(ctx context.Context, collectionName string, data map[
 	i := 1
 
 	for col, val := range data {
-		if !isValidIdentifier(col) {
+		if !IsValidIdentifier(col) {
 			return "", fmt.Errorf("invalid column name: %s", col)
 		}
 
@@ -70,7 +70,7 @@ func (db *DB) InsertRecord(ctx context.Context, collectionName string, data map[
 
 // ListRecords fetches all records from a dynamic collection table
 func (db *DB) ListRecords(ctx context.Context, collectionName string, orderBy string) ([]map[string]interface{}, error) {
-	if !isValidIdentifier(collectionName) {
+	if !IsValidIdentifier(collectionName) {
 		return nil, fmt.Errorf("invalid collection name: %s", collectionName)
 	}
 
@@ -85,7 +85,7 @@ func (db *DB) ListRecords(ctx context.Context, collectionName string, orderBy st
 			dir = "DESC"
 		}
 
-		if isValidIdentifier(col) {
+		if IsValidIdentifier(col) {
 			query += fmt.Sprintf(" ORDER BY %s %s", col, dir)
 		} else {
 			query += " ORDER BY created_at DESC"
@@ -105,7 +105,7 @@ func (db *DB) ListRecords(ctx context.Context, collectionName string, orderBy st
 
 // GetRecord fetches a single record by ID
 func (db *DB) GetRecord(ctx context.Context, collectionName, id string) (map[string]interface{}, error) {
-	if !isValidIdentifier(collectionName) {
+	if !IsValidIdentifier(collectionName) {
 		return nil, fmt.Errorf("invalid collection name: %s", collectionName)
 	}
 
@@ -152,4 +152,126 @@ func rowsToMaps(rows pgx.Rows) ([]map[string]interface{}, error) {
 	}
 
 	return results, nil
+}
+
+// UpdateRecord updates an existing record in a dynamic collection table
+func (db *DB) UpdateRecord(ctx context.Context, collectionName, id string, data map[string]interface{}) error {
+	if !IsValidIdentifier(collectionName) {
+		return fmt.Errorf("invalid collection name: %s", collectionName)
+	}
+
+	if len(data) == 0 {
+		return nil // Nothing to update
+	}
+
+	var updates []string
+	var values []interface{}
+	i := 1
+
+	for col, val := range data {
+		if !IsValidIdentifier(col) {
+			return fmt.Errorf("invalid column name: %s", col)
+		}
+
+		// Skip system columns
+		if col == "id" || col == "created_at" || col == "updated_at" {
+			continue
+		}
+
+		updates = append(updates, fmt.Sprintf("%s = $%d", col, i))
+		values = append(values, val)
+		i++
+	}
+
+	if len(updates) == 0 {
+		return nil
+	}
+
+	// Add updated_at if it exists
+	updates = append(updates, "updated_at = NOW()")
+
+	query := fmt.Sprintf(
+		"UPDATE %s SET %s WHERE id = $%d",
+		collectionName,
+		strings.Join(updates, ", "),
+		i,
+	)
+	values = append(values, id)
+
+	_, err := db.Pool.Exec(ctx, query, values...)
+	if err != nil {
+		return fmt.Errorf("database error: %v", err)
+	}
+
+	return nil
+}
+
+// DeleteRecord removes a record from a dynamic collection table
+func (db *DB) DeleteRecord(ctx context.Context, collectionName, id string) error {
+	if !IsValidIdentifier(collectionName) {
+		return fmt.Errorf("invalid collection name: %s", collectionName)
+	}
+
+	query := fmt.Sprintf("DELETE FROM %s WHERE id = $1", collectionName)
+	_, err := db.Pool.Exec(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("database error: %v", err)
+	}
+
+	return nil
+}
+
+// BulkInsertRecord inserts multiple records in a single transaction
+func (db *DB) BulkInsertRecord(ctx context.Context, collectionName string, records []map[string]interface{}) error {
+	if !IsValidIdentifier(collectionName) {
+		return fmt.Errorf("invalid collection name: %s", collectionName)
+	}
+
+	if len(records) == 0 {
+		return nil
+	}
+
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	for _, data := range records {
+		var columns []string
+		var placeholders []string
+		var values []interface{}
+		i := 1
+
+		for col, val := range data {
+			if !IsValidIdentifier(col) {
+				continue
+			}
+			if col == "id" || col == "created_at" || col == "updated_at" {
+				continue
+			}
+
+			columns = append(columns, col)
+			placeholders = append(placeholders, fmt.Sprintf("$%d", i))
+			values = append(values, val)
+			i++
+		}
+
+		if len(columns) == 0 {
+			continue
+		}
+
+		query := fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES (%s)",
+			collectionName,
+			strings.Join(columns, ", "),
+			strings.Join(placeholders, ", "),
+		)
+
+		if _, err := tx.Exec(ctx, query, values...); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
 }

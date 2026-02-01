@@ -61,8 +61,16 @@ func run() error {
 		return nil
 	}
 
+	// Initialize Realtime & Webhooks
+	broker := realtime.NewBroker()
+	dispatcher := realtime.NewWebhookDispatcher(db.Pool)
+
+	// Start database event listener
+	go realtime.ListenForEvents(context.Background(), db.Pool, broker, dispatcher)
+
 	// Initialize Server Components
-	e := setupEcho(db, cfg)
+	h := api.NewHandler(db, broker, dispatcher)
+	e := setupEcho(h, cfg)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Port)
@@ -132,7 +140,7 @@ func handleCLI(db *data.DB) bool {
 	return false
 }
 
-func setupEcho(db *data.DB, cfg *config.Config) *echo.Echo {
+func setupEcho(h *api.Handler, cfg *config.Config) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 
@@ -145,22 +153,20 @@ func setupEcho(db *data.DB, cfg *config.Config) *echo.Echo {
 	e.Use(middleware.BodyLimit("10M"))
 
 	// Services and Handlers
-	broker := realtime.NewBroker()
-	go data.ListenDB(context.Background(), cfg.DatabaseURL, broker)
-
-	h := api.NewHandler(db)
-	authService := core.NewAuthService(db, cfg.JWTSecret)
+	authService := core.NewAuthService(h.DB, cfg.JWTSecret)
 	authHandler := api.NewAuthHandler(authService)
-	realtimeHandler := api.NewRealtimeHandler(broker)
+	realtimeHandler := api.NewRealtimeHandler(h.Broker)
 	fileHandler := api.NewFileHandler("./data/storage")
+	functionsHandler := api.NewFunctionsHandler("./functions")
 
 	// API Groups and Middlewares
 	authRequired := api.AuthMiddleware(cfg.JWTSecret, false)
 	authOptional := api.AuthMiddleware(cfg.JWTSecret, true)
-	accessList := api.AccessMiddleware(db, "list")
-	accessCreate := api.AccessMiddleware(db, "create")
+	accessList := api.AccessMiddleware(h.DB, "list")
+	accessCreate := api.AccessMiddleware(h.DB, "create")
 
 	apiGroup := e.Group("/api")
+	apiGroup.Use(api.MetricsMiddleware(h.Metrics))
 	{
 		apiGroup.GET("/health", h.Health)
 		apiGroup.GET("/realtime", realtimeHandler.Stream)
@@ -171,16 +177,46 @@ func setupEcho(db *data.DB, cfg *config.Config) *echo.Echo {
 		// Signup is now protected, only an authenticated user (admin) can create others
 		authGroup.POST("/signup", authHandler.Signup, authRequired)
 
+		// Functions
+		apiGroup.GET("/functions", functionsHandler.List, authRequired)
+
 		// Files
 		apiGroup.POST("/files", fileHandler.Upload, authRequired)
+		apiGroup.GET("/files", fileHandler.List, authRequired)
 		e.Static("/api/files", "./data/storage")
 
 		// Collections
 		collectionsGroup := apiGroup.Group("/collections", authRequired)
 		collectionsGroup.POST("", h.CreateCollection)
 		collectionsGroup.GET("", h.ListCollections)
-		collectionsGroup.GET("/schemas", h.ListSchemas) // New Endpoint
+		collectionsGroup.DELETE("/:name", h.DeleteCollection) // New
+		collectionsGroup.GET("/schemas", h.ListSchemas)
 		collectionsGroup.GET("/visualize", h.GetVisualizeSchema)
+
+		// Project Info
+		apiGroup.GET("/project/info", h.GetProjectInfo, authRequired)
+		apiGroup.GET("/project/health", h.GetHealthIssues, authRequired)
+		apiGroup.GET("/project/logs", h.GetLogs, authRequired)
+
+		// Extensions
+		apiGroup.GET("/extensions", h.ListExtensions, authRequired)
+		apiGroup.POST("/extensions/:name", h.ToggleExtension, authRequired)
+
+		// Integrations
+		apiGroup.GET("/webhooks", h.ListWebhooks, authRequired)
+		apiGroup.POST("/webhooks", h.CreateWebhook, authRequired)
+		apiGroup.DELETE("/webhooks/:id", h.DeleteWebhook, authRequired)
+
+		apiGroup.GET("/cron", h.ListCronJobs, authRequired)
+		apiGroup.POST("/cron", h.CreateCronJob, authRequired)
+		apiGroup.DELETE("/cron/:id", h.DeleteCronJob, authRequired)
+
+		apiGroup.GET("/vault", h.ListSecrets, authRequired)
+		apiGroup.POST("/vault", h.CreateSecret, authRequired)
+		apiGroup.DELETE("/vault/:id", h.DeleteSecret, authRequired)
+
+		apiGroup.GET("/wrappers", h.ListWrappers, authRequired)
+		apiGroup.POST("/graphql/v1", h.HandleGraphQL, authRequired)
 
 		apiGroup.GET("/schema/:name", h.GetTableSchema, authRequired)
 
@@ -188,14 +224,21 @@ func setupEcho(db *data.DB, cfg *config.Config) *echo.Echo {
 		apiGroup.POST("/collections/:name/records", h.CreateRecord, authOptional, accessCreate)
 		apiGroup.GET("/collections/:name/records", h.ListRecords, authOptional, accessList)
 		apiGroup.GET("/collections/:name/records/:id", h.GetRecord, authOptional, accessList)
+		apiGroup.PATCH("/collections/:name/records/:id", h.UpdateRecord, authOptional, accessCreate)
+		apiGroup.DELETE("/collections/:name/records/:id", h.DeleteRecord, authOptional, accessCreate)
 
 		// Tables (Generic/Dashboard endpoints) - Now PROTECTED
 		apiGroup.GET("/tables/:name", h.ListRecords, authRequired)
 		apiGroup.POST("/tables/:name/rows", h.CreateRecord, authRequired)
+		apiGroup.PATCH("/tables/:name/rows/:id", h.UpdateRecord, authRequired)
+		apiGroup.DELETE("/tables/:name/rows/:id", h.DeleteRecord, authRequired)
+		apiGroup.POST("/tables/:name/import", h.ImportRecords, authRequired)
+		apiGroup.POST("/tables/:name/columns", h.AddColumn, authRequired)           // New
+		apiGroup.DELETE("/tables/:name/columns/:col", h.DeleteColumn, authRequired) // New
 	}
 
 	// Create users table for demo if missing
-	ensureUsersTable(db)
+	ensureUsersTable(h.DB)
 
 	// Static Frontend (SPA)
 	api.RegisterStaticRoutes(e)

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Settings as SettingsIcon,
     Shield,
@@ -18,22 +18,35 @@ import {
     Trash2,
     Info
 } from 'lucide-react';
+import { fetchWithAuth } from '../utils/api';
 
 const Settings = () => {
     const [activeTab, setActiveTab] = useState('general');
-    const [projectName, setProjectName] = useState('vlaberapp');
+    const [projectInfo, setProjectInfo] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
-    const projectId = 'elicsuhhgyfukbdfaiun';
+    const [projectName, setProjectName] = useState('');
 
-    // Connection info - these would come from environment/config in production
+    useEffect(() => {
+        fetchWithAuth('/api/project/info')
+            .then(res => res.json())
+            .then(data => {
+                setProjectInfo(data);
+                setProjectName(data.database || 'ozybase');
+            })
+            .catch(err => console.error('Failed to fetch project info:', err));
+    }, []);
+
+    const projectId = projectInfo?.database || 'ozybase';
+
+    // Connection info from real API data
     const connectionInfo = {
-        host: 'localhost',
-        port: '5432',
-        database: 'ozybase',
-        user: 'postgres',
-        password: 'yourpassword',
-        uri: 'postgresql://postgres:[YOUR-PASSWORD]@localhost:5432/ozybase',
-        poolerUri: 'postgresql://postgres.[PROJECT_REF]:[YOUR-PASSWORD]@pooler.ozybase.io:6543/ozybase'
+        host: projectInfo?.host || 'localhost',
+        port: projectInfo?.port || '5432',
+        database: projectInfo?.database || 'ozybase',
+        user: projectInfo?.user || 'postgres',
+        password: '[YOUR-PASSWORD]',
+        uri: `postgresql://${projectInfo?.user || 'postgres'}:[YOUR-PASSWORD]@${projectInfo?.host || 'localhost'}:${projectInfo?.port || '5432'}/${projectInfo?.database || 'ozybase'}`,
+        poolerUri: `postgresql://${projectInfo?.user || 'postgres'}.[PROJECT_REF]:[YOUR-PASSWORD]@pooler.ozybase.io:6543/${projectInfo?.database || 'ozybase'}`
     };
 
     const menuSections = [

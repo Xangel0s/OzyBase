@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     ShieldCheck,
     AlertTriangle,
@@ -9,15 +9,65 @@ import {
     Play,
     Terminal,
     Cpu,
-    Lock
+    Lock,
+    Database
 } from 'lucide-react';
 
 const Advisors = () => {
-    const [issues] = useState([
-        { id: 1, type: 'Security', severity: 'Critical', title: 'Public Access on System Table', desc: 'The table "_v_users" is currently world-readable. Change access to admin only.', status: 'Error' },
-        { id: 2, type: 'Performance', severity: 'Warning', title: 'Missing Index on Email', desc: 'Queries on "users" using "email" column might be slow. Add a B-tree index.', status: 'Warning' },
-        { id: 3, type: 'Linter', severity: 'Info', title: 'Redundant Column Type', desc: 'Column "phone" in table "profiles" uses TEXT but could be VARCHAR(20).', status: 'Info' }
-    ]);
+    const [issues, setIssues] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({
+        tableCount: 0,
+        functionCount: 0,
+        schemaCount: 0
+    });
+
+    useEffect(() => {
+        fetchHealth();
+        fetchStats();
+    }, []);
+
+    const fetchHealth = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('ozy_token');
+            const res = await fetch('/api/project/health', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                setIssues(data.map((item, index) => ({
+                    id: index,
+                    type: item.type === 'security' ? 'Security' : 'Performance',
+                    severity: item.type === 'security' ? 'Critical' : 'Warning',
+                    title: item.title,
+                    desc: item.description,
+                    status: item.type === 'security' ? 'Error' : 'Warning'
+                })));
+            }
+        } catch (error) {
+            console.error('Failed to fetch health issues:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchStats = async () => {
+        try {
+            const token = localStorage.getItem('ozy_token');
+            const res = await fetch('/api/project/info', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            setStats({
+                tableCount: data.table_count,
+                functionCount: data.function_count,
+                schemaCount: data.schema_count
+            });
+        } catch (error) {
+            console.error('Failed to fetch project info:', error);
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-[#171717] animate-in fade-in duration-500 overflow-y-auto custom-scrollbar">
@@ -33,8 +83,11 @@ const Advisors = () => {
                             <p className="text-zinc-500 text-sm font-medium uppercase tracking-widest text-[10px]">Security, Performance & Best Practices</p>
                         </div>
                     </div>
-                    <button className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 text-zinc-400 px-4 py-2 rounded-lg font-black text-xs uppercase tracking-widest hover:text-primary hover:border-primary/30 transition-all">
-                        <RefreshCw size={14} />
+                    <button
+                        onClick={() => { fetchHealth(); fetchStats(); }}
+                        className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 text-zinc-400 px-4 py-2 rounded-lg font-black text-xs uppercase tracking-widest hover:text-primary hover:border-primary/30 transition-all"
+                    >
+                        <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
                         Re-scan Database
                     </button>
                 </div>
@@ -42,8 +95,8 @@ const Advisors = () => {
                 {/* Score Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {[
-                        { title: 'Security Score', value: '82/100', status: 'Healthy', color: 'text-green-500' },
-                        { title: 'Performance', value: 'B+', status: 'Optimized', color: 'text-primary' },
+                        { title: 'Security Score', value: issues.filter(i => i.type === 'Security').length > 0 ? '70/100' : '100/100', status: issues.filter(i => i.type === 'Security').length > 0 ? 'Action Needed' : 'Healthy', color: 'text-green-500' },
+                        { title: 'Optimization', value: stats.tableCount > 0 ? 'B+' : 'A', status: 'Ready', color: 'text-primary' },
                         { title: 'Data Integrity', value: 'Grade A', status: 'Strict', color: 'text-blue-500' }
                     ].map((card, i) => (
                         <div key={i} className="bg-[#111111] border border-[#2e2e2e] rounded-2xl p-6 relative overflow-hidden group">
@@ -67,68 +120,73 @@ const Advisors = () => {
             <div className="p-8">
                 <div className="space-y-4">
                     <div className="flex items-center justify-between mb-6">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white underline decoration-primary underline-offset-8">Critical Issues ({issues.length})</h4>
-                        <div className="flex gap-2">
-                            <button className="px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-md text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-colors">By Severity</button>
-                            <button className="px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-md text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-colors">By Category</button>
-                        </div>
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white underline decoration-primary underline-offset-8">Real Advisory Issues ({issues.length})</h4>
                     </div>
 
-                    {issues.map((issue) => (
-                        <div key={issue.id} className="bg-[#111111] border border-[#2e2e2e] rounded-2xl overflow-hidden shadow-xl group hover:border-zinc-700 transition-all">
-                            <div className="flex items-stretch">
-                                <div className={`w-1.5 ${issue.status === 'Error' ? 'bg-red-500 shadow-[2px_0_15px_rgba(239,68,68,0.4)]' :
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-20 opacity-30 gap-4">
+                            <RefreshCw className="animate-spin" size={32} />
+                            <span className="text-[10px] uppercase font-black tracking-widest">Scanning OzyBase Infrastructure...</span>
+                        </div>
+                    ) : issues.length === 0 ? (
+                        <div className="bg-[#111111] border border-green-500/20 rounded-2xl p-8 text-center">
+                            <CheckCircle2 size={48} className="text-green-500 mx-auto mb-4 opacity-50" />
+                            <h3 className="text-white font-bold uppercase italic tracking-tighter">Everything looks good!</h3>
+                            <p className="text-zinc-500 text-xs mt-2 uppercase tracking-widest">No critical vulnerabilities detected in your current configuration.</p>
+                        </div>
+                    ) : (
+                        issues.map((issue) => (
+                            <div key={issue.id} className="bg-[#111111] border border-[#2e2e2e] rounded-2xl overflow-hidden shadow-xl group hover:border-zinc-700 transition-all">
+                                <div className="flex items-stretch">
+                                    <div className={`w-1.5 ${issue.status === 'Error' ? 'bg-red-500 shadow-[2px_0_15px_rgba(239,68,68,0.4)]' :
                                         issue.status === 'Warning' ? 'bg-primary shadow-[2px_0_15px_rgba(254,254,0,0.4)]' :
                                             'bg-blue-500'
-                                    }`} />
-                                <div className="flex-1 p-6 flex items-start justify-between gap-6">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${issue.type === 'Security' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                        }`} />
+                                    <div className="flex-1 p-6 flex items-start justify-between gap-6">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${issue.type === 'Security' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
                                                     issue.type === 'Performance' ? 'bg-primary/10 text-primary border border-primary/20' :
                                                         'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                                                }`}>
-                                                {issue.type}
-                                            </span>
-                                            <h3 className="text-sm font-bold text-zinc-200 uppercase tracking-tight truncate">{issue.title}</h3>
+                                                    }`}>
+                                                    {issue.type}
+                                                </span>
+                                                <h3 className="text-sm font-bold text-zinc-100 uppercase tracking-tight">{issue.title}</h3>
+                                            </div>
+                                            <p className="text-xs text-zinc-500 font-medium leading-relaxed max-w-2xl">
+                                                {issue.desc}
+                                            </p>
                                         </div>
-                                        <p className="text-xs text-zinc-500 font-medium leading-relaxed max-w-2xl">
-                                            {issue.desc}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <button className="px-4 py-2 bg-[#1a1a1a] border border-[#2e2e2e] rounded-lg text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all">
-                                            Dismiss
-                                        </button>
-                                        <button className="px-4 py-2 bg-zinc-100 text-black border border-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:border-primary transition-all flex items-center gap-2">
-                                            <Zap size={12} fill="currentColor" />
-                                            Auto-Fix
-                                        </button>
+                                        <div className="flex items-center gap-3">
+                                            <button className="px-4 py-2 bg-zinc-100 text-black border border-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:border-primary transition-all flex items-center gap-2">
+                                                <Zap size={12} fill="currentColor" />
+                                                Auto-Fix
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
 
-                {/* Database Operations Mockup */}
+                {/* Database Operations stats */}
                 <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {[
-                        { title: 'Vulnerabilities', items: '0 detected', icon: Lock },
-                        { title: 'Linter Checks', items: '12 passed', icon: Terminal },
-                        { title: 'Query Stats', items: 'Enabled', icon: Cpu }
+                        { title: 'Total Tables', value: stats.tableCount, icon: Database },
+                        { title: 'Global Functions', value: stats.functionCount, icon: Zap },
+                        { title: 'Schemas Detected', value: stats.schemaCount, icon: Terminal }
                     ].map((item, i) => (
-                        <div key={i} className="bg-[#111111] border border-[#2e2e2e] rounded-2xl p-5 flex items-center justify-between group cursor-pointer hover:bg-zinc-900/30 transition-all">
+                        <div key={i} className="bg-[#111111] border border-[#2e2e2e] rounded-2xl p-5 flex items-center justify-between group">
                             <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-600 group-hover:text-zinc-200 transition-colors">
+                                <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-600 group-hover:text-primary transition-colors">
                                     <item.icon size={20} />
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.1em]">{item.title}</p>
-                                    <p className="text-xs font-bold text-zinc-400 uppercase tracking-tight">{item.items}</p>
+                                    <p className="text-lg font-black text-white italic tracking-tighter">{item.value}</p>
                                 </div>
                             </div>
-                            <Play size={14} className="text-zinc-800 group-hover:text-primary transition-colors" />
                         </div>
                     ))}
                 </div>

@@ -31,16 +31,73 @@ const ApiDocs = ({ page = 'intro' }) => {
                     <div className="space-y-6">
                         <div className="p-8 bg-[#111111] border border-[#2e2e2e] rounded-3xl">
                             <h2 className="text-2xl font-black text-white mb-4 uppercase tracking-tighter italic">Authentication API</h2>
-                            <p className="text-zinc-400 mb-6">
-                                Manage users, issue tokens, and handle OAuth providers.
-                            </p>
-                            <div className="bg-[#0c0c0c] p-4 rounded-xl border border-[#2e2e2e] font-mono text-xs overflow-x-auto">
-                                <span className="text-green-400">POST</span> <span className="text-zinc-300">/api/auth/login</span>
+                            <div className="space-y-4">
+                                <div className="p-4 bg-[#0c0c0c] rounded-xl border border-[#2e2e2e]">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <span className="bg-green-500/20 text-green-500 text-[10px] font-black px-2 py-0.5 rounded">POST</span>
+                                        <code className="text-zinc-300 text-xs">/api/auth/login</code>
+                                    </div>
+                                    <p className="text-xs text-zinc-500">Authenticate admin or user and receive JWT token.</p>
+                                </div>
+                                <div className="p-4 bg-[#0c0c0c] rounded-xl border border-[#2e2e2e]">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <span className="bg-green-500/20 text-green-500 text-[10px] font-black px-2 py-0.5 rounded">POST</span>
+                                        <code className="text-zinc-300 text-xs">/api/auth/signup</code>
+                                    </div>
+                                    <p className="text-xs text-zinc-500">Create a new user account (Requires Admin Token).</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 );
-            // Add other cases as placeholdes
+            case 'db_api':
+                return (
+                    <div className="space-y-6">
+                        <div className="p-8 bg-[#111111] border border-[#2e2e2e] rounded-3xl">
+                            <h2 className="text-2xl font-black text-white mb-4 uppercase tracking-tighter italic">Database API</h2>
+                            <div className="space-y-4">
+                                <div className="p-4 bg-[#0c0c0c] rounded-xl border border-[#2e2e2e]">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <span className="bg-blue-500/20 text-blue-500 text-[10px] font-black px-2 py-0.5 rounded">GET</span>
+                                        <code className="text-zinc-300 text-xs">/api/tables/:name</code>
+                                    </div>
+                                    <p className="text-xs text-zinc-500">List records from a collection.</p>
+                                </div>
+                                <div className="p-4 bg-[#0c0c0c] rounded-xl border border-[#2e2e2e]">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <span className="bg-yellow-500/20 text-yellow-500 text-[10px] font-black px-2 py-0.5 rounded">PATCH</span>
+                                        <code className="text-zinc-300 text-xs">/api/tables/:name/row/:id</code>
+                                    </div>
+                                    <p className="text-xs text-zinc-500">Update a specific record by ID.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 'storage_api':
+                return (
+                    <div className="space-y-6">
+                        <div className="p-8 bg-[#111111] border border-[#2e2e2e] rounded-3xl">
+                            <h2 className="text-2xl font-black text-white mb-4 uppercase tracking-tighter italic">Storage API</h2>
+                            <div className="space-y-4">
+                                <div className="p-4 bg-[#0c0c0c] rounded-xl border border-[#2e2e2e]">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <span className="bg-green-500/20 text-green-500 text-[10px] font-black px-2 py-0.5 rounded">POST</span>
+                                        <code className="text-zinc-300 text-xs">/api/files</code>
+                                    </div>
+                                    <p className="text-xs text-zinc-500">Upload a file (Multipart form data).</p>
+                                </div>
+                                <div className="p-4 bg-[#0c0c0c] rounded-xl border border-[#2e2e2e]">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <span className="bg-blue-500/20 text-blue-500 text-[10px] font-black px-2 py-0.5 rounded">GET</span>
+                                        <code className="text-zinc-300 text-xs">/api/files</code>
+                                    </div>
+                                    <p className="text-xs text-zinc-500">List all storage assets.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
             default:
                 return (
                     <div className="flex flex-col items-center justify-center h-[50vh] text-zinc-500">
