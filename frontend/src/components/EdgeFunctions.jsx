@@ -69,9 +69,9 @@ const EdgeFunctions = () => {
                 {/* Info Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
                     {[
-                        { title: 'Total Executions', value: '0', icon: Play, color: 'text-primary' },
-                        { title: 'Avg. Latency', value: '0ms', icon: Cpu, color: 'text-green-500' },
-                        { title: 'Global Regions', value: '1', icon: Globe, color: 'text-blue-500' },
+                        { title: 'Deploed Functions', value: functions.length.toString(), icon: Play, color: 'text-primary' },
+                        { title: 'System Engine', value: 'V8/Deno', icon: Cpu, color: 'text-green-500' },
+                        { title: 'Global Regions', value: 'Local Node', icon: Globe, color: 'text-blue-500' },
                     ].map((card, i) => (
                         <div key={i} className="bg-[#111111] border border-[#2e2e2e] rounded-xl p-4 flex items-center gap-4">
                             <div className={`w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center ${card.color}`}>

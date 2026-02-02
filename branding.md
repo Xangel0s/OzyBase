@@ -90,3 +90,20 @@ We use custom scrollbars to match the dark theme.
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar-thumb { background: #2e2e2e; rounded: 10px; }
 ```
+## 7. Feedback & Notifications
+Following the Supabase pattern, OzyBase uses a non-intrusive but highly visible notification system.
+
+### A. Placement
+- **Standard Notifications (Toasts)**: Top-right corner of the viewport (`fixed top-6 right-6`).
+- **Critical Banners**: Inline within the main content header, spanning the full width.
+
+### B. Color States
+Notifications must use high-contrast status colors to communicate urgency instantly:
+- **Success (Green)**: `#22c55e` - Used for successful database operations, fixes applied, and connections.
+- **Warning (Amber)**: `#f59e0b` - Used for non-critical performance issues or data linting.
+- **Error (Red)**: `#ef4444` - Used for failed operations, security breaches, or system crashes.
+
+### C. Visual Anatomy
+- **Backdrop**: Uses `backdrop-blur-md` and a semi-transparent background to maintain context while appearing elevated.
+- **Progress Bar**: A subtle underline progress bar indicates the time remaining before auto-dismissal.
+- **Micro-Animations**: Success notifications should use a subtle bounce on the check icon to reward the user.

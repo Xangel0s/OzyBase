@@ -195,14 +195,14 @@ const Integrations = ({ page = 'wrappers' }) => {
         e.description.toLowerCase().includes(search.toLowerCase())
     );
 
-    // Mock data for wrappers (Foreign Data Wrappers)
+    // List of officially supported wrappers that we show in the dashboard
     const wrappers = [
-        { id: 'stripe', name: 'Stripe', desc: 'Payment processing and billing', status: 'available', icon: '💳' },
-        { id: 'firebase', name: 'Firebase', desc: 'Google Firebase integration', status: 'available', icon: '🔥' },
-        { id: 's3', name: 'AWS S3', desc: 'Amazon S3 storage wrapper', status: 'available', icon: '☁️' },
-        { id: 'airtable', name: 'Airtable', desc: 'Airtable database sync', status: 'available', icon: '📊' },
-        { id: 'clickhouse', name: 'ClickHouse', desc: 'Analytics database wrapper', status: 'coming_soon', icon: '⚡' },
-        { id: 'bigquery', name: 'BigQuery', desc: 'Google BigQuery integration', status: 'coming_soon', icon: '📈' }
+        { id: 'postgres_fdw', name: 'Postgres FDW', desc: 'Query other PostgreSQL databases', status: 'available', icon: '🐘' },
+        { id: 'file_fdw', name: 'File FDW', desc: 'Query server-side files as tables', status: 'available', icon: '📁' },
+        { id: 'mysql_fdw', name: 'MySQL FDW', desc: 'Connect to MySQL/MariaDB instances', status: 'available', icon: '🐬' },
+        { id: 'sqlite_fdw', name: 'SQLite FDW', desc: 'Access SQLite database files', status: 'available', icon: '💾' },
+        { id: 'redis_fdw', name: 'Redis FDW', desc: 'Query Redis key-value stores', status: 'available', icon: '🧧' },
+        { id: 'stripe', name: 'Stripe Wrapper', desc: 'Sync Stripe data via FDW', status: 'coming_soon', icon: '💳' }
     ];
 
     const getContent = () => {

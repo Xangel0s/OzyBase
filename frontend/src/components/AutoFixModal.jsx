@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, AlertTriangle, X, Check, Loader2, ArrowRight } from 'lucide-react';
+import { Shield, AlertTriangle, X, Check, Loader2, ArrowRight, RefreshCw, Zap } from 'lucide-react';
 
 const AutoFixModal = ({ isOpen, onClose, issue, onConfirm }) => {
     const [loading, setLoading] = useState(false);
@@ -42,33 +42,77 @@ const AutoFixModal = ({ isOpen, onClose, issue, onConfirm }) => {
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 text-amber-500">
                             <AlertTriangle size={18} />
-                            <span className="text-[11px] font-black uppercase tracking-widest">Structural Impact Warning</span>
+                            <span className="text-[11px] font-black uppercase tracking-widest">
+                                {issue.type === 'performance' ? 'Optimization Impact Warning' : 'Structural Impact Warning'}
+                            </span>
                         </div>
 
                         <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-2xl space-y-4">
                             <p className="text-sm text-zinc-300 leading-relaxed font-medium">
-                                You are about to apply a security fix to: <br />
+                                You are about to apply a {issue.type} fix to: <br />
                                 <span className="text-white font-bold font-mono text-xs">{issue.title}</span>
                             </p>
 
                             <div className="space-y-3 pt-2">
-                                <div className="flex gap-3 text-xs">
-                                    <div className="mt-1 shrink-0"><Check size={14} className="text-green-500" /></div>
-                                    <p className="text-zinc-400">Enables <span className="text-green-500 font-bold">Row Level Security (RLS)</span> on this table.</p>
-                                </div>
-                                <div className="flex gap-3 text-xs">
-                                    <div className="mt-1 shrink-0"><AlertTriangle size={14} className="text-amber-500" /></div>
-                                    <p className="text-zinc-400">This <span className="text-amber-500 font-bold italic">will restrict all direct access</span> to this table unless specific access policies are defined.</p>
-                                </div>
+                                {issue.type === 'security' && issue.title.includes('Row Level Security') && (
+                                    <>
+                                        <div className="flex gap-3 text-xs">
+                                            <div className="mt-1 shrink-0"><Check size={14} className="text-green-500" /></div>
+                                            <p className="text-zinc-400">Enables <span className="text-green-500 font-bold">Row Level Security (RLS)</span> on this table.</p>
+                                        </div>
+                                        <div className="p-3 bg-black/40 rounded-lg border border-white/5 font-mono text-[9px] text-zinc-500 leading-tight">
+                                            <span className="text-primary">ALTER TABLE</span> {issue.title.split('`')[1] || 'table'} <span className="text-primary">ENABLE ROW LEVEL SECURITY</span>;
+                                        </div>
+                                    </>
+                                )}
+
+                                {issue.type === 'security' && issue.title.includes('public list rules') && (
+                                    <>
+                                        <div className="flex gap-3 text-xs">
+                                            <div className="mt-1 shrink-0"><Check size={14} className="text-green-500" /></div>
+                                            <p className="text-zinc-400">Migrates access rules from <span className="text-amber-500 font-bold">Public</span> to <span className="text-green-500 font-bold">Authenticated</span>.</p>
+                                        </div>
+                                        <div className="p-3 bg-black/40 rounded-lg border border-white/5 font-mono text-[9px] text-zinc-500 leading-tight">
+                                            <span className="text-primary">UPDATE</span> _v_collections <span className="text-primary">SET</span> list_rule = 'auth' <span className="text-primary">WHERE</span> list_rule = 'public';
+                                        </div>
+                                    </>
+                                )}
+
+                                {issue.type === 'performance' && issue.title.includes('missing an index') && (
+                                    <>
+                                        <div className="flex gap-3 text-xs">
+                                            <div className="mt-1 shrink-0"><Check size={14} className="text-green-500" /></div>
+                                            <p className="text-zinc-400">Creates a <span className="text-primary font-bold italic">B-Tree Index</span> on the foreign key column.</p>
+                                        </div>
+                                        <div className="p-3 bg-black/40 rounded-lg border border-white/5 font-mono text-[9px] text-zinc-500 leading-tight">
+                                            <span className="text-primary">CREATE INDEX</span> idx_{issue.title.split('`')[3]}_{issue.title.split('`')[1]} <span className="text-primary">ON</span> {issue.title.split('`')[3]} ({issue.title.split('`')[1]});
+                                        </div>
+                                    </>
+                                )}
+
+                                {issue.type === 'performance' && issue.title.includes('sequential scans') && (
+                                    <>
+                                        <div className="flex gap-3 text-xs">
+                                            <div className="mt-1 shrink-0"><Check size={14} className="text-green-500" /></div>
+                                            <p className="text-zinc-400">Executes <span className="text-primary font-bold">ANALYZE</span> command database-wide.</p>
+                                        </div>
+                                        <div className="p-3 bg-black/40 rounded-lg border border-white/5 font-mono text-[9px] text-zinc-500 leading-tight">
+                                            <span className="text-primary">ANALYZE</span>;
+                                        </div>
+                                    </>
+                                )}
+
                                 <div className="flex gap-3 text-xs">
                                     <div className="mt-1 shrink-0"><Check size={14} className="text-primary" /></div>
-                                    <p className="text-zinc-400 font-medium">Structure will be updated to OzyBase high-security standard.</p>
+                                    <p className="text-zinc-400 font-medium">Action will be logged in OzyBase Audit System.</p>
                                 </div>
                             </div>
                         </div>
 
                         <p className="text-[10px] text-zinc-500 italic text-center px-4">
-                            "By proceeding, OzyBase will execute SQL commands to alter your database schema. Ensure you have defined user policies if you need public access."
+                            {issue.type === 'security'
+                                ? '"OzyBase will execute SQL commands to alter your database schema and access rules instantly."'
+                                : '"OzyBase will run diagnostic and optimization commands on your database engine without downtime."'}
                         </p>
                     </div>
                 </div>

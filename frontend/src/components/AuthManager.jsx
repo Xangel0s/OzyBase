@@ -89,8 +89,8 @@ const AuthManager = () => {
                     {[
                         { label: 'Total Users', val: stats.total, icon: Users, color: 'text-primary' },
                         { label: 'Authorized', val: stats.authorized, icon: BadgeCheck, color: 'text-green-500' },
-                        { label: 'Oauth Prov', val: '0 active', icon: Shield, color: 'text-blue-500' },
-                        { label: 'Login Rate', val: stats.rate, icon: Activity, color: 'text-primary' }
+                        { label: 'System Admin', val: users.filter(u => u.role === 'admin' || u.email?.includes('ozybase.local')).length, icon: Shield, color: 'text-blue-500' },
+                        { label: 'Platform Status', val: 'Operational', icon: Activity, color: 'text-primary' }
                     ].map((s, i) => (
                         <div key={i} className="bg-[#111111] border border-[#2e2e2e] rounded-2xl p-4 flex items-center justify-between group">
                             <div>

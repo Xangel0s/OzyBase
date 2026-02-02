@@ -503,14 +503,50 @@ func (h *Handler) GetHealthIssues(c echo.Context) error {
 		}
 	}
 
-	// 2. Check for slow queries (Requires pg_stat_statements, fallback to mock if not available)
-	issues = append(issues, HealthIssue{
-		Type:        "performance",
-		Title:       "High number of sequential scans detected",
-		Description: "Consider adding indexes to frequently filtered columns.",
-	})
+	// 2. Check for Foreign Keys without indexes (Dynamic)
+	rows, err = h.DB.Pool.Query(ctx, `
+		WITH fk_columns AS (
+			SELECT conrelid::regclass as table_name, conname as constraint_name, a.attname as column_name
+			FROM pg_constraint c
+			CROSS JOIN LATERAL unnest(c.conkey) as col(num)
+			JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = col.num
+			WHERE c.contype = 'f'
+		),
+		indexed_columns AS (
+			SELECT indrelid::regclass as table_name, a.attname as column_name
+			FROM pg_index i
+			CROSS JOIN LATERAL unnest(i.indkey) as col(num)
+			JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = col.num
+		)
+		SELECT f.table_name::text, f.column_name, f.constraint_name
+		FROM fk_columns f
+		LEFT JOIN indexed_columns i ON f.table_name = i.table_name AND f.column_name = i.column_name
+		WHERE i.column_name IS NULL
+	`)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var tableName, colName, conName string
+			if err := rows.Scan(&tableName, &colName, &conName); err == nil {
+				issues = append(issues, HealthIssue{
+					Type:        "performance",
+					Title:       fmt.Sprintf("Foreign Key `%s` in `%s` is missing an index", colName, tableName),
+					Description: fmt.Sprintf("Missing index on FKs can cause slow deletes and updates on the parent table. (Constraint: %s)", conName),
+				})
+			}
+		}
+	}
 
-	// 3. Check for public access rules
+	// 3. Fallback for sequential scans (Only if no FK issues to keep it clean)
+	if len(issues) < 3 {
+		issues = append(issues, HealthIssue{
+			Type:        "performance",
+			Title:       "High number of sequential scans detected",
+			Description: "Consider adding indexes to frequently filtered columns.",
+		})
+	}
+
+	// 4. Check for public access rules
 	var publicCount int
 	h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_collections WHERE list_rule = 'public'").Scan(&publicCount)
 	if publicCount > 0 {
@@ -537,10 +573,16 @@ func (h *Handler) FixHealthIssues(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
 	}
 
+	// Logging to debug what the frontend is sending
+	fmt.Printf("🛠️ Applying fix: Type=%s, Issue=%s\n", req.Type, req.Issue)
+
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 10*time.Second)
 	defer cancel()
 
-	if req.Type == "security" && strings.Contains(req.Issue, "Row Level Security") {
+	issueLower := strings.ToLower(req.Issue)
+	typeLower := strings.ToLower(req.Type)
+
+	if typeLower == "security" && strings.Contains(issueLower, "row level security") {
 		// Extract table name from issue title: "Table `tablename` does not have..."
 		parts := strings.Split(req.Issue, "`")
 		if len(parts) < 3 {
@@ -561,5 +603,44 @@ func (h *Handler) FixHealthIssues(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"message": "RLS enabled successfully"})
 	}
 
-	return c.JSON(http.StatusNotFound, map[string]string{"error": "Fix strategy not found for this issue"})
+	if typeLower == "performance" && strings.Contains(issueLower, "sequential scans") {
+		// Fix: Run ANALYZE to update statistics
+		if _, err := h.DB.Pool.Exec(ctx, "ANALYZE"); err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to run ANALYZE: " + err.Error()})
+		}
+		return c.JSON(http.StatusOK, map[string]string{"message": "Database statistics updated successfully"})
+	}
+
+	if typeLower == "security" && strings.Contains(issueLower, "public list rules") {
+		// Fix: Change all public list rules to 'auth'
+		_, err := h.DB.Pool.Exec(ctx, "UPDATE _v_collections SET list_rule = 'auth' WHERE list_rule = 'public'")
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update collection rules: " + err.Error()})
+		}
+		return c.JSON(http.StatusOK, map[string]string{"message": "Public collections updated to Auth-only access"})
+	}
+
+	if typeLower == "performance" && strings.Contains(issueLower, "missing an index") {
+		// Extract column and table from: "Foreign Key `column` in `table` is missing an index"
+		parts := strings.Split(req.Issue, "`")
+		if len(parts) < 5 {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Could not identify table or column"})
+		}
+		colName := parts[1]
+		tableName := parts[3]
+
+		if !data.IsValidIdentifier(tableName) || !data.IsValidIdentifier(colName) {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid identifiers"})
+		}
+
+		// Create index
+		indexName := fmt.Sprintf("idx_%s_%s", tableName, colName)
+		sql := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s)", indexName, tableName, colName)
+		if _, err := h.DB.Pool.Exec(ctx, sql); err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create index: " + err.Error()})
+		}
+		return c.JSON(http.StatusOK, map[string]string{"message": "Index created successfully"})
+	}
+
+	return c.JSON(http.StatusNotFound, map[string]string{"error": "Fix strategy not found for this issue: " + req.Issue})
 }

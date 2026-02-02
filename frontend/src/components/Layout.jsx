@@ -38,7 +38,8 @@ import {
     CreditCard,
     Server,
     Check,
-    Trash2
+    Trash2,
+    X
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
 
@@ -65,6 +66,12 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
     const [selectedFixIssue, setSelectedFixIssue] = useState(null);
     const [isAutoFixModalOpen, setIsAutoFixModalOpen] = useState(false);
     const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+    const [toast, setToast] = useState(null);
+
+    const showToast = (message, type = 'success') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 5000);
+    };
 
     const loadTables = () => {
         fetchWithAuth('/api/collections')
@@ -160,15 +167,18 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                 })
             });
             if (res.ok) {
+                showToast(`Applied fix for: ${issue.title}`, 'success');
                 // Refresh health after fix
                 fetchWithAuth('/api/project/health')
                     .then(res => res.json())
                     .then(data => setHealthIssues(data));
             } else {
-                alert("Failed to apply fix. This might require manual technical intervention.");
+                const errData = await res.json();
+                showToast(errData.error || "Failed to apply fix", 'error');
             }
         } catch (error) {
             console.error(error);
+            showToast('Network error or server unavailable', 'error');
         }
     };
 
@@ -636,6 +646,10 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                                     setIsAutoFixModalOpen(true);
                                     setIsNotificationOpen(false);
                                 }}
+                                onViewLogs={() => {
+                                    onMenuViewSelect('advisors');
+                                    setIsNotificationOpen(false);
+                                }}
                             />
                         </div>
 
@@ -714,6 +728,28 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                 isOpen={isConnectionModalOpen}
                 onClose={() => setIsConnectionModalOpen(false)}
             />
+
+            {/* Standardized Global Toasts */}
+            {toast && (
+                <div className={`fixed top-6 right-6 z-[300] min-w-[320px] max-w-[400px] p-4 rounded-2xl shadow-2xl border animate-in slide-in-from-right duration-500 flex items-start gap-4 backdrop-blur-md ${toast.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-500 ring-1 ring-green-500/20' :
+                    toast.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-500 ring-1 ring-red-500/20' :
+                        'bg-amber-500/10 border-amber-500/20 text-amber-500 ring-1 ring-amber-500/20'
+                    }`}>
+                    <div className="mt-0.5">
+                        {toast.type === 'success' && <Check size={18} className="animate-bounce" />}
+                        {toast.type === 'error' && <AlertTriangle size={18} />}
+                        {toast.type === 'warning' && <Shield size={18} />}
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest leading-tight">{toast.type}</p>
+                        <p className="text-[11px] font-medium mt-1 text-white/90 leading-relaxed">{toast.message}</p>
+                    </div>
+                    <button onClick={() => setToast(null)} className="opacity-40 hover:opacity-100 transition-opacity mt-0.5">
+                        <X size={14} />
+                    </button>
+                    <div className="absolute bottom-0 left-0 h-0.5 bg-current opacity-30 animate-shrink-width" style={{ animationDuration: '5s', animationFillMode: 'forwards' }} />
+                </div>
+            )}
 
             <AutoFixModal
                 isOpen={isAutoFixModalOpen}

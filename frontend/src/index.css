@@ -38,3 +38,17 @@
 ::-webkit-scrollbar-thumb:hover {
     background: #3e3e3e;
 }
+
+@keyframes shrink-width {
+    from {
+        width: 100%;
+    }
+
+    to {
+        width: 0%;
+    }
+}
+
+.animate-shrink-width {
+    animation: shrink-width linear forwards;
+}

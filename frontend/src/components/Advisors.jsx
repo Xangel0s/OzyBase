@@ -10,8 +10,11 @@ import {
     Terminal,
     Cpu,
     Lock,
-    Database
+    Database,
+    X
 } from 'lucide-react';
+import AutoFixModal from './AutoFixModal';
+import { fetchWithAuth } from '../utils/api';
 
 const Advisors = () => {
     const [issues, setIssues] = useState([]);
@@ -22,6 +25,9 @@ const Advisors = () => {
         schemaCount: 0
     });
 
+    const [isAutoFixModalOpen, setIsAutoFixModalOpen] = useState(false);
+    const [selectedFixIssue, setSelectedFixIssue] = useState(null);
+
     useEffect(() => {
         fetchHealth();
         fetchStats();
@@ -30,15 +36,13 @@ const Advisors = () => {
     const fetchHealth = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('ozy_token');
-            const res = await fetch('/api/project/health', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await fetchWithAuth('/api/project/health');
             const data = await res.json();
             if (Array.isArray(data)) {
                 setIssues(data.map((item, index) => ({
                     id: index,
-                    type: item.type === 'security' ? 'Security' : 'Performance',
+                    type: item.type, // 'security' or 'performance'
+                    typeLabel: item.type === 'security' ? 'Security' : 'Performance',
                     severity: item.type === 'security' ? 'Critical' : 'Warning',
                     title: item.title,
                     desc: item.description,
@@ -52,12 +56,42 @@ const Advisors = () => {
         }
     };
 
+    const [fixingId, setFixingId] = useState(null);
+    const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' | 'warning' }
+
+    const showToast = (message, type = 'success') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 5000);
+    };
+
+    const handleApplyFix = async (issue) => {
+        setFixingId(issue.id);
+        try {
+            const res = await fetchWithAuth('/api/project/health/fix', {
+                method: 'POST',
+                body: JSON.stringify({
+                    type: issue.type,
+                    issue: issue.title
+                })
+            });
+            if (res.ok) {
+                showToast(`Successfully applied fix for: ${issue.title}`, 'success');
+                await fetchHealth(); // Refresh issues after fix
+            } else {
+                const errData = await res.json();
+                showToast(errData.error || 'Failed to apply fix', 'error');
+            }
+        } catch (error) {
+            console.error("Fix failed", error);
+            showToast('Network error or server unavailable', 'error');
+        } finally {
+            setFixingId(null);
+        }
+    };
+
     const fetchStats = async () => {
         try {
-            const token = localStorage.getItem('ozy_token');
-            const res = await fetch('/api/project/info', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await fetchWithAuth('/api/project/info');
             const data = await res.json();
             setStats({
                 tableCount: data.table_count,
@@ -70,7 +104,29 @@ const Advisors = () => {
     };
 
     return (
-        <div className="flex flex-col h-full bg-[#171717] animate-in fade-in duration-500 overflow-y-auto custom-scrollbar">
+        <div className="flex flex-col h-full bg-[#171717] animate-in fade-in duration-500 overflow-y-auto custom-scrollbar relative">
+            {/* Supabase-style Toast Notification */}
+            {toast && (
+                <div className={`fixed top-6 right-6 z-[300] min-w-[320px] max-w-[400px] p-4 rounded-2xl shadow-2xl border animate-in slide-in-from-right duration-500 flex items-start gap-4 backdrop-blur-md ${toast.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-500 ring-1 ring-green-500/20' :
+                        toast.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-500 ring-1 ring-red-500/20' :
+                            'bg-amber-500/10 border-amber-500/20 text-amber-500 ring-1 ring-amber-500/20'
+                    }`}>
+                    <div className="mt-0.5">
+                        {toast.type === 'success' && <CheckCircle2 size={18} className="animate-bounce" />}
+                        {toast.type === 'error' && <AlertTriangle size={18} />}
+                        {toast.type === 'warning' && <Info size={18} />}
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest leading-tight">{toast.type}</p>
+                        <p className="text-[11px] font-medium mt-1 text-white/90 leading-relaxed">{toast.message}</p>
+                    </div>
+                    <button onClick={() => setToast(null)} className="opacity-40 hover:opacity-100 transition-opacity mt-0.5">
+                        <X size={14} />
+                    </button>
+                    <div className={`absolute bottom-0 left-0 h-0.5 bg-current opacity-30 animate-shrink-width`} style={{ animationDuration: '5s', animationFillMode: 'forwards' }} />
+                </div>
+            )}
+
             {/* Header */}
             <div className="px-8 py-8 border-b border-[#2e2e2e] bg-[#1a1a1a]">
                 <div className="flex items-center justify-between mb-8">
@@ -95,7 +151,7 @@ const Advisors = () => {
                 {/* Score Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {[
-                        { title: 'Security Score', value: issues.filter(i => i.type === 'Security').length > 0 ? '70/100' : '100/100', status: issues.filter(i => i.type === 'Security').length > 0 ? 'Action Needed' : 'Healthy', color: 'text-green-500' },
+                        { title: 'Security Score', value: issues.filter(i => i.type === 'security').length > 0 ? '70/100' : '100/100', status: issues.filter(i => i.type === 'security').length > 0 ? 'Action Needed' : 'Healthy', color: 'text-green-500' },
                         { title: 'Optimization', value: stats.tableCount > 0 ? 'B+' : 'A', status: 'Ready', color: 'text-primary' },
                         { title: 'Data Integrity', value: 'Grade A', status: 'Strict', color: 'text-blue-500' }
                     ].map((card, i) => (
@@ -145,11 +201,11 @@ const Advisors = () => {
                                     <div className="flex-1 p-6 flex items-start justify-between gap-6">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-3 mb-2">
-                                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${issue.type === 'Security' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                                                    issue.type === 'Performance' ? 'bg-primary/10 text-primary border border-primary/20' :
+                                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${issue.type === 'security' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                                    issue.type === 'performance' ? 'bg-primary/10 text-primary border border-primary/20' :
                                                         'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                                                     }`}>
-                                                    {issue.type}
+                                                    {issue.typeLabel}
                                                 </span>
                                                 <h3 className="text-sm font-bold text-zinc-100 uppercase tracking-tight">{issue.title}</h3>
                                             </div>
@@ -158,9 +214,16 @@ const Advisors = () => {
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <button className="px-4 py-2 bg-zinc-100 text-black border border-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:border-primary transition-all flex items-center gap-2">
-                                                <Zap size={12} fill="currentColor" />
-                                                Auto-Fix
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedFixIssue(issue);
+                                                    setIsAutoFixModalOpen(true);
+                                                }}
+                                                disabled={fixingId !== null}
+                                                className="px-4 py-2 bg-zinc-100 text-black border border-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:border-primary transition-all flex items-center gap-2 disabled:opacity-50"
+                                            >
+                                                {fixingId === issue.id ? <RefreshCw size={12} className="animate-spin" /> : <Zap size={12} fill="currentColor" />}
+                                                {fixingId === issue.id ? 'Fixing...' : 'Auto-Fix'}
                                             </button>
                                         </div>
                                     </div>
@@ -191,6 +254,13 @@ const Advisors = () => {
                     ))}
                 </div>
             </div>
+
+            <AutoFixModal
+                isOpen={isAutoFixModalOpen}
+                issue={selectedFixIssue}
+                onClose={() => setIsAutoFixModalOpen(false)}
+                onConfirm={handleApplyFix}
+            />
         </div>
     );
 };

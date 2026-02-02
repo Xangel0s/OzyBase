@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Shield, AlertTriangle, CheckCircle2, X, Activity, Zap } from 'lucide-react';
 
-const NotificationCenter = ({ isOpen, onClose, issues, onIssueAction }) => {
+const NotificationCenter = ({ isOpen, onClose, issues, onIssueAction, onViewLogs }) => {
     if (!isOpen) return null;
 
     return (
@@ -70,8 +70,11 @@ const NotificationCenter = ({ isOpen, onClose, issues, onIssueAction }) => {
             </div>
 
             <div className="p-3 bg-[#0c0c0c] border-t border-[#2e2e2e] text-center">
-                <button className="text-[9px] font-black text-zinc-600 hover:text-primary uppercase tracking-widest transition-colors">
-                    View System Logs
+                <button
+                    onClick={onViewLogs}
+                    className="text-[9px] font-black text-zinc-600 hover:text-primary uppercase tracking-widest transition-colors w-full py-2"
+                >
+                    View System Logs & Advisors
                 </button>
             </div>
         </div>
