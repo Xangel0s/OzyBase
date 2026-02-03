@@ -23,11 +23,32 @@ import PermissionManager from './components/PermissionManager'
 import NotificationSettings from './components/NotificationSettings'
 import TwoFactorAuth from './components/TwoFactorAuth'
 import IntegrationsManager from './components/IntegrationsManager'
+import SetupWizard from './components/SetupWizard'
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('ozy_token'));
+    const [isSystemInitialized, setIsSystemInitialized] = useState(true); // Default true to avoid flash
+    const [checkingSystem, setCheckingSystem] = useState(true);
     const [selectedView, setSelectedView] = useState('overview');
     const [selectedTable, setSelectedTable] = useState(null);
+
+    useEffect(() => {
+        checkSystemStatus();
+    }, []);
+
+    const checkSystemStatus = async () => {
+        try {
+            const res = await fetch('/api/system/status');
+            if (res.ok) {
+                const data = await res.json();
+                setIsSystemInitialized(data.initialized);
+            }
+        } catch (e) {
+            console.error("Failed to check system status", e);
+        } finally {
+            setCheckingSystem(false);
+        }
+    };
 
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -39,6 +60,14 @@ function App() {
             setIsAuthenticated(true);
         }
     }, []);
+
+    if (checkingSystem) {
+        return <div className="h-screen w-screen flex items-center justify-center bg-black text-white">Loading OzyBase...</div>;
+    }
+
+    if (!isSystemInitialized) {
+        return <SetupWizard onComplete={() => { setIsSystemInitialized(true); }} />;
+    }
 
     if (!isAuthenticated) {
         return <Login onLoginSuccess={() => setIsAuthenticated(true)} />;

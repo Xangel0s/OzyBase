@@ -240,6 +240,10 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 		authGroup.GET("/login/:provider", authHandler.GetOAuthURL)
 		authGroup.GET("/callback/:provider", authHandler.OAuthCallback)
 
+		// System Setup (Public, but protected by logic inside)
+		apiGroup.GET("/system/status", h.GetSystemStatus)
+		apiGroup.POST("/system/setup", h.SetupSystem)
+
 		// Two-Factor Authentication
 		authGroup.POST("/2fa/setup", twoFactorHandler.Setup2FA, authRequired)
 		authGroup.POST("/2fa/enable", twoFactorHandler.Enable2FA, authRequired)
