@@ -33,6 +33,7 @@ import {
     PinOff,
     Shield,
     Globe,
+    ShieldAlert,
     Cpu,
     History,
     CreditCard,

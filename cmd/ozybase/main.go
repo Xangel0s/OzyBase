@@ -288,6 +288,10 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 		apiGroup.DELETE("/project/integrations/:id", h.DeleteIntegration, authRequired)
 		apiGroup.POST("/project/integrations/:id/test", h.TestIntegration, authRequired)
 
+		// Analytics (High Performance Go Aggregations)
+		apiGroup.GET("/analytics/traffic", h.GetTrafficStats, authRequired)
+		apiGroup.GET("/analytics/geo", h.GetGeoStats, authRequired)
+
 		apiGroup.POST("/project/health/fix", h.FixHealthIssues, authRequired)
 		apiGroup.GET("/project/logs", h.GetLogs, authRequired)
 
