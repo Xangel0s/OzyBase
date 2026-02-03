@@ -8,6 +8,7 @@ import {
     Code,
     Download,
     Layers,
+    Search,
     Key,
     Link,
     Hash,

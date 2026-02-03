@@ -272,6 +272,13 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 		collectionsGroup.GET("/visualize", h.GetVisualizeSchema)
 		collectionsGroup.PATCH("/rules", h.UpdateCollectionRules)
 
+		// Tables (Alias for Frontend compatibility)
+		tablesGroup := apiGroup.Group("/tables", authRequired)
+		tablesGroup.GET("/:name", h.ListRecords)
+		tablesGroup.POST("/:name", h.CreateRecord)
+		tablesGroup.DELETE("/:name/:id", h.DeleteRecord)
+		tablesGroup.GET("/:name/:id", h.GetRecord)
+
 		// Project Info
 		apiGroup.GET("/project/info", h.GetProjectInfo, authRequired)
 		apiGroup.GET("/project/health", h.GetHealthIssues, authRequired)
@@ -299,14 +306,14 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 		apiGroup.GET("/extensions", h.ListExtensions, authRequired)
 		apiGroup.POST("/extensions/:name", h.ToggleExtension, authRequired)
 
-		// Integrations
-		apiGroup.GET("/webhooks", h.ListWebhooks, authRequired)
-		apiGroup.POST("/webhooks", h.CreateWebhook, authRequired)
-		apiGroup.DELETE("/webhooks/:id", h.DeleteWebhook, authRequired)
+		// Integrations (Modern Handlers)
+		apiGroup.GET("/webhooks", webhookHandler.List, authRequired)
+		apiGroup.POST("/webhooks", webhookHandler.Create, authRequired)
+		apiGroup.DELETE("/webhooks/:id", webhookHandler.Delete, authRequired)
 
-		apiGroup.GET("/cron", h.ListCronJobs, authRequired)
-		apiGroup.POST("/cron", h.CreateCronJob, authRequired)
-		apiGroup.DELETE("/cron/:id", h.DeleteCronJob, authRequired)
+		apiGroup.GET("/cron", cronHandler.List, authRequired)
+		apiGroup.POST("/cron", cronHandler.Create, authRequired)
+		apiGroup.DELETE("/cron/:id", cronHandler.Delete, authRequired)
 
 		apiGroup.GET("/vault", h.ListSecrets, authRequired)
 		apiGroup.POST("/vault", h.CreateSecret, authRequired)
