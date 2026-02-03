@@ -341,18 +341,20 @@ const Integrations = ({ page = 'wrappers' }) => {
                                 <table className="w-full">
                                     <thead className="bg-[#0c0c0c] text-[10px] font-black uppercase tracking-widest text-zinc-600">
                                         <tr>
+                                            <th className="px-6 py-4 text-left">Name</th>
                                             <th className="px-6 py-4 text-left">Schedule</th>
-                                            <th className="px-6 py-4 text-left">Command</th>
+                                            <th className="px-6 py-4 text-left">Last Run</th>
                                             <th className="px-6 py-4 text-right">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-[#2e2e2e]/30">
                                         {cronData.jobs.map(j => (
-                                            <tr key={j.jobid} className="hover:bg-zinc-900/30">
+                                            <tr key={j.id} className="hover:bg-zinc-900/30">
+                                                <td className="px-6 py-4 text-sm font-bold text-white">{j.name}</td>
                                                 <td className="px-6 py-4 font-mono text-primary text-xs">{j.schedule}</td>
-                                                <td className="px-6 py-4 font-mono text-zinc-400 text-xs truncate max-w-md">{j.command}</td>
+                                                <td className="px-6 py-4 text-[10px] text-zinc-500">{j.last_run || 'Never'}</td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <button onClick={() => handleDelete('cron', j.jobid)} className="text-red-500 hover:text-red-400 text-[10px] font-black uppercase">Delete</button>
+                                                    <button onClick={() => handleDelete('cron', j.id)} className="text-red-500 hover:text-red-400 text-[10px] font-black uppercase">Delete</button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -594,11 +596,28 @@ const Integrations = ({ page = 'wrappers' }) => {
                                             onChange={e => setFormData({ ...formData, events: e.target.value })}
                                         />
                                     </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Secret (Optional HMAC Key)</label>
+                                        <input
+                                            className="w-full bg-[#111111] border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary"
+                                            placeholder="my-secret-key"
+                                            onChange={e => setFormData({ ...formData, secret: e.target.value })}
+                                        />
+                                    </div>
                                 </>
                             )}
 
                             {showModal === 'cron' && (
                                 <>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Job Name</label>
+                                        <input
+                                            required
+                                            className="w-full bg-[#111111] border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary"
+                                            placeholder="Daily Cleanup"
+                                            onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                        />
+                                    </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Schedule (Cron syntax)</label>
                                         <input

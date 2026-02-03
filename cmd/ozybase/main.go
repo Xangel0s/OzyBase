@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -15,11 +16,14 @@ import (
 	"github.com/Xangel0s/OzyBase/internal/config"
 	"github.com/Xangel0s/OzyBase/internal/core"
 	"github.com/Xangel0s/OzyBase/internal/data"
+	"github.com/Xangel0s/OzyBase/internal/logger"
+	"github.com/Xangel0s/OzyBase/internal/mailer"
 	"github.com/Xangel0s/OzyBase/internal/realtime"
 	"github.com/Xangel0s/OzyBase/internal/typegen"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/time/rate"
 )
 
 func main() {
@@ -36,6 +40,10 @@ func run() error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// Initialize Logger
+	logger.Init(os.Getenv("DEBUG") == "true")
+	logger.Log.Info().Msg("🎯 OzyBase initializing...")
+
 	// Connect to database
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -46,7 +54,7 @@ func run() error {
 	}
 	defer db.Close()
 
-	log.Println("✅ Connected to PostgreSQL")
+	logger.Log.Info().Msg("✅ Connected to PostgreSQL")
 
 	// Run migrations
 	if err := db.RunMigrations(ctx); err != nil {
@@ -61,29 +69,38 @@ func run() error {
 		return nil
 	}
 
-	// Initialize Realtime & Webhooks
+	// Initialize Realtime, Webhooks & Cron
 	broker := realtime.NewBroker()
 	dispatcher := realtime.NewWebhookDispatcher(db.Pool)
+	cronMgr := realtime.NewCronManager(db.Pool)
+	cronMgr.Start()
 
 	// Start database event listener
 	go realtime.ListenForEvents(context.Background(), db.Pool, broker, dispatcher)
 
+	// Setup Mailer
+	mailSvc := mailer.NewLogMailer()
+
 	// Initialize Server Components
-	h := api.NewHandler(db, broker, dispatcher)
-	e := setupEcho(h, cfg)
+	h := api.NewHandler(db, broker, dispatcher, mailSvc)
+
+	// Start Log Export Worker
+	go h.StartLogExporter(context.Background())
+
+	e := setupEcho(h, cfg, cronMgr)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	go func() {
-		log.Printf("🚀 OzyBase server starting on http://localhost%s", addr)
+		logger.Log.Info().Str("addr", addr).Msg("🚀 OzyBase server starting")
 		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+			logger.Log.Fatal().Err(err).Msg("Server crashed")
 		}
 	}()
 
 	// Wait for interruption
 	<-ctx.Done()
-	log.Println("🛑 Shutting down server...")
+	logger.Log.Info().Msg("🛑 Shutting down server...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -92,7 +109,7 @@ func run() error {
 		return fmt.Errorf("failed to shutdown server: %w", err)
 	}
 
-	log.Println("👋 Server exited")
+	logger.Log.Info().Msg("👋 Server exited")
 	return nil
 }
 
@@ -140,49 +157,106 @@ func handleCLI(db *data.DB) bool {
 	return false
 }
 
-func setupEcho(h *api.Handler, cfg *config.Config) *echo.Echo {
+func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 
 	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
-	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: cfg.AllowedOrigins,
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+	}))
+	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStoreWithConfig(
+		middleware.RateLimiterMemoryStoreConfig{
+			Rate:      rate.Limit(cfg.RateLimitRPS),
+			Burst:     cfg.RateLimitBurst,
+			ExpiresIn: 3 * time.Minute,
+		},
+	)))
 	e.Use(api.SecurityHeadersDefault())
-	e.Use(middleware.BodyLimit("10M"))
+	e.Use(middleware.BodyLimit(cfg.BodyLimit))
+	e.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
+		TokenLookup: "header:X-CSRF-Token",
+		ContextKey:  "csrf",
+		CookieName:  "_ozy_csrf",
+		CookiePath:  "/",
+		Skipper: func(c echo.Context) bool {
+			// Skip CSRF for API requests with Bearer token (since they are already protected by JWT)
+			// or for specific public endpoints if needed.
+			authHeader := c.Request().Header.Get("Authorization")
+			return strings.HasPrefix(authHeader, "Bearer ")
+		},
+	}))
 
 	// Services and Handlers
-	authService := core.NewAuthService(h.DB, cfg.JWTSecret)
+	// Setup Mailer
+	mailSvc := mailer.NewLogMailer()
+
+	authService := core.NewAuthService(h.DB, cfg.JWTSecret, mailSvc)
 	authHandler := api.NewAuthHandler(authService)
+	twoFactorService := core.NewTwoFactorService(h.DB)
+	twoFactorHandler := api.NewTwoFactorHandler(twoFactorService)
 	realtimeHandler := api.NewRealtimeHandler(h.Broker)
-	fileHandler := api.NewFileHandler("./data/storage")
-	functionsHandler := api.NewFunctionsHandler("./functions")
+	fileHandler := api.NewFileHandler(h.DB, "./data/storage")
+	functionsHandler := api.NewFunctionsHandler(h.DB, "./functions")
+	webhookHandler := api.NewWebhookHandler(h.DB)
+	cronHandler := api.NewCronHandler(h.DB, cronMgr)
 
 	// API Groups and Middlewares
 	authRequired := api.AuthMiddleware(cfg.JWTSecret, false)
 	authOptional := api.AuthMiddleware(cfg.JWTSecret, true)
 	accessList := api.AccessMiddleware(h.DB, "list")
 	accessCreate := api.AccessMiddleware(h.DB, "create")
+	accessUpdate := api.AccessMiddleware(h.DB, "update")
+	accessDelete := api.AccessMiddleware(h.DB, "delete")
 
 	apiGroup := e.Group("/api")
-	apiGroup.Use(api.MetricsMiddleware(h.Metrics))
+	apiGroup.Use(api.MetricsMiddleware(h))
 	{
 		apiGroup.GET("/health", h.Health)
+		apiGroup.GET("/project/stats", h.GetStats, authRequired)
 		apiGroup.GET("/realtime", realtimeHandler.Stream)
+		apiGroup.GET("/webhooks", webhookHandler.List, authRequired)
+		apiGroup.POST("/webhooks", webhookHandler.Create, authRequired)
+		apiGroup.DELETE("/webhooks/:id", webhookHandler.Delete, authRequired)
+
+		apiGroup.GET("/cron", cronHandler.List, authRequired)
+		apiGroup.POST("/cron", cronHandler.Create, authRequired)
+		apiGroup.DELETE("/cron/:id", cronHandler.Delete, authRequired)
 
 		// Auth
 		authGroup := apiGroup.Group("/auth")
 		authGroup.POST("/login", authHandler.Login)
 		// Signup is now protected, only an authenticated user (admin) can create others
 		authGroup.POST("/signup", authHandler.Signup, authRequired)
+		authGroup.POST("/reset-password/request", authHandler.RequestReset)
+		authGroup.POST("/reset-password/confirm", authHandler.ConfirmReset)
+		authGroup.GET("/verify-email", authHandler.VerifyEmail)
+		authGroup.PATCH("/users/:id/role", authHandler.UpdateRole, authRequired)
+
+		// Social Login
+		authGroup.GET("/login/:provider", authHandler.GetOAuthURL)
+		authGroup.GET("/callback/:provider", authHandler.OAuthCallback)
+
+		// Two-Factor Authentication
+		authGroup.POST("/2fa/setup", twoFactorHandler.Setup2FA, authRequired)
+		authGroup.POST("/2fa/enable", twoFactorHandler.Enable2FA, authRequired)
+		authGroup.POST("/2fa/disable", twoFactorHandler.Disable2FA, authRequired)
+		authGroup.GET("/2fa/status", twoFactorHandler.Get2FAStatus, authRequired)
+		authGroup.POST("/2fa/verify", twoFactorHandler.Verify2FA)
 
 		// Functions
 		apiGroup.GET("/functions", functionsHandler.List, authRequired)
+		apiGroup.POST("/functions", functionsHandler.Create, authRequired)
+		apiGroup.POST("/functions/:name/invoke", functionsHandler.Invoke)
 
 		// Files
 		apiGroup.POST("/files", fileHandler.Upload, authRequired)
 		apiGroup.GET("/files", fileHandler.List, authRequired)
+		apiGroup.GET("/files/buckets", fileHandler.ListBuckets, authRequired)
+		apiGroup.POST("/files/buckets", fileHandler.CreateBucket, authRequired)
 		e.Static("/api/files", "./data/storage")
 
 		// Collections
@@ -192,10 +266,24 @@ func setupEcho(h *api.Handler, cfg *config.Config) *echo.Echo {
 		collectionsGroup.DELETE("/:name", h.DeleteCollection) // New
 		collectionsGroup.GET("/schemas", h.ListSchemas)
 		collectionsGroup.GET("/visualize", h.GetVisualizeSchema)
+		collectionsGroup.PATCH("/rules", h.UpdateCollectionRules)
 
 		// Project Info
 		apiGroup.GET("/project/info", h.GetProjectInfo, authRequired)
 		apiGroup.GET("/project/health", h.GetHealthIssues, authRequired)
+		apiGroup.GET("/project/security/policies", h.GetSecurityPolicies, authRequired)
+		apiGroup.POST("/project/security/policies", h.UpdateSecurityPolicy, authRequired)
+		apiGroup.GET("/project/security/stats", h.GetSecurityStats, authRequired)
+		apiGroup.GET("/project/security/notifications", h.GetNotificationRecipients, authRequired)
+		apiGroup.POST("/project/security/notifications", h.AddNotificationRecipient, authRequired)
+		apiGroup.DELETE("/project/security/notifications/:id", h.DeleteNotificationRecipient, authRequired)
+
+		// Integrations (Slack, Discord, SIEM)
+		apiGroup.GET("/project/integrations", h.ListIntegrations, authRequired)
+		apiGroup.POST("/project/integrations", h.CreateIntegration, authRequired)
+		apiGroup.DELETE("/project/integrations/:id", h.DeleteIntegration, authRequired)
+		apiGroup.POST("/project/integrations/:id/test", h.TestIntegration, authRequired)
+
 		apiGroup.POST("/project/health/fix", h.FixHealthIssues, authRequired)
 		apiGroup.GET("/project/logs", h.GetLogs, authRequired)
 
@@ -225,8 +313,8 @@ func setupEcho(h *api.Handler, cfg *config.Config) *echo.Echo {
 		apiGroup.POST("/collections/:name/records", h.CreateRecord, authOptional, accessCreate)
 		apiGroup.GET("/collections/:name/records", h.ListRecords, authOptional, accessList)
 		apiGroup.GET("/collections/:name/records/:id", h.GetRecord, authOptional, accessList)
-		apiGroup.PATCH("/collections/:name/records/:id", h.UpdateRecord, authOptional, accessCreate)
-		apiGroup.DELETE("/collections/:name/records/:id", h.DeleteRecord, authOptional, accessCreate)
+		apiGroup.PATCH("/collections/:name/records/:id", h.UpdateRecord, authOptional, accessUpdate)
+		apiGroup.DELETE("/collections/:name/records/:id", h.DeleteRecord, authOptional, accessDelete)
 
 		// Tables (Generic/Dashboard endpoints) - Now PROTECTED
 		apiGroup.GET("/tables/:name", h.ListRecords, authRequired)

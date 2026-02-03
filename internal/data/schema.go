@@ -35,6 +35,10 @@ var TypeMapping = map[string]string{
 	"bool":        "BOOL",
 	"boolean":     "BOOLEAN",
 	"bytea":       "BYTEA",
+	// Aliases
+	"number":  "INT4",
+	"integer": "INT4",
+	"string":  "TEXT",
 }
 
 // BuildCreateTableSQL generates a CREATE TABLE statement from a schema definition
@@ -83,7 +87,9 @@ func BuildCreateTableSQL(tableName string, schema []FieldSchema) (string, error)
 	// Always add timestamps
 	columns = append(columns, "created_at TIMESTAMPTZ DEFAULT NOW()")
 	columns = append(columns, "updated_at TIMESTAMPTZ DEFAULT NOW()")
+	columns = append(columns, "deleted_at TIMESTAMPTZ")
 
+	// #nosec G201
 	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n\t%s\n)",
 		tableName,
 		strings.Join(columns, ",\n\t"))
@@ -333,6 +339,7 @@ func (db *DB) AddColumn(ctx context.Context, tableName string, field FieldSchema
 		return fmt.Errorf("unknown type: %s", field.Type)
 	}
 
+	// #nosec G201
 	sql := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableName, field.Name, pgType)
 	if field.Required {
 		sql += " NOT NULL"
@@ -351,6 +358,7 @@ func (db *DB) DeleteColumn(ctx context.Context, tableName string, columnName str
 		return fmt.Errorf("invalid table or column name")
 	}
 
+	// #nosec G201
 	sql := fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", tableName, columnName)
 	_, err := db.Pool.Exec(ctx, sql)
 	return err
@@ -362,6 +370,7 @@ func (db *DB) DeleteTable(ctx context.Context, tableName string) error {
 		return fmt.Errorf("invalid table name: %s", tableName)
 	}
 
+	// #nosec G201
 	sql := fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", tableName)
 	_, err := db.Pool.Exec(ctx, sql)
 	return err

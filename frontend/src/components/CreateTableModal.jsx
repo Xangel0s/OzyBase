@@ -6,13 +6,14 @@ const CreateTableModal = ({ isOpen, onClose, onTableCreated, schema = 'public' }
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [isRLSEnabled, setIsRLSEnabled] = useState(true);
+    const [rlsRule, setRlsRule] = useState('user_id = auth.uid()');
     const [isRealtimeEnabled, setIsRealtimeEnabled] = useState(false);
 
     // Default columns
     const [columns, setColumns] = useState([
         { name: 'id', type: 'uuid', defaultValue: 'gen_random_uuid()', isPrimary: true, isSystem: true },
+        { name: 'user_id', type: 'uuid', defaultValue: '', isPrimary: false, isSystem: false },
         { name: 'created_at', type: 'timestamptz', defaultValue: 'now()', isPrimary: false, isSystem: true },
-        // User can add more
     ]);
 
     const [loading, setLoading] = useState(false);
@@ -40,9 +41,6 @@ const CreateTableModal = ({ isOpen, onClose, onTableCreated, schema = 'public' }
         setLoading(true);
         setError(null);
 
-        // Filter out system columns for the API payload as the backend might add them automatically (or we verify)
-        // OzyBase backend currently enforces ID and timestamps automatically in BuildCreateTableSQL.
-        // So we only send the *custom* columns.
         const customColumns = columns.filter(c => !c.isSystem).map(c => ({
             name: c.name,
             type: c.type,
@@ -54,9 +52,9 @@ const CreateTableModal = ({ isOpen, onClose, onTableCreated, schema = 'public' }
                 method: 'POST',
                 body: JSON.stringify({
                     name,
-                    schema: customColumns
-                    // description, rls, realtime handled by backend defaults or future updates
-                    // For now OzyBase only supports schema and name in this endpoint version
+                    schema: customColumns,
+                    rls_enabled: isRLSEnabled,
+                    rls_rule: isRLSEnabled ? rlsRule : ''
                 })
             });
 
@@ -134,8 +132,21 @@ const CreateTableModal = ({ isOpen, onClose, onTableCreated, schema = 'public' }
                             <div className="bg-[#111111] border border-[#2e2e2e] rounded p-3 flex gap-3">
                                 <Info size={16} className="text-zinc-400 shrink-0 mt-0.5" />
                                 <div className="space-y-2">
-                                    <p className="text-xs text-zinc-300 font-medium">Policies are required to query data</p>
                                     <p className="text-xs text-zinc-500">You need to create an access policy before you can query data from this table. Without a policy, querying this table will return an <span className="underline decoration-zinc-600">empty array</span> of results.</p>
+
+                                    <div className="pt-2 space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Preset Policy</label>
+                                        <select
+                                            value={rlsRule}
+                                            onChange={(e) => setRlsRule(e.target.value)}
+                                            className="w-full bg-[#0c0c0c] border border-[#2e2e2e] rounded px-3 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-primary/50"
+                                        >
+                                            <option value="user_id = auth.uid()">Only owner can access (user_id = auth.uid())</option>
+                                            <option value="public">Public read-only (Everyone)</option>
+                                            <option value="">Custom (Experimental)</option>
+                                        </select>
+                                    </div>
+
                                     <button className="text-xs text-zinc-300 border border-zinc-700 rounded px-2 py-1 flex items-center gap-2 hover:bg-zinc-800 transition-colors">
                                         <FileText size={12} /> Documentation
                                     </button>

@@ -96,6 +96,7 @@ const LogsAnalytics = () => {
                                 <th className="px-6 py-4">Method / Endpoint</th>
                                 <th className="px-6 py-4">Status</th>
                                 <th className="px-6 py-4">Latency</th>
+                                <th className="px-6 py-4">Location</th>
                                 <th className="px-6 py-4">Client IP</th>
                             </tr>
                         </thead>
@@ -125,6 +126,12 @@ const LogsAnalytics = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-zinc-500">{log.latency}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-zinc-300 font-bold">{log.country || 'Unknown'}</span>
+                                                <span className="text-[9px] text-zinc-600 uppercase">{log.city || '---'}</span>
+                                            </div>
+                                        </td>
                                         <td className="px-6 py-4 text-zinc-700 flex items-center gap-2">
                                             <Globe size={10} />
                                             {log.ip}

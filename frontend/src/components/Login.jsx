@@ -7,31 +7,73 @@ const Login = ({ onLoginSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    const [flow, setFlow] = useState('login'); // 'login', 'request', 'confirm'
+    const [token, setToken] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [message, setMessage] = useState('');
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+        setMessage(null);
 
         try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-            });
+            if (flow === 'login') {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
 
-            const data = await res.json();
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Login failed');
 
-            if (!res.ok) {
-                throw new Error(data.error || 'Login failed');
+                localStorage.setItem('ozy_token', data.token);
+                localStorage.setItem('ozy_user', JSON.stringify(data.user));
+                onLoginSuccess();
+            } else if (flow === 'request') {
+                const res = await fetch('/api/auth/reset-password/request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Request failed');
+
+                setMessage("Reset token generated (Check console/terminal for OzyBase labs)");
+                setFlow('confirm');
+                if (data.token) console.log("OZYBASE_LABS_TOKEN:", data.token);
+            } else if (flow === 'confirm') {
+                const res = await fetch('/api/auth/reset-password/confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, new_password: newPassword }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Reset failed');
+
+                setMessage("Password reset successful! Please login.");
+                setFlow('login');
             }
-
-            localStorage.setItem('ozy_token', data.token);
-            localStorage.setItem('ozy_user', JSON.stringify(data.user));
-            onLoginSuccess();
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSocialLogin = async (provider) => {
+        try {
+            const res = await fetch(`/api/auth/login/${provider}`);
+            const data = await res.json();
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                setError("Failed to get auth URL");
+            }
+        } catch (err) {
+            setError("OAuth initialization failed");
         }
     };
 
@@ -44,10 +86,12 @@ const Login = ({ onLoginSuccess }) => {
                         <img src="/logo.jpg" alt="OzyBase" className="w-full h-full object-cover" />
                     </div>
                     <div className="space-y-1">
-                        <h1 className="text-3xl font-bold tracking-tighter text-white uppercase italic">OzyBase</h1>
+                        <h1 className="text-3xl font-bold tracking-tighter text-white uppercase italic">
+                            {flow === 'login' ? 'OzyBase' : 'Reset Access'}
+                        </h1>
                         <p className="text-zinc-500 text-sm font-medium uppercase tracking-widest flex items-center justify-center gap-2">
                             <ShieldCheck size={14} className="text-primary" />
-                            Backend Fortress
+                            {flow === 'login' ? 'Backend Fortress' : 'Identity Recovery'}
                         </p>
                     </div>
                 </div>
@@ -62,35 +106,113 @@ const Login = ({ onLoginSuccess }) => {
                             </div>
                         )}
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] ml-1">Admin Email</label>
-                            <div className="relative group">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 transition-colors group-focus-within:text-primary" size={18} />
-                                <input
-                                    type="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="system@ozybase.local"
-                                    className="w-full bg-[#111111] border border-[#2e2e2e] rounded-xl pl-12 pr-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
-                                />
+                        {message && (
+                            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 text-green-500 text-xs font-bold uppercase tracking-wide flex items-center gap-3 animate-in fade-in">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]" />
+                                {message}
                             </div>
-                        </div>
+                        )}
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] ml-1">Access Key</label>
-                            <div className="relative group">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 transition-colors group-focus-within:text-primary" size={18} />
-                                <input
-                                    type="password"
-                                    required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="Enter your 32-char password"
-                                    className="w-full bg-[#111111] border border-[#2e2e2e] rounded-xl pl-12 pr-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
-                                />
+                        {flow === 'login' && (
+                            <>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] ml-1">Admin Email</label>
+                                    <div className="relative group">
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 transition-colors group-focus-within:text-primary" size={18} />
+                                        <input
+                                            type="email"
+                                            required
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            placeholder="system@ozybase.local"
+                                            className="w-full bg-[#111111] border border-[#2e2e2e] rounded-xl pl-12 pr-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all font-mono"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center ml-1">
+                                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Access Key</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFlow('request')}
+                                            className="text-[9px] font-black text-zinc-600 hover:text-primary transition-colors uppercase"
+                                        >
+                                            Forgot key?
+                                        </button>
+                                    </div>
+                                    <div className="relative group">
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 transition-colors group-focus-within:text-primary" size={18} />
+                                        <input
+                                            type="password"
+                                            required
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            placeholder="Enter your 32-char password"
+                                            className="w-full bg-[#111111] border border-[#2e2e2e] rounded-xl pl-12 pr-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {flow === 'request' && (
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] ml-1">Account Email</label>
+                                <div className="relative group">
+                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 transition-colors group-focus-within:text-primary" size={18} />
+                                    <input
+                                        type="email"
+                                        required
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="system@ozybase.local"
+                                        className="w-full bg-[#111111] border border-[#2e2e2e] rounded-xl pl-12 pr-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setFlow('login')}
+                                    className="text-[9px] font-black text-zinc-600 hover:text-primary transition-colors uppercase ml-1"
+                                >
+                                    Back to login
+                                </button>
                             </div>
-                        </div>
+                        )}
+
+                        {flow === 'confirm' && (
+                            <>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] ml-1">Recovery Token</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={token}
+                                        onChange={(e) => setToken(e.target.value)}
+                                        placeholder="Paste token here"
+                                        className="w-full bg-[#111111] border border-[#2e2e2e] rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] ml-1">New Access Key</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        placeholder="Minimum 8 characters"
+                                        className="w-full bg-[#111111] border border-[#2e2e2e] rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setFlow('login')}
+                                    className="text-[9px] font-black text-zinc-600 hover:text-primary transition-colors uppercase ml-1"
+                                >
+                                    Cancel
+                                </button>
+                            </>
+                        )}
 
                         <button
                             type="submit"
@@ -101,11 +223,37 @@ const Login = ({ onLoginSuccess }) => {
                                 <Loader2 className="animate-spin" size={20} />
                             ) : (
                                 <>
-                                    Establish Link
+                                    {flow === 'login' ? 'Establish Link' : flow === 'request' ? 'Request Recovery' : 'Reset Identity'}
                                     <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
                                 </>
                             )}
                         </button>
+
+                        {flow === 'login' && (
+                            <div className="space-y-3">
+                                <div className="relative flex items-center py-2">
+                                    <div className="flex-grow border-t border-zinc-800"></div>
+                                    <span className="flex-shrink mx-4 text-[10px] font-black text-zinc-600 uppercase tracking-widest">or continue with</span>
+                                    <div className="flex-grow border-t border-zinc-800"></div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSocialLogin('google')}
+                                        className="flex items-center justify-center gap-2 bg-[#1c1c1c] border border-zinc-800 py-3 rounded-xl hover:bg-zinc-800 transition-colors text-xs font-bold text-zinc-300"
+                                    >
+                                        Google
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSocialLogin('github')}
+                                        className="flex items-center justify-center gap-2 bg-[#1c1c1c] border border-zinc-800 py-3 rounded-xl hover:bg-zinc-800 transition-colors text-xs font-bold text-zinc-300"
+                                    >
+                                        GitHub
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </form>
                 </div>
 

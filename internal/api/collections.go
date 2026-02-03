@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -19,6 +20,8 @@ type Collection struct {
 	Schema     []data.FieldSchema `json:"schema"`
 	ListRule   string             `json:"list_rule"`
 	CreateRule string             `json:"create_rule"`
+	RlsEnabled bool               `json:"rls_enabled"`
+	RlsRule    string             `json:"rls_rule"`
 	CreatedAt  time.Time          `json:"created_at"`
 	UpdatedAt  time.Time          `json:"updated_at"`
 }
@@ -29,6 +32,8 @@ type CreateCollectionRequest struct {
 	Schema     []data.FieldSchema `json:"schema"`
 	ListRule   string             `json:"list_rule"`   // "public", "auth", "admin"
 	CreateRule string             `json:"create_rule"` // "auth", "admin"
+	RlsEnabled bool               `json:"rls_enabled"`
+	RlsRule    string             `json:"rls_rule"`
 }
 
 // CreateCollection handles POST /api/collections
@@ -105,11 +110,12 @@ func (h *Handler) CreateCollection(c echo.Context) error {
 	schemaJSON, _ := json.Marshal(req.Schema)
 	var collection Collection
 	err = tx.QueryRow(ctx, `
-		INSERT INTO _v_collections (name, schema_def, list_rule, create_rule)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, name, list_rule, create_rule, created_at, updated_at
-	`, req.Name, schemaJSON, req.ListRule, req.CreateRule).Scan(
-		&collection.ID, &collection.Name, &collection.ListRule, &collection.CreateRule, &collection.CreatedAt, &collection.UpdatedAt,
+		INSERT INTO _v_collections (name, schema_def, list_rule, create_rule, rls_enabled, rls_rule)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, name, list_rule, create_rule, rls_enabled, rls_rule, created_at, updated_at
+	`, req.Name, schemaJSON, req.ListRule, req.CreateRule, req.RlsEnabled, req.RlsRule).Scan(
+		&collection.ID, &collection.Name, &collection.ListRule, &collection.CreateRule,
+		&collection.RlsEnabled, &collection.RlsRule, &collection.CreatedAt, &collection.UpdatedAt,
 	)
 
 	if err != nil {
@@ -167,6 +173,55 @@ func (h *Handler) DeleteCollection(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// UpdateCollectionRules handles PATCH /api/collections/rules
+func (h *Handler) UpdateCollectionRules(c echo.Context) error {
+	var req struct {
+		Name       string  `json:"name"`
+		ListRule   *string `json:"list_rule,omitempty"`
+		CreateRule *string `json:"create_rule,omitempty"`
+		UpdateRule *string `json:"update_rule,omitempty"`
+		DeleteRule *string `json:"delete_rule,omitempty"`
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+
+	query := "UPDATE _v_collections SET updated_at = NOW()"
+	args := []interface{}{req.Name}
+	argIdx := 2
+
+	if req.ListRule != nil {
+		query += fmt.Sprintf(", list_rule = $%d", argIdx)
+		args = append(args, *req.ListRule)
+		argIdx++
+	}
+	if req.CreateRule != nil {
+		query += fmt.Sprintf(", create_rule = $%d", argIdx)
+		args = append(args, *req.CreateRule)
+		argIdx++
+	}
+	if req.UpdateRule != nil {
+		query += fmt.Sprintf(", update_rule = $%d", argIdx)
+		args = append(args, *req.UpdateRule)
+		argIdx++
+	}
+	if req.DeleteRule != nil {
+		query += fmt.Sprintf(", delete_rule = $%d", argIdx)
+		args = append(args, *req.DeleteRule)
+		argIdx++
+	}
+
+	query += " WHERE name = $1"
+
+	_, err := h.DB.Pool.Exec(c.Request().Context(), query, args...)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"status": "updated"})
+}
+
 // ListCollections handles GET /api/collections
 func (h *Handler) ListCollections(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
@@ -193,8 +248,9 @@ func (h *Handler) ListCollections(c echo.Context) error {
 			var col Collection
 			var schemaJSON []byte
 			if err := rows.Scan(&col.Name, &schemaJSON, &col.ListRule, &col.CreateRule, &col.CreatedAt, &col.UpdatedAt); err == nil {
-				json.Unmarshal(schemaJSON, &col.Schema)
-				metaMap[col.Name] = col
+				if err := json.Unmarshal(schemaJSON, &col.Schema); err == nil {
+					metaMap[col.Name] = col
+				}
 			}
 		}
 	}
@@ -324,14 +380,16 @@ type ProjectInfo struct {
 }
 
 type DbMetrics struct {
-	DbRequests       int   `json:"db_requests"`
-	AuthRequests     int   `json:"auth_requests"`
-	StorageRequests  int   `json:"storage_requests"`
-	RealtimeRequests int   `json:"realtime_requests"`
-	DbHistory        []int `json:"db_history"`
-	AuthHistory      []int `json:"auth_history"`
-	StorageHistory   []int `json:"storage_history"`
-	RealtimeHistory  []int `json:"realtime_history"`
+	DbRequests       int       `json:"db_requests"`
+	AuthRequests     int       `json:"auth_requests"`
+	StorageRequests  int       `json:"storage_requests"`
+	RealtimeRequests int       `json:"realtime_requests"`
+	DbHistory        []int     `json:"db_history"`
+	AuthHistory      []int     `json:"auth_history"`
+	StorageHistory   []int     `json:"storage_history"`
+	RealtimeHistory  []int     `json:"realtime_history"`
+	CpuHistory       []float64 `json:"cpu_history"`
+	RamHistory       []float64 `json:"ram_history"`
 }
 
 type SlowQuery struct {
@@ -416,10 +474,24 @@ func (h *Handler) GetProjectInfo(c echo.Context) error {
 		return res
 	}
 
+	getLast12Float := func(history []float64) []float64 {
+		res := make([]float64, 12)
+		historyLen := len(history)
+		for i := 0; i < 12; i++ {
+			idx := historyLen - 12 + i
+			if idx >= 0 && idx < historyLen {
+				res[i] = history[idx]
+			}
+		}
+		return res
+	}
+
 	info.Metrics.DbHistory = getLast12(h.Metrics.DbHistory)
 	info.Metrics.AuthHistory = getLast12(h.Metrics.AuthHistory)
 	info.Metrics.StorageHistory = getLast12(h.Metrics.StorageHistory)
 	info.Metrics.RealtimeHistory = getLast12(h.Metrics.RealtimeHistory)
+	info.Metrics.CpuHistory = getLast12Float(h.Metrics.CpuHistory)
+	info.Metrics.RamHistory = getLast12Float(h.Metrics.RamHistory)
 	h.Metrics.RUnlock()
 
 	// 4. Realtime requests (active backends currently processing)
@@ -483,11 +555,11 @@ func (h *Handler) GetHealthIssues(c echo.Context) error {
 
 	// 1. Check for tables without RLS (Mock for now as we don't have a formal RLS system in the app yet,
 	// but we can check actual PG tables)
+	// 1. Check for tables without RLS enabled in OzyBase metadata
 	rows, err := h.DB.Pool.Query(ctx, `
-		SELECT tablename 
-		FROM pg_tables 
-		WHERE schemaname = 'public' 
-		AND rowsecurity = false
+		SELECT name 
+		FROM _v_collections 
+		WHERE rls_enabled = false
 	`)
 	if err == nil {
 		defer rows.Close()
@@ -548,13 +620,38 @@ func (h *Handler) GetHealthIssues(c echo.Context) error {
 
 	// 4. Check for public access rules
 	var publicCount int
-	h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_collections WHERE list_rule = 'public'").Scan(&publicCount)
+	_ = h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_collections WHERE list_rule = 'public'").Scan(&publicCount)
 	if publicCount > 0 {
 		issues = append(issues, HealthIssue{
 			Type:        "security",
 			Title:       fmt.Sprintf("%d collections have public list rules", publicCount),
 			Description: "Ensure this is intended and sensitive data is not exposed.",
 		})
+	}
+
+	// 5. Check for unresolved security alerts
+	rows, err = h.DB.Pool.Query(ctx, "SELECT type, severity, details FROM _v_security_alerts WHERE is_resolved = false ORDER BY created_at DESC LIMIT 10")
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var aType, severity string
+			var details map[string]interface{}
+			if err := rows.Scan(&aType, &severity, &details); err == nil {
+				title := "Unknown Security Alert"
+				desc := "A security event was detected."
+
+				if aType == "geo_breach" {
+					title = "Geographic Access Breach"
+					desc = fmt.Sprintf("Access attempt from unauthorized location: %v (%v) via IP %v", details["country"], details["city"], details["ip"])
+				}
+
+				issues = append(issues, HealthIssue{
+					Type:        "security",
+					Title:       title,
+					Description: desc,
+				})
+			}
+		}
 	}
 
 	return c.JSON(http.StatusOK, issues)
@@ -595,9 +692,26 @@ func (h *Handler) FixHealthIssues(c echo.Context) error {
 		}
 
 		// Apply RLS
+		tx, err := h.DB.Pool.Begin(ctx)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Transaction failed"})
+		}
+		defer tx.Rollback(ctx)
+
+		// 1. Primary PG RLS (Native)
 		sql := fmt.Sprintf("ALTER TABLE %s ENABLE ROW LEVEL SECURITY", tableName)
-		if _, err := h.DB.Pool.Exec(ctx, sql); err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to enable RLS: " + err.Error()})
+		if _, err := tx.Exec(ctx, sql); err != nil {
+			log.Printf("Warning: Failed to enable native RLS (might not have permission): %v", err)
+		}
+
+		// 2. OzyBase Metadata RLS (Internal)
+		_, err = tx.Exec(ctx, "UPDATE _v_collections SET rls_enabled = true, rls_rule = 'user_id = auth.uid()' WHERE name = $1", tableName)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update metadata: " + err.Error()})
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to commit fix"})
 		}
 
 		return c.JSON(http.StatusOK, map[string]string{"message": "RLS enabled successfully"})

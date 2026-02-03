@@ -6,66 +6,49 @@ import (
 	"log"
 )
 
-// RunMigrations creates the system tables if they don't exist
 func (db *DB) RunMigrations(ctx context.Context) error {
-	log.Println("🔄 Running migrations...")
-
 	migrations := []string{
-		// Collections registry - tracks all user-defined collections
-		`CREATE TABLE IF NOT EXISTS _v_collections (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			name VARCHAR(255) UNIQUE NOT NULL,
-			schema_def JSONB NOT NULL,
-			list_rule VARCHAR(50) DEFAULT 'auth',
-			create_rule VARCHAR(50) DEFAULT 'admin',
-			created_at TIMESTAMPTZ DEFAULT NOW(),
-			updated_at TIMESTAMPTZ DEFAULT NOW()
-		)`,
-
-		// Migration: Add rule columns if they don't exist
-		`ALTER TABLE _v_collections ADD COLUMN IF NOT EXISTS list_rule VARCHAR(50) DEFAULT 'auth'`,
-		`ALTER TABLE _v_collections ADD COLUMN IF NOT EXISTS create_rule VARCHAR(50) DEFAULT 'admin'`,
-
-		// Users table for future authentication
+		// Internal schemas and tables
 		`CREATE TABLE IF NOT EXISTS _v_users (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			email VARCHAR(255) UNIQUE NOT NULL,
-			password_hash VARCHAR(255) NOT NULL,
-			role VARCHAR(50) DEFAULT 'user',
+			password_hash TEXT NOT NULL,
+			role VARCHAR(20) DEFAULT 'user',
 			created_at TIMESTAMPTZ DEFAULT NOW(),
 			updated_at TIMESTAMPTZ DEFAULT NOW()
 		)`,
 
-		// Index for faster collection lookups by name
-		`CREATE INDEX IF NOT EXISTS idx_collections_name ON _v_collections(name)`,
-
-		// Index for user email lookups
-		`CREATE INDEX IF NOT EXISTS idx_users_email ON _v_users(email)`,
-
-		// Global notify function for realtime events
-		`CREATE OR REPLACE FUNCTION notify_event() RETURNS TRIGGER AS $$
-		DECLARE
-			payload JSONB;
-		BEGIN
-			payload = jsonb_build_object(
-				'table', TG_TABLE_NAME,
-				'action', TG_OP,
-				'data', CASE 
-					WHEN TG_OP = 'DELETE' THEN row_to_json(OLD)::jsonb
-					ELSE row_to_json(NEW)::jsonb
-				END
-			);
-			PERFORM pg_notify('ozy_events', payload::text);
-			RETURN NULL;
-		END;
-		$$ LANGUAGE plpgsql;`,
-
-		// Secrets / Vault
-		`CREATE TABLE IF NOT EXISTS _v_secrets (
+		// Storage Buckets
+		`CREATE TABLE IF NOT EXISTS _v_buckets (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			key VARCHAR(255) UNIQUE NOT NULL,
-			value TEXT NOT NULL,
-			description TEXT,
+			name VARCHAR(255) UNIQUE NOT NULL,
+			public BOOLEAN DEFAULT FALSE,
+			rls_enabled BOOLEAN DEFAULT TRUE,
+			rls_rule TEXT DEFAULT 'auth.uid() = owner_id',
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
+
+		// Storage Objects (Metadata for files)
+		`CREATE TABLE IF NOT EXISTS _v_storage_objects (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			bucket_id UUID REFERENCES _v_buckets(id) ON DELETE CASCADE,
+			owner_id UUID REFERENCES _v_users(id) ON DELETE SET NULL,
+			name TEXT NOT NULL,
+			size BIGINT NOT NULL,
+			content_type VARCHAR(100),
+			path TEXT NOT NULL,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW(),
+			UNIQUE(bucket_id, name)
+		)`,
+
+		// Edge Functions
+		`CREATE TABLE IF NOT EXISTS _v_functions (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			name VARCHAR(255) UNIQUE NOT NULL,
+			script TEXT NOT NULL,
+			status VARCHAR(20) DEFAULT 'active',
 			created_at TIMESTAMPTZ DEFAULT NOW(),
 			updated_at TIMESTAMPTZ DEFAULT NOW()
 		)`,
@@ -73,11 +56,116 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 		// Webhooks
 		`CREATE TABLE IF NOT EXISTS _v_webhooks (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			name VARCHAR(255) NOT NULL,
+			name VARCHAR(255),
 			url TEXT NOT NULL,
-			events VARCHAR(100) NOT NULL, -- e.g. "INSERT,UPDATE"
-			status VARCHAR(20) DEFAULT 'active',
+			events TEXT NOT NULL, -- comma separated list of "table:action" or just "table"
+			secret TEXT,
+			is_active BOOLEAN DEFAULT TRUE,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
+
+		// Collections Metadata
+		`CREATE TABLE IF NOT EXISTS _v_collections (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			name VARCHAR(255) UNIQUE NOT NULL,
+			schema_def JSONB NOT NULL,
+			list_rule VARCHAR(50) DEFAULT 'auth',
+			create_rule VARCHAR(50) DEFAULT 'admin',
+			update_rule VARCHAR(50) DEFAULT 'admin',
+			delete_rule VARCHAR(50) DEFAULT 'admin',
+			rls_enabled BOOLEAN DEFAULT FALSE,
+			rls_rule TEXT DEFAULT 'auth.uid() = owner_id',
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
+
+		// Cron Jobs
+		`CREATE TABLE IF NOT EXISTS _v_cron_jobs (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			name VARCHAR(255) UNIQUE NOT NULL,
+			schedule TEXT NOT NULL, -- Cron syntax: "* * * * *"
+			command TEXT NOT NULL,  -- SQL command or script reference
+			is_active BOOLEAN DEFAULT TRUE,
+			last_run TIMESTAMPTZ,
+			next_run TIMESTAMPTZ,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
+
+		// Audit Logs with Geolocation
+		`CREATE TABLE IF NOT EXISTS _v_audit_logs (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id UUID REFERENCES _v_users(id) ON DELETE SET NULL,
+			ip_address VARCHAR(45),
+			method VARCHAR(10),
+			path TEXT,
+			status INTEGER,
+			latency_ms BIGINT,
+			country VARCHAR(100),
+			city VARCHAR(100),
+			user_agent TEXT,
 			created_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
+
+		// IP Geolocation Cache
+		`CREATE TABLE IF NOT EXISTS _v_ip_geo (
+			ip_address VARCHAR(45) PRIMARY KEY,
+			country VARCHAR(100),
+			city VARCHAR(100),
+			lat FLOAT,
+			lon FLOAT,
+			last_updated TIMESTAMPTZ DEFAULT NOW()
+		)`,
+
+		// Security Policies (e.g., Geo-fencing)
+		`CREATE TABLE IF NOT EXISTS _v_security_policies (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			type VARCHAR(50) UNIQUE NOT NULL,
+			config JSONB NOT NULL,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
+
+		// Security Alerts (Geographical Breaches, etc.)
+		`CREATE TABLE IF NOT EXISTS _v_security_alerts (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			type VARCHAR(50) NOT NULL,
+			severity VARCHAR(20) DEFAULT 'critical',
+			details JSONB NOT NULL,
+			is_resolved BOOLEAN DEFAULT FALSE,
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
+
+		// Security Notification Recipients
+		`CREATE TABLE IF NOT EXISTS _v_security_notification_recipients (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			email VARCHAR(255) NOT NULL,
+			alert_types TEXT[] DEFAULT ARRAY['geo_breach', 'unauthorized_access', 'rate_limit_exceeded'],
+			is_active BOOLEAN DEFAULT TRUE,
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
+
+		// Two-Factor Authentication
+		`CREATE TABLE IF NOT EXISTS _v_user_2fa (
+			user_id UUID PRIMARY KEY REFERENCES _v_users(id) ON DELETE CASCADE,
+			secret VARCHAR(255) NOT NULL,
+			is_enabled BOOLEAN DEFAULT FALSE,
+			backup_codes TEXT[],
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			last_used_at TIMESTAMPTZ
+		)`,
+
+		// Webhook Integrations (Slack, Discord, SIEM)
+		`CREATE TABLE IF NOT EXISTS _v_integrations (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			name VARCHAR(255) NOT NULL,
+			type VARCHAR(50) NOT NULL,
+			webhook_url TEXT NOT NULL,
+			config JSONB,
+			is_active BOOLEAN DEFAULT TRUE,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			last_triggered_at TIMESTAMPTZ
 		)`,
 	}
 

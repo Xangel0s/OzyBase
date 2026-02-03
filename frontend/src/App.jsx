@@ -17,11 +17,28 @@ import SchemaVisualizer from './components/SchemaVisualizer';
 import Settings from './components/Settings'
 import ApiDocs from './components/ApiDocs'
 import Integrations from './components/Integrations'
+import SecurityManager from './components/SecurityManager'
+import SecurityDashboard from './components/SecurityDashboard'
+import PermissionManager from './components/PermissionManager'
+import NotificationSettings from './components/NotificationSettings'
+import TwoFactorAuth from './components/TwoFactorAuth'
+import IntegrationsManager from './components/IntegrationsManager'
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('ozy_token'));
     const [selectedView, setSelectedView] = useState('overview');
     const [selectedTable, setSelectedTable] = useState(null);
+
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        if (token) {
+            localStorage.setItem('ozy_token', token);
+            // Clear URL params without reload
+            window.history.replaceState({}, document.title, window.location.pathname);
+            setIsAuthenticated(true);
+        }
+    }, []);
 
     if (!isAuthenticated) {
         return <Login onLoginSuccess={() => setIsAuthenticated(true)} />;
@@ -46,6 +63,12 @@ function App() {
             case 'advisors': return <Advisors />;
             case 'observability': return <Observability />;
             case 'logs': return <LogsAnalytics />;
+            case 'policies': return <PermissionManager />;
+            case 'security': return <SecurityDashboard />;
+            case 'security_policies': return <SecurityManager />;
+            case 'security_notifications': return <NotificationSettings />;
+            case 'integrations': return <IntegrationsManager />;
+            case 'two_factor': return <TwoFactorAuth />;
             case 'settings': return <Settings />;
             case 'docs':
             case 'intro':

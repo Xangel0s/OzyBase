@@ -15,6 +15,7 @@ import (
 	"github.com/Xangel0s/OzyBase/internal/config"
 	"github.com/Xangel0s/OzyBase/internal/core"
 	"github.com/Xangel0s/OzyBase/internal/data"
+	"github.com/Xangel0s/OzyBase/internal/mailer"
 	"github.com/Xangel0s/OzyBase/internal/realtime"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -45,8 +46,9 @@ func TestIntegration_FullFlow(t *testing.T) {
 	e := echo.New()
 	broker := realtime.NewBroker()
 	dispatcher := realtime.NewWebhookDispatcher(db.Pool)
-	h := api.NewHandler(db, broker, dispatcher)
-	authService := core.NewAuthService(db, cfg.JWTSecret)
+	mailSvc := mailer.NewLogMailer()
+	h := api.NewHandler(db, broker, dispatcher, mailSvc)
+	authService := core.NewAuthService(db, cfg.JWTSecret, mailSvc)
 	authHandler := api.NewAuthHandler(authService)
 
 	// Middlewares
@@ -123,7 +125,6 @@ func TestIntegration_FullFlow(t *testing.T) {
 	var count int
 	err = db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_collections WHERE name = $1", collectionName).Scan(&count)
 	require.NoError(t, err)
-	fmt.Printf("DEBUG: Collection %s count in metadata: %d\n", collectionName, count)
 
 	// --- 4. Insert Record ---
 	recordBody, _ := json.Marshal(map[string]interface{}{

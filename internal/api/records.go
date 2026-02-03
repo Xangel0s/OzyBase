@@ -5,10 +5,30 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 )
+
+func (h *Handler) extractRlsOwnerInfo(c echo.Context) (string, string) {
+	rlsEnabled, _ := c.Get("rls_enabled").(bool)
+	if !rlsEnabled {
+		return "", ""
+	}
+
+	rlsRule, _ := c.Get("rls_rule").(string)
+	userID, _ := c.Get("user_id").(string)
+
+	if rlsRule != "" && userID != "" && strings.Contains(rlsRule, "auth.uid()") {
+		ruleParts := strings.Split(rlsRule, "=")
+		if len(ruleParts) == 2 {
+			return strings.TrimSpace(ruleParts[0]), userID
+		}
+	}
+
+	return "", ""
+}
 
 // CreateRecord handles POST /api/collections/:name/records
 func (h *Handler) CreateRecord(c echo.Context) error {
@@ -45,7 +65,8 @@ func (h *Handler) CreateRecord(c echo.Context) error {
 	}
 
 	// Fetch the complete record to return
-	record, err := h.DB.GetRecord(ctx, collectionName, id)
+	ownerField, ownerID := h.extractRlsOwnerInfo(c)
+	record, err := h.DB.GetRecord(ctx, collectionName, id, ownerField, ownerID)
 	if err != nil {
 		// Return at least the ID if fetch fails
 		return c.JSON(http.StatusCreated, map[string]string{
@@ -67,10 +88,19 @@ func (h *Handler) ListRecords(c echo.Context) error {
 
 	orderBy := c.QueryParam("order")
 
+	// Collect all query parameters as filters
+	filters := c.QueryParams()
+
+	// Inject RLS filter if enabled
+	ownerField, ownerID := h.extractRlsOwnerInfo(c)
+	if ownerField != "" && ownerID != "" {
+		filters[ownerField] = append(filters[ownerField], "eq."+ownerID)
+	}
+
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 10*time.Second)
 	defer cancel()
 
-	records, err := h.DB.ListRecords(ctx, collectionName, orderBy)
+	records, err := h.DB.ListRecords(ctx, collectionName, filters, orderBy)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": err.Error(),
@@ -98,7 +128,8 @@ func (h *Handler) GetRecord(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
 	defer cancel()
 
-	record, err := h.DB.GetRecord(ctx, collectionName, recordID)
+	ownerField, ownerID := h.extractRlsOwnerInfo(c)
+	record, err := h.DB.GetRecord(ctx, collectionName, recordID, ownerField, ownerID)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{
 			"error": err.Error(),
@@ -129,7 +160,8 @@ func (h *Handler) UpdateRecord(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
 	defer cancel()
 
-	err := h.DB.UpdateRecord(ctx, collectionName, recordID, data)
+	ownerField, ownerID := h.extractRlsOwnerInfo(c)
+	err := h.DB.UpdateRecord(ctx, collectionName, recordID, data, ownerField, ownerID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": err.Error(),
@@ -153,7 +185,8 @@ func (h *Handler) DeleteRecord(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
 	defer cancel()
 
-	err := h.DB.DeleteRecord(ctx, collectionName, recordID)
+	ownerField, ownerID := h.extractRlsOwnerInfo(c)
+	err := h.DB.DeleteRecord(ctx, collectionName, recordID, ownerField, ownerID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error": err.Error(),

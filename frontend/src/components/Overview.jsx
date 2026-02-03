@@ -21,11 +21,11 @@ import {
 import { fetchWithAuth } from '../utils/api';
 
 // --- Mini Charts Components ---
-const BarChart = ({ data = [], color }) => {
+const BarChart = ({ data = [], color, suffix = 'requests', maxOverride }) => {
     const [hoveredIndex, setHoveredIndex] = useState(null);
 
     // Scale data to fit 0-100% height
-    const maxVal = Math.max(...data, 10);
+    const maxVal = maxOverride || Math.max(...data, 10);
     const chartData = data && data.length > 0 ? data : new Array(12).fill(0);
 
     return (
@@ -46,7 +46,7 @@ const BarChart = ({ data = [], color }) => {
                         {/* Tooltip */}
                         {hoveredIndex === i && (
                             <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-zinc-800 border border-[#2e2e2e] text-[9px] font-black py-1 px-2 rounded-lg text-white whitespace-nowrap z-10 shadow-xl pointer-events-none">
-                                {v} requests
+                                {typeof v === 'number' ? v.toFixed(1) : v} {suffix}
                             </div>
                         )}
                     </div>
@@ -91,6 +91,8 @@ const Overview = ({ onTableSelect, onViewSelect }) => {
             }
         };
         loadData();
+        const interval = setInterval(loadData, 5000);
+        return () => clearInterval(interval);
     }, []);
 
     if (loading) {
@@ -216,11 +218,50 @@ const Overview = ({ onTableSelect, onViewSelect }) => {
                         <MousePointer2 size={16} className="text-zinc-500" />
                         <span className="text-sm font-bold text-zinc-200">Realtime</span>
                     </div>
-                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Realtime Requests</p>
+                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Active Connections</p>
                     <p className="text-2xl font-black text-white mb-6">{projectInfo?.metrics?.realtime_requests || 0}</p>
                     <BarChart
                         data={projectInfo?.metrics?.realtime_history}
                         color={projectInfo?.metrics?.realtime_requests > 0 ? "bg-green-500" : "bg-zinc-700"}
+                        suffix="backends"
+                    />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
+                {/* CPU Card */}
+                <div className="bg-[#171717] border border-[#2e2e2e] rounded-xl p-5 hover:border-zinc-700 transition-colors">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Cpu size={16} className="text-primary" />
+                        <span className="text-sm font-bold text-zinc-200">CPU Usage</span>
+                    </div>
+                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Total System Load</p>
+                    <p className="text-2xl font-black text-white mb-6">
+                        {projectInfo?.metrics?.cpu_history?.[projectInfo.metrics.cpu_history.length - 1]?.toFixed(1) || 0}%
+                    </p>
+                    <BarChart
+                        data={projectInfo?.metrics?.cpu_history}
+                        color="bg-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]"
+                        suffix="%"
+                        maxOverride={100}
+                    />
+                </div>
+
+                {/* RAM Card */}
+                <div className="bg-[#171717] border border-[#2e2e2e] rounded-xl p-5 hover:border-zinc-700 transition-colors">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Server size={16} className="text-primary" />
+                        <span className="text-sm font-bold text-zinc-200">Memory Usage</span>
+                    </div>
+                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Total System RAM</p>
+                    <p className="text-2xl font-black text-white mb-6">
+                        {projectInfo?.metrics?.ram_history?.[projectInfo.metrics.ram_history.length - 1]?.toFixed(1) || 0}%
+                    </p>
+                    <BarChart
+                        data={projectInfo?.metrics?.ram_history}
+                        color="bg-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]"
+                        suffix="%"
+                        maxOverride={100}
                     />
                 </div>
             </div>

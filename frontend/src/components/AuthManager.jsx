@@ -30,6 +30,28 @@ const AuthManager = () => {
         fetchUsers();
     }, []);
 
+    const handleRoleChange = async (userId, newRole) => {
+        try {
+            const token = localStorage.getItem('ozy_token');
+            const res = await fetch(`/api/auth/users/${userId}/role`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ role: newRole })
+            });
+            if (res.ok) {
+                fetchUsers();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Failed to update role');
+            }
+        } catch (error) {
+            console.error('Role update failed:', error);
+        }
+    };
+
     const fetchUsers = async () => {
         setLoading(true);
         try {
@@ -130,7 +152,7 @@ const AuthManager = () => {
                             <tr className="bg-[#0c0c0c] text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 border-b border-[#2e2e2e]">
                                 <th className="px-8 py-5">Identities</th>
                                 <th className="px-8 py-5">Verification</th>
-                                <th className="px-8 py-5">Username</th>
+                                <th className="px-8 py-5">Role</th>
                                 <th className="px-8 py-5">Joined</th>
                                 <th className="px-8 py-5 text-right">Actions</th>
                             </tr>
@@ -171,10 +193,16 @@ const AuthManager = () => {
                                             </span>
                                         </td>
                                         <td className="px-8 py-5">
-                                            <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                                                <AtSign size={14} />
-                                                <span className="text-xs font-bold uppercase tracking-widest">{u.username || 'n/a'}</span>
-                                            </div>
+                                            <select
+                                                value={u.role}
+                                                onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                                                className="bg-zinc-900 border border-zinc-800 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg text-zinc-400 focus:outline-none focus:border-primary/50 transition-colors"
+                                            >
+                                                <option value="user">User</option>
+                                                <option value="admin">Admin</option>
+                                                <option value="manager">Manager</option>
+                                                <option value="editor">Editor</option>
+                                            </select>
                                         </td>
                                         <td className="px-8 py-5 text-xs font-black text-zinc-600 uppercase tracking-tight">
                                             {new Date(u.created_at).toLocaleDateString()}

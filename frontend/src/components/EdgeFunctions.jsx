@@ -15,6 +15,8 @@ import {
 const EdgeFunctions = () => {
     const [functions, setFunctions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [currentFn, setCurrentFn] = useState({ name: '', script: '// Write your JS here\nreturn { message: "Hello from OzyBase!" };' });
 
     useEffect(() => {
         fetchFunctions();
@@ -25,14 +27,10 @@ const EdgeFunctions = () => {
         try {
             const token = localStorage.getItem('ozy_token');
             const res = await fetch('/api/functions', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
-            if (Array.isArray(data)) {
-                setFunctions(data);
-            }
+            if (Array.isArray(data)) setFunctions(data);
         } catch (error) {
             console.error('Failed to fetch functions:', error);
         } finally {
@@ -40,8 +38,42 @@ const EdgeFunctions = () => {
         }
     };
 
+    const saveFunction = async () => {
+        try {
+            const token = localStorage.getItem('ozy_token');
+            const res = await fetch('/api/functions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(currentFn)
+            });
+            if (res.ok) {
+                setShowModal(false);
+                fetchFunctions();
+            }
+        } catch (error) {
+            console.error('Save failed:', error);
+        }
+    };
+
+    const invokeFunction = async (name) => {
+        try {
+            const res = await fetch(`/api/functions/${name}/invoke`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ test: true })
+            });
+            const data = await res.json();
+            alert("Result: " + JSON.stringify(data.result, null, 2));
+        } catch (error) {
+            alert("Invoke failed: " + error.message);
+        }
+    };
+
     return (
-        <div className="flex flex-col h-full bg-[#171717] animate-in fade-in duration-500">
+        <div className="flex flex-col h-full bg-[#171717] animate-in fade-in duration-500 overflow-hidden">
             {/* Header Area */}
             <div className="px-8 py-8 border-b border-[#2e2e2e] bg-[#1a1a1a]">
                 <div className="flex items-center justify-between mb-6">
@@ -51,7 +83,10 @@ const EdgeFunctions = () => {
                         </div>
                         <div>
                             <h1 className="text-2xl font-black text-white uppercase tracking-tighter italic">Edge Functions</h1>
-                            <p className="text-zinc-500 text-sm font-medium">Server-side logic running at the edge.</p>
+                            <p className="text-zinc-500 text-sm font-medium uppercase tracking-widest flex items-center gap-2">
+                                <Cpu size={14} className="text-primary" />
+                                JavaScript Runtime Engine
+                            </p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -59,27 +94,32 @@ const EdgeFunctions = () => {
                             <Terminal size={14} />
                             CLI Docs
                         </button>
-                        <button className="flex items-center gap-2 bg-primary text-black px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-[#E6E600] transition-all shadow-[0_0_20px_rgba(254,254,0,0.1)]">
+                        <button
+                            onClick={() => {
+                                setCurrentFn({ name: '', script: '// Write your JS here\nreturn { message: "Hello from OzyBase!" };' });
+                                setShowModal(true);
+                            }}
+                            className="flex items-center gap-2 bg-primary text-black px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-[#E6E600] transition-all shadow-[0_0_20px_rgba(254,254,0,0.1)]"
+                        >
                             <Plus size={14} strokeWidth={3} />
                             New Function
                         </button>
                     </div>
                 </div>
 
-                {/* Info Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {[
-                        { title: 'Deploed Functions', value: functions.length.toString(), icon: Play, color: 'text-primary' },
-                        { title: 'System Engine', value: 'V8/Deno', icon: Cpu, color: 'text-green-500' },
-                        { title: 'Global Regions', value: 'Local Node', icon: Globe, color: 'text-blue-500' },
+                        { title: 'Active Nodes', value: functions.length.toString(), icon: Zap, color: 'text-primary' },
+                        { title: 'Engine Protocol', value: 'Goja/V8', icon: Cpu, color: 'text-zinc-400' },
+                        { title: 'Global Sync', value: 'Enabled', icon: Globe, color: 'text-zinc-400' },
                     ].map((card, i) => (
-                        <div key={i} className="bg-[#111111] border border-[#2e2e2e] rounded-xl p-4 flex items-center gap-4">
-                            <div className={`w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center ${card.color}`}>
-                                <card.icon size={18} />
+                        <div key={i} className="bg-[#111111] border border-[#2e2e2e] rounded-2xl p-4 flex items-center gap-4">
+                            <div className={`p-3 rounded-xl bg-zinc-900 border border-zinc-800 ${card.color}`}>
+                                <card.icon size={20} />
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">{card.title}</p>
-                                <p className="text-xl font-black text-white tracking-tighter">{card.value}</p>
+                                <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">{card.title}</p>
+                                <p className="text-xl font-black text-white italic truncate">{card.value}</p>
                             </div>
                         </div>
                     ))}
@@ -98,39 +138,29 @@ const EdgeFunctions = () => {
                                 className="bg-[#0c0c0c] border border-[#2e2e2e] rounded-lg pl-9 pr-4 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-primary/50 w-64 transition-all"
                             />
                         </div>
-                        <button
-                            onClick={fetchFunctions}
-                            className="text-[10px] font-black uppercase text-zinc-500 hover:text-primary transition-colors"
-                        >
-                            Refresh
-                        </button>
+                        <button onClick={fetchFunctions} className="text-[10px] font-black uppercase text-zinc-500 hover:text-primary">Refresh</button>
                     </div>
 
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-[#0c0c0c] text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600">
-                                <th className="px-6 py-4">Function Name</th>
+                            <tr className="bg-[#0c0c0c] text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 border-b border-[#2e2e2e]">
+                                <th className="px-6 py-4">Function</th>
                                 <th className="px-6 py-4">Status</th>
                                 <th className="px-6 py-4">Endpoint</th>
-                                <th className="px-6 py-4">Last Run</th>
-                                <th className="px-6 py-4"></th>
+                                <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#2e2e2e]/50">
                             {loading ? (
-                                <tr>
-                                    <td colSpan="5" className="px-6 py-10 text-center text-zinc-500 text-xs font-bold uppercase">Loading...</td>
-                                </tr>
+                                <tr><td colSpan="4" className="px-6 py-20 text-center text-zinc-600 font-black uppercase tracking-widest text-[10px]">Syncing with Edge Nodes...</td></tr>
                             ) : functions.length === 0 ? (
-                                <tr>
-                                    <td colSpan="5" className="px-6 py-10 text-center text-zinc-500 text-xs font-bold uppercase">No functions deployed</td>
-                                </tr>
+                                <tr><td colSpan="4" className="px-6 py-20 text-center text-zinc-600 font-black uppercase tracking-widest text-[10px]">No functions deployed to the edge</td></tr>
                             ) : (
                                 functions.map((fn) => (
                                     <tr key={fn.id} className="hover:bg-zinc-900/40 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors">
+                                                <div className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-500 group-hover:text-primary transition-colors">
                                                     <Code size={16} />
                                                 </div>
                                                 <span className="text-sm font-bold text-zinc-200">{fn.name}</span>
@@ -138,23 +168,31 @@ const EdgeFunctions = () => {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
-                                                <div className={`w-1.5 h-1.5 rounded-full ${fn.status === 'Active' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-zinc-600'}`} />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{fn.status}</span>
+                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-green-500/80">Active</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2 font-mono text-[10px] text-zinc-500 bg-[#171717] px-2 py-1 rounded border border-[#2e2e2e] w-fit">
+                                            <div className="bg-[#0c0c0c] border border-zinc-900 px-3 py-1 rounded-full text-[10px] font-mono text-zinc-500 flex items-center gap-2 w-fit">
                                                 {fn.url}
-                                                <ExternalLink size={10} className="hover:text-primary cursor-pointer" />
+                                                <ExternalLink size={10} className="text-zinc-700 hover:text-primary cursor-pointer transition-colors" />
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-xs text-zinc-600 uppercase font-bold tracking-tight">
-                                            {fn.lastRun}
-                                        </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button className="p-2 text-zinc-600 hover:text-zinc-200 transition-colors">
-                                                <MoreVertical size={16} />
-                                            </button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => invokeFunction(fn.name)}
+                                                    className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-black transition-all"
+                                                >
+                                                    <Play size={14} fill="currentColor" />
+                                                </button>
+                                                <button
+                                                    onClick={() => { setCurrentFn(fn); setShowModal(true); }}
+                                                    className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white transition-all"
+                                                >
+                                                    <MoreVertical size={14} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -163,6 +201,84 @@ const EdgeFunctions = () => {
                     </table>
                 </div>
             </div>
+
+            {/* Modal */}
+            {showModal && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-in fade-in duration-300">
+                    <div className="bg-[#171717] border border-[#2e2e2e] rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.6)]">
+                        <div className="px-8 py-6 border-b border-[#2e2e2e] flex items-center justify-between bg-[#1a1a1a]">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20">
+                                    <Zap className="text-primary" size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">
+                                        {currentFn.id ? 'Configure Node' : 'Initialize Node'}
+                                    </h3>
+                                    <p className="text-[9px] text-zinc-500 font-black uppercase tracking-[0.2em]">Edge Computing Protocol v2.0</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <button onClick={() => setShowModal(false)} className="text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-widest">Cancel</button>
+                                <button
+                                    onClick={saveFunction}
+                                    className="bg-primary text-black px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:shadow-[0_0_30px_rgba(254,254,0,0.2)] hover:scale-[1.02] transition-all"
+                                >
+                                    Deploy to Edge
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 flex flex-col p-10 gap-8 overflow-auto custom-scrollbar bg-[#111111]/50">
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em] ml-2">Node Identifier</label>
+                                <div className="relative group">
+                                    <Terminal className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-700 group-focus-within:text-primary transition-colors" size={16} />
+                                    <input
+                                        type="text"
+                                        value={currentFn.name}
+                                        onChange={(e) => setCurrentFn({ ...currentFn, name: e.target.value })}
+                                        placeholder="e.g. process-payments"
+                                        className="w-full bg-[#0c0c0c] border border-zinc-800 rounded-2xl pl-12 pr-6 py-4 text-xs font-bold text-zinc-200 focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/10 transition-all font-mono uppercase tracking-widest"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex-1 flex flex-col space-y-3 min-h-[400px]">
+                                <div className="flex items-center justify-between ml-2">
+                                    <label className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em]">Runtime Script (JS/ES6)</label>
+                                    <div className="flex gap-4">
+                                        <span className="text-[9px] font-bold text-zinc-700">Goja 1.0</span>
+                                        <span className="text-[9px] font-bold text-zinc-700">Async Ready</span>
+                                    </div>
+                                </div>
+                                <div className="flex-1 relative group">
+                                    <textarea
+                                        value={currentFn.script}
+                                        onChange={(e) => setCurrentFn({ ...currentFn, script: e.target.value })}
+                                        className="w-full h-full bg-[#0c0c0c] border border-zinc-800 rounded-3xl p-8 text-xs text-zinc-400 font-mono focus:outline-none focus:border-primary/30 transition-all resize-none shadow-inner leading-relaxed"
+                                        placeholder="// Your edge logic starts here..."
+                                    />
+                                    <div className="absolute top-4 right-4 p-2 bg-zinc-900/80 rounded-lg border border-white/5 opacity-40 group-focus-within:opacity-100 transition-opacity">
+                                        <Code size={14} className="text-primary" />
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10 shadow-lg">
+                                    <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                                        <Zap size={14} className="text-primary" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-zinc-300 font-black uppercase tracking-widest">Global Context Injected</p>
+                                        <p className="text-[9px] text-zinc-500 font-medium">
+                                            Access <span className="text-primary/80 font-mono">body</span>, <span className="text-primary/80 font-mono">ozy.query(sql, ...args)</span>, and <span className="text-primary/80 font-mono">console.log</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

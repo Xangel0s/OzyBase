@@ -3,6 +3,9 @@ package realtime
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -24,32 +27,62 @@ func (d *WebhookDispatcher) Dispatch(event Event) {
 	defer cancel()
 
 	// 1. Get all active webhooks for this event type
-	rows, err := d.pool.Query(ctx, "SELECT url FROM _v_webhooks WHERE events LIKE '%' || $1 || '%'", event.Table)
+	rows, err := d.pool.Query(ctx, `
+		SELECT url, secret FROM _v_webhooks 
+		WHERE is_active = TRUE 
+		AND (events = '*' OR events LIKE '%' || $1 || '%')
+	`, event.Table)
 	if err != nil {
 		log.Printf("Failed to fetch webhooks: %v", err)
 		return
 	}
 	defer rows.Close()
 
-	var urls []string
+	type hookTarget struct {
+		URL    string
+		Secret string
+	}
+	var targets []hookTarget
 	for rows.Next() {
-		var url string
-		if err := rows.Scan(&url); err == nil {
-			urls = append(urls, url)
+		var t hookTarget
+		var secret *string
+		if err := rows.Scan(&t.URL, &secret); err == nil {
+			if secret != nil {
+				t.Secret = *secret
+			}
+			targets = append(targets, t)
 		}
 	}
 
 	// 2. Send payload to each URL
 	payload, _ := json.Marshal(event)
-	for _, url := range urls {
-		go func(target string) {
-			resp, err := http.Post(target, "application/json", bytes.NewBuffer(payload))
+	for _, target := range targets {
+		go func(t hookTarget) {
+			req, err := http.NewRequest("POST", t.URL, bytes.NewBuffer(payload))
 			if err != nil {
-				log.Printf("Webhook failed to %s: %v", target, err)
+				log.Printf("Failed to create webhook request: %v", err)
+				return
+			}
+
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("User-Agent", "OzyBase-Webhook/1.0")
+
+			// Add HMAC signature if secret is present
+			if t.Secret != "" {
+				h := hmac.New(sha256.New, []byte(t.Secret))
+				h.Write(payload)
+				signature := hex.EncodeToString(h.Sum(nil))
+				req.Header.Set("X-Ozy-Signature", "sha256="+signature)
+			}
+
+			client := &http.Client{Timeout: 10 * time.Second}
+			resp, err := client.Do(req)
+			if err != nil {
+				log.Printf("Webhook failed to %s: %v", t.URL, err)
 				return
 			}
 			defer resp.Body.Close()
-			log.Printf("Webhook sent to %s with status %d", target, resp.StatusCode)
-		}(url)
+			log.Printf("Webhook sent to %s with status %d", t.URL, resp.StatusCode)
+		}(target)
 	}
 }

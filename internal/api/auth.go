@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"net/mail"
 
@@ -8,11 +9,21 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type AuthHandler struct {
-	authService *core.AuthService
+type AuthService interface {
+	Signup(ctx context.Context, email, password string) (*core.User, error)
+	Login(ctx context.Context, email, password string) (string, *core.User, error)
+	RequestPasswordReset(ctx context.Context, email string) (string, error)
+	ConfirmPasswordReset(ctx context.Context, token, newPassword string) error
+	VerifyEmail(ctx context.Context, token string) error
+	UpdateUserRole(ctx context.Context, userID, newRole string) error
+	HandleOAuthLogin(ctx context.Context, provider, providerID, email string, data map[string]interface{}) (string, *core.User, error)
 }
 
-func NewAuthHandler(authService *core.AuthService) *AuthHandler {
+type AuthHandler struct {
+	authService AuthService
+}
+
+func NewAuthHandler(authService AuthService) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
 	}
@@ -64,3 +75,75 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	})
 }
 
+func (h *AuthHandler) RequestReset(c echo.Context) error {
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
+	}
+
+	token, err := h.authService.RequestPasswordReset(c.Request().Context(), req.Email)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	// In development, we return the token in the response for easy testing.
+	// In production, this would be empty or a generic "Email sent" message.
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message": "If the email exists, a reset token has been generated",
+		"token":   token, // TODO: Remove in true production
+	})
+}
+
+func (h *AuthHandler) ConfirmReset(c echo.Context) error {
+	var req struct {
+		Token       string `json:"token"`
+		NewPassword string `json:"new_password"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
+	}
+
+	if len(req.NewPassword) < 8 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "password must be at least 8 characters"})
+	}
+
+	err := h.authService.ConfirmPasswordReset(c.Request().Context(), req.Token, req.NewPassword)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "password has been reset successfully"})
+}
+
+func (h *AuthHandler) VerifyEmail(c echo.Context) error {
+	token := c.QueryParam("token")
+	if token == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "missing token"})
+	}
+
+	err := h.authService.VerifyEmail(c.Request().Context(), token)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "email verified successfully"})
+}
+
+func (h *AuthHandler) UpdateRole(c echo.Context) error {
+	id := c.Param("id")
+	var req struct {
+		Role string `json:"role"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
+	}
+
+	err := h.authService.UpdateUserRole(c.Request().Context(), id, req.Role)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "user role updated successfully"})
+}

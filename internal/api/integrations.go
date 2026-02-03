@@ -180,7 +180,7 @@ func (h *Handler) ListCronJobs(c echo.Context) error {
 	defer cancel()
 
 	var exists bool
-	h.DB.Pool.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron')").Scan(&exists)
+	_ = h.DB.Pool.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron')").Scan(&exists)
 
 	if !exists {
 		return c.JSON(http.StatusOK, map[string]interface{}{

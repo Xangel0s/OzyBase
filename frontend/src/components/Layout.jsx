@@ -407,7 +407,12 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
             auth: [
                 { id: 'users', name: 'Users', icon: Users },
                 { id: 'providers', name: 'Providers', icon: Key },
-                { id: 'policies', name: 'Policies', icon: Shield },
+                { id: 'policies', name: 'Permissions', icon: Shield },
+                { id: 'two_factor', name: '2FA Settings', icon: ShieldCheck },
+                { id: 'security', name: 'Security Hub', icon: ShieldAlert },
+                { id: 'security_policies', name: 'Geo-Fencing', icon: Globe },
+                { id: 'security_notifications', name: 'Alert Notifications', icon: Bell },
+                { id: 'integrations', name: 'Integrations & SIEM', icon: Activity },
                 { id: 'templates', name: 'Email Templates', icon: FileText },
                 { id: 'settings', name: 'Auth Settings', icon: Settings }
             ],

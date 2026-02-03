@@ -25,7 +25,8 @@ const SchemaVisualizer = () => {
     const [scale, setScale] = useState(1);
     const containerRef = useRef(null);
 
-    // Simple state for drag and drop
+    const [searchTerm, setSearchTerm] = useState('');
+    const [hoveredTable, setHoveredTable] = useState(null);
     const [nodePositions, setNodePositions] = useState({});
     const [isDragging, setIsDragging] = useState(false);
     const [dragNode, setDragNode] = useState(null);
@@ -39,9 +40,9 @@ const SchemaVisualizer = () => {
 
             // Calculate initial positions (grid layout)
             const positions = {};
-            const cols = 3;
-            const xGap = 350;
-            const yGap = 400; // More vertical space for tall tables
+            const cols = 4;
+            const xGap = 320;
+            const yGap = 350;
 
             data.tables.forEach((table, i) => {
                 const col = i % cols;
@@ -114,23 +115,31 @@ const SchemaVisualizer = () => {
         return <Type size={10} className="text-zinc-400" />;
     };
 
-    // Calculate path for relationship lines
     const getPath = (rel) => {
         const fromPos = nodePositions[rel.from_table];
         const toPos = nodePositions[rel.to_table];
 
         if (!fromPos || !toPos) return '';
 
-        // Simple bezier curve
-        // We assume connection points are roughly middle of table cards width-wise
-        const startX = fromPos.x + 280; // Right side of source
-        const startY = fromPos.y + 40;  // Approximate row height
-        const endX = toPos.x;           // Left side of target
+        const startX = fromPos.x + 280;
+        const startY = fromPos.y + 40;
+        const endX = toPos.x;
         const endY = toPos.y + 40;
 
-        const deltaX = Math.abs(endX - startX) * 0.5;
+        const cp1x = startX + (endX - startX) / 2;
+        const cp2x = startX + (endX - startX) / 2;
 
-        return `M ${startX} ${startY} C ${startX + deltaX} ${startY}, ${endX - deltaX} ${endY}, ${endX} ${endY}`;
+        return `M ${startX} ${startY} C ${cp1x} ${startY}, ${cp2x} ${endY}, ${endX} ${endY}`;
+    };
+
+    const exportAsSVG = () => {
+        const svg = document.querySelector('svg').cloneNode(true);
+        const blob = new Blob([svg.outerHTML], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ozybase-schema.svg';
+        a.click();
     };
 
     if (loading) return (
@@ -147,27 +156,31 @@ const SchemaVisualizer = () => {
         </div>
     );
 
+    const filteredTables = schema.tables.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
     return (
         <div className="flex flex-col h-full bg-[#0c0c0c] overflow-hidden text-zinc-300 font-sans relative">
             {/* Toolbar */}
-            <div className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-[#1a1a1a] border border-[#2e2e2e] p-1 rounded-lg shadow-xl">
-                <button onClick={fetchData} className="p-2 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-white" title="Refresh">
-                    <RefreshCw size={16} />
-                </button>
-                <div className="w-[1px] h-4 bg-[#2e2e2e]" />
-                <button onClick={() => setScale(s => Math.min(s + 0.1, 2))} className="p-2 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-white" title="Zoom In">
-                    <ZoomIn size={16} />
-                </button>
-                <span className="text-[10px] w-8 text-center font-mono text-zinc-500">{Math.round(scale * 100)}%</span>
-                <button onClick={() => setScale(s => Math.max(s - 0.1, 0.2))} className="p-2 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-white" title="Zoom Out">
-                    <ZoomOut size={16} />
-                </button>
-                <div className="w-[1px] h-4 bg-[#2e2e2e]" />
-                <button className="flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-white text-xs font-bold uppercase tracking-widest">
-                    <Code size={14} /> SQL
-                </button>
-                <button className="flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-white text-xs font-bold uppercase tracking-widest">
-                    <Download size={14} /> Auto layout
+            <div className="absolute top-4 left-4 z-50 flex items-center gap-4 bg-[#1a1a1a]/80 backdrop-blur-md border border-[#2e2e2e] p-2 px-4 rounded-xl shadow-2xl">
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" size={14} />
+                    <input
+                        type="text"
+                        placeholder="Find table..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="bg-zinc-900/50 border border-zinc-800 rounded-lg pl-9 pr-4 py-1.5 text-xs text-white focus:outline-none focus:border-primary/50 w-48 transition-all"
+                    />
+                </div>
+                <div className="w-[1px] h-4 bg-zinc-800" />
+                <div className="flex items-center gap-1">
+                    <button onClick={() => setScale(s => Math.max(s - 0.1, 0.2))} className="p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white"><ZoomOut size={16} /></button>
+                    <span className="text-[10px] font-mono w-10 text-center">{Math.round(scale * 100)}%</span>
+                    <button onClick={() => setScale(s => Math.min(s + 0.1, 2))} className="p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white"><ZoomIn size={16} /></button>
+                </div>
+                <div className="w-[1px] h-4 bg-zinc-800" />
+                <button onClick={exportAsSVG} className="flex items-center gap-2 px-3 py-1.5 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-white text-[10px] font-black uppercase tracking-widest">
+                    <Download size={14} /> Export SVG
                 </button>
             </div>
 
@@ -188,57 +201,78 @@ const SchemaVisualizer = () => {
                     style={{ transform: `scale(${scale})` }}
                 >
                     <svg className="absolute top-0 left-0 w-[5000px] h-[5000px] pointer-events-none z-0">
-                        {(schema.relationships || []).map((rel, i) => (
-                            <path
-                                key={i}
-                                d={getPath(rel)}
-                                stroke="#2e2e2e"
-                                strokeWidth="2"
-                                fill="none"
-                                markerEnd="url(#arrowhead)"
-                            />
-                        ))}
+                        {(schema.relationships || []).map((rel, i) => {
+                            const isRelated = hoveredTable === rel.from_table || hoveredTable === rel.to_table;
+                            return (
+                                <path
+                                    key={i}
+                                    d={getPath(rel)}
+                                    stroke={isRelated ? "#F2F200" : "#2e2e2e"}
+                                    strokeWidth={isRelated ? "3" : "2"}
+                                    fill="none"
+                                    markerEnd="url(#arrowhead)"
+                                    className="transition-all duration-300"
+                                    style={{ opacity: hoveredTable && !isRelated ? 0.2 : 1 }}
+                                />
+                            );
+                        })}
                         <defs>
                             <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                                <polygon points="0 0, 10 3.5, 0 7" fill="#525252" />
+                                <polygon points="0 0, 10 3.5, 0 7" fill={hoveredTable ? "#F2F200" : "#525252"} />
                             </marker>
                         </defs>
                     </svg>
 
-                    {(schema.tables || []).map((table) => {
+                    {filteredTables.map((table) => {
                         const pos = nodePositions[table.name] || { x: 0, y: 0 };
+                        const isHovered = hoveredTable === table.name;
+                        const isMatch = searchTerm && table.name.toLowerCase().includes(searchTerm.toLowerCase());
+
                         return (
                             <div
                                 key={table.name}
                                 onMouseDown={(e) => handleMouseDown(e, table.name)}
+                                onMouseEnter={() => setHoveredTable(table.name)}
+                                onMouseLeave={() => setHoveredTable(null)}
                                 style={{
                                     transform: `translate(${pos.x}px, ${pos.y}px)`,
-                                    width: '280px'
+                                    width: '280px',
+                                    zIndex: isHovered || isMatch ? 100 : 10
                                 }}
-                                className="absolute bg-[#111111] border border-[#2e2e2e] rounded-lg shadow-2xl z-10 group hover:border-zinc-500 transition-colors"
+                                className={`absolute bg-[#111111]/90 backdrop-blur-md border rounded-xl shadow-2xl transition-all duration-300 group
+                                    ${isHovered ? 'border-primary shadow-[0_0_30px_rgba(254,254,0,0.2)]' : 'border-[#2e2e2e]'}
+                                    ${isMatch ? 'ring-2 ring-primary ring-offset-4 ring-offset-[#0c0c0c]' : ''}
+                                    ${hoveredTable && !isHovered ? 'opacity-40 grayscale-[0.5]' : 'opacity-100'}
+                                `}
                             >
                                 {/* Header */}
-                                <div className="px-3 py-2 border-b border-[#2e2e2e] bg-[#1a1a1a] rounded-t-lg flex items-center justify-between cursor-move">
+                                <div className={`px-4 py-3 border-b border-[#2e2e2e] rounded-t-xl flex items-center justify-between cursor-move
+                                    ${isHovered ? 'bg-primary/10' : 'bg-[#1a1a1a]'}
+                                `}>
                                     <div className="flex items-center gap-2">
-                                        <Database size={12} className="text-zinc-500" />
-                                        <span className="text-xs font-bold text-zinc-100">{table.name}</span>
+                                        <Database size={14} className={isHovered ? 'text-primary' : 'text-zinc-500'} />
+                                        <span className={`text-xs font-black uppercase tracking-widest ${isHovered ? 'text-white' : 'text-zinc-100'}`}>{table.name}</span>
                                     </div>
-                                    <span className="text-[9px] text-zinc-600 font-mono">public</span>
+                                    <div className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Public</span>
+                                    </div>
                                 </div>
-
                                 {/* Columns */}
-                                <div className="p-2 space-y-1">
+                                <div className="p-3 space-y-1">
                                     {(table.columns || []).map((col, i) => (
-                                        <div key={i} className="flex items-center justify-between text-[11px] px-2 py-1 rounded hover:bg-zinc-800/50 group/col">
-                                            <div className="flex items-center gap-2">
-                                                {col.name === 'id' || col.is_primary ? (
-                                                    <Key size={10} className="text-primary" />
-                                                ) : getColumnIcon(col.type)}
-                                                <span className={`font-mono text-zinc-400 ${(col.name === 'id' || col.is_primary) ? 'text-primary font-bold' : ''}`}>
+                                        <div key={i} className="flex items-center justify-between text-[10px] px-2 py-1.5 rounded-lg hover:bg-zinc-800/80 group/col transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-4 flex justify-center">
+                                                    {col.name === 'id' || col.is_primary ? (
+                                                        <Key size={12} className="text-primary" />
+                                                    ) : getColumnIcon(col.type)}
+                                                </div>
+                                                <span className={`font-mono ${col.name === 'id' || col.is_primary ? 'text-primary font-black' : 'text-zinc-400'}`}>
                                                     {col.name}
                                                 </span>
                                             </div>
-                                            <span className="text-zinc-600 font-mono text-[9px] group-hover/col:text-zinc-500">
+                                            <span className="text-zinc-600 font-mono text-[8px] group-hover/col:text-zinc-400 transition-colors uppercase">
                                                 {col.type}
                                             </span>
                                         </div>

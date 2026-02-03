@@ -17,6 +17,7 @@ type Broker struct {
 	closingClients chan chan Event
 	clients        map[chan Event]bool
 	mu             sync.Mutex
+	Dispatcher     *WebhookDispatcher
 }
 
 // NewBroker creates a new event broker
@@ -68,5 +69,7 @@ func (b *Broker) Unsubscribe(clientChan chan Event) {
 // Broadcast sends an event to all connected clients
 func (b *Broker) Broadcast(event Event) {
 	b.notifier <- event
+	if b.Dispatcher != nil {
+		b.Dispatcher.Dispatch(event)
+	}
 }
-

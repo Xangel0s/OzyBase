@@ -5,14 +5,20 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	DatabaseURL string
-	Port        string
-	JWTSecret   string
+	DatabaseURL    string
+	Port           string
+	JWTSecret      string
+	AllowedOrigins []string
+	RateLimitRPS   float64
+	RateLimitBurst int
+	BodyLimit      string
 }
 
 func Load() (*Config, error) {
@@ -47,10 +53,18 @@ func Load() (*Config, error) {
 		jwtSecret = getOrGenerateSecret()
 	}
 
+	origins := strings.Split(getEnv("ALLOWED_ORIGINS", "*"), ",")
+	rps, _ := strconv.ParseFloat(getEnv("RATE_LIMIT_RPS", "20"), 64)
+	burst, _ := strconv.Atoi(getEnv("RATE_LIMIT_BURST", "20"))
+
 	cfg := &Config{
-		DatabaseURL: dbURL,
-		Port:        getEnv("PORT", "8090"),
-		JWTSecret:   jwtSecret,
+		DatabaseURL:    dbURL,
+		Port:           getEnv("PORT", "8090"),
+		JWTSecret:      jwtSecret,
+		AllowedOrigins: origins,
+		RateLimitRPS:   rps,
+		RateLimitBurst: burst,
+		BodyLimit:      getEnv("BODY_LIMIT", "10M"),
 	}
 
 	return cfg, nil
