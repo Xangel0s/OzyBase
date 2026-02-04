@@ -50,4 +50,3 @@ func TestSignup_Validation(t *testing.T) {
 		}
 	})
 }
-

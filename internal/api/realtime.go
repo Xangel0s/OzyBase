@@ -50,4 +50,3 @@ func (h *RealtimeHandler) Stream(c echo.Context) error {
 		}
 	}
 }
-

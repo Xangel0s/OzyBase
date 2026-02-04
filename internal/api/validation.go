@@ -81,7 +81,7 @@ func ValidatePasswordSimple(password string) error {
 func ValidateEmail(email string) error {
 	// RFC 5322 simplified pattern
 	emailPattern := regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
-	
+
 	if !emailPattern.MatchString(email) {
 		return errors.New("invalid email format")
 	}
@@ -155,4 +155,3 @@ func hasSpecialChar(s string) bool {
 	}
 	return false
 }
-

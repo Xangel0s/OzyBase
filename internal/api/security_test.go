@@ -136,4 +136,3 @@ func TestSecurityHeadersDefault(t *testing.T) {
 	assert.NotEmpty(t, rec.Header().Get("X-Content-Type-Options"))
 	assert.NotEmpty(t, rec.Header().Get("X-Frame-Options"))
 }
-

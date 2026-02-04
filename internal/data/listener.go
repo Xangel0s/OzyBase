@@ -55,4 +55,3 @@ func ListenDB(ctx context.Context, databaseURL string, broker *realtime.Broker) 
 		}
 	}
 }
-
