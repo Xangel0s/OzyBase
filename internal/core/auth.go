@@ -172,7 +172,7 @@ func (s *AuthService) ConfirmPasswordReset(ctx context.Context, token, newPasswo
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	_, err = tx.Exec(ctx, "UPDATE _v_users SET password_hash = $1 WHERE id = $2", string(hashedPassword), userID)
 	if err != nil {
@@ -209,7 +209,7 @@ func (s *AuthService) VerifyEmail(ctx context.Context, token string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	_, err = tx.Exec(ctx, "UPDATE _v_users SET is_verified = TRUE WHERE id = $1", userID)
 	if err != nil {

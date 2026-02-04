@@ -117,8 +117,9 @@ func (m *Metrics) rotateHistory(db *data.DB) {
 
 		copy(m.RealtimeHistory[0:], m.RealtimeHistory[1:])
 		var active int
-		db.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active'").Scan(&active)
-		m.RealtimeHistory[59] = active
+		if err := db.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active'").Scan(&active); err == nil {
+			m.RealtimeHistory[59] = active
+		}
 
 		// System Stats
 		copy(m.CpuHistory[0:], m.CpuHistory[1:])
@@ -294,7 +295,7 @@ func (h *Handler) GetSecurityPolicies(c echo.Context) error {
 		var config []byte
 		if err := rows.Scan(&pType, &config); err == nil {
 			var configMap interface{}
-			json.Unmarshal(config, &configMap)
+			_ = json.Unmarshal(config, &configMap)
 			policies[pType] = configMap
 		}
 	}
@@ -374,10 +375,10 @@ func (h *Handler) GetSecurityStats(c echo.Context) error {
 	var stats SecurityStats
 
 	// 1. Total Checks
-	h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_audit_logs").Scan(&stats.TotalChecks)
+	_ = h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_audit_logs").Scan(&stats.TotalChecks)
 
 	// 2. Blocked vs Allowed (Rough estimate from alerts)
-	h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_security_alerts").Scan(&stats.BlockedRequests)
+	_ = h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_security_alerts").Scan(&stats.BlockedRequests)
 	stats.AllowedRequests = stats.TotalChecks - stats.BlockedRequests
 	stats.TotalBreaches = stats.BlockedRequests
 

@@ -77,7 +77,7 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 			}
 			configJSON, _ := json.Marshal(config)
 
-			h.DB.Pool.Exec(c.Request().Context(), `
+			_, _ = h.DB.Pool.Exec(c.Request().Context(), `
 				INSERT INTO _v_security_policies (type, config)
 				VALUES ('geo_fencing', $1)
 				ON CONFLICT (type) DO UPDATE SET config = $1
@@ -85,7 +85,7 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 		}
 
 		// Security: Initialize logs
-		h.DB.Pool.Exec(c.Request().Context(), `
+		_, _ = h.DB.Pool.Exec(c.Request().Context(), `
 			INSERT INTO _v_audit_logs (method, path, status, country) 
 			VALUES ('SYSTEM', 'SETUP_SECURE', 200, 'SYSTEM')
 		`)

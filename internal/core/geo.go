@@ -22,7 +22,6 @@ type GeoService struct {
 	db          *data.DB
 	cache       sync.Map
 	policyCache *GeoPolicy
-	policyOnce  sync.Once
 	policyMu    sync.RWMutex
 }
 

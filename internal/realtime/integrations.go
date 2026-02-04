@@ -66,7 +66,7 @@ func (w *WebhookIntegration) SendSecurityAlert(ctx context.Context, alert Securi
 		}
 
 		if len(configJSON) > 0 {
-			json.Unmarshal(configJSON, &integration.Config)
+			_ = json.Unmarshal(configJSON, &integration.Config)
 		}
 
 		go w.sendToIntegration(integration, alert)
@@ -219,7 +219,7 @@ func (w *WebhookIntegration) SendLogBatch(ctx context.Context, logs []map[string
 		}
 
 		if len(configJSON) > 0 {
-			json.Unmarshal(configJSON, &integration.Config)
+			_ = json.Unmarshal(configJSON, &integration.Config)
 		}
 
 		go w.sendLogBatchToSIEM(integration, logs)

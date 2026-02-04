@@ -366,7 +366,7 @@ func (db *DB) BulkInsertRecord(ctx context.Context, collectionName string, recor
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	for _, data := range records {
 		var columns []string

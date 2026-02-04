@@ -209,7 +209,6 @@ func (h *Handler) UpdateCollectionRules(c echo.Context) error {
 	if req.DeleteRule != nil {
 		query += fmt.Sprintf(", delete_rule = $%d", argIdx)
 		args = append(args, *req.DeleteRule)
-		argIdx++
 	}
 
 	query += " WHERE name = $1"
@@ -500,7 +499,7 @@ func (h *Handler) GetProjectInfo(c echo.Context) error {
 	h.Metrics.RUnlock()
 
 	// 4. Realtime requests (active backends currently processing)
-	h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active' AND query NOT LIKE '%pg_stat_activity%'").Scan(&info.Metrics.RealtimeRequests)
+	_ = h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active' AND query NOT LIKE '%pg_stat_activity%'").Scan(&info.Metrics.RealtimeRequests)
 
 	// SLOW QUERIES (Attempt to use pg_stat_statements if available, otherwise use pg_stat_activity)
 	rows, err := h.DB.Pool.Query(ctx, `

@@ -22,7 +22,7 @@ func (h *AuthHandler) GetOAuthURL(c echo.Context) error {
 
 	// Generate random state
 	b := make([]byte, 16)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	state := hex.EncodeToString(b)
 
 	// Store state in cookie for verification
@@ -85,7 +85,7 @@ func (h *AuthHandler) OAuthCallback(c echo.Context) error {
 			ID    string `json:"id"`
 			Email string `json:"email"`
 		}
-		json.NewDecoder(resp.Body).Decode(&gUser)
+		_ = json.NewDecoder(resp.Body).Decode(&gUser)
 		email = gUser.Email
 		providerID = gUser.ID
 		extraData = map[string]interface{}{"google_id": gUser.ID}

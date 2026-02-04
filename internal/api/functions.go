@@ -97,10 +97,10 @@ func (h *FunctionsHandler) Invoke(c echo.Context) error {
 	// Expose useful globals
 	reqBody := make(map[string]interface{})
 	_ = c.Bind(&reqBody)
-	vm.Set("body", reqBody)
+	_ = vm.Set("body", reqBody)
 
 	// Expose Ozy DB access
-	vm.Set("ozy", map[string]interface{}{
+	_ = vm.Set("ozy", map[string]interface{}{
 		"query": func(sql string, args ...interface{}) []map[string]interface{} {
 			rows, err := h.DB.Pool.Query(c.Request().Context(), sql, args...)
 			if err != nil {
@@ -123,7 +123,7 @@ func (h *FunctionsHandler) Invoke(c echo.Context) error {
 	})
 
 	// Add console.log
-	vm.Set("console", map[string]interface{}{
+	_ = vm.Set("console", map[string]interface{}{
 		"log": func(args ...interface{}) {
 			// In production, capture this to logs
 		},

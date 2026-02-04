@@ -45,7 +45,7 @@ func (m *CronManager) Refresh() {
 	for rows.Next() {
 		var id, name, schedule, command string
 		if err := rows.Scan(&id, &name, &schedule, &command); err == nil {
-			m.scheduler.AddFunc(schedule, func() {
+			_, _ = m.scheduler.AddFunc(schedule, func() {
 				m.executeJob(id, name, command)
 			})
 			log.Printf("⏰ Job added: %s (%s)", name, schedule)
