@@ -37,7 +37,7 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 
 	// 1. Validate no admin exists (Double check for security)
 	var count int
-	h.DB.Pool.QueryRow(c.Request().Context(), "SELECT COUNT(*) FROM _v_users WHERE role = 'admin'").Scan(&count)
+	_ = h.DB.Pool.QueryRow(c.Request().Context(), "SELECT COUNT(*) FROM _v_users WHERE role = 'admin'").Scan(&count)
 	if count > 0 {
 		return c.JSON(http.StatusForbidden, map[string]string{"error": "System already initialized"})
 	}

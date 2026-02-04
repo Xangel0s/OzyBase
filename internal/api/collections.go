@@ -76,7 +76,7 @@ func (h *Handler) CreateCollection(c echo.Context) error {
 			"error": "Failed to start transaction",
 		})
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	// Execute CREATE TABLE
 	if _, err := tx.Exec(ctx, createSQL); err != nil {
@@ -154,7 +154,7 @@ func (h *Handler) DeleteCollection(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	// 1. Drop table
 	if _, err := tx.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", name)); err != nil {
@@ -700,7 +700,7 @@ func (h *Handler) FixHealthIssues(c echo.Context) error {
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Transaction failed"})
 		}
-		defer tx.Rollback(ctx)
+		defer func() { _ = tx.Rollback(ctx) }()
 
 		// 1. Primary PG RLS (Native)
 		sql := fmt.Sprintf("ALTER TABLE %s ENABLE ROW LEVEL SECURITY", tableName)

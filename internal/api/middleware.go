@@ -221,7 +221,7 @@ func MetricsMiddleware(h *Handler) echo.MiddlewareFunc {
 					// Send to webhook integrations (Slack, Discord, SIEM)
 					go func() {
 						var detailsMap map[string]interface{}
-						json.Unmarshal(details, &detailsMap)
+						_ = json.Unmarshal(details, &detailsMap)
 
 						_ = h.Integrations.SendSecurityAlert(context.Background(), realtime.SecurityAlertPayload{
 							Type:      "geo_breach",

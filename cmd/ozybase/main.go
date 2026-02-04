@@ -162,8 +162,16 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 	e.HideBanner = true
 
 	// Middleware
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: "method=${method}, uri=${uri}, status=${status}\n",
+	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogStatus: true,
+		LogURI:    true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			logger.Log.Info().
+				Int("status", v.Status).
+				Str("uri", v.URI).
+				Msg("request")
+			return nil
+		},
 	}))
 	e.Use(h.FirewallMiddleware()) // 🛡️ IP Firewall (Whitelist/Blacklist) - Very First Defense
 	e.Use(middleware.Recover())

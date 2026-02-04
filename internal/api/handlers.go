@@ -432,7 +432,7 @@ func (h *Handler) GetSecurityStats(c echo.Context) error {
 	rows.Close()
 
 	// 6. Last Breach
-	h.DB.Pool.QueryRow(ctx, "SELECT created_at FROM _v_security_alerts ORDER BY created_at DESC LIMIT 1").Scan(&stats.LastBreachAt)
+	_ = h.DB.Pool.QueryRow(ctx, "SELECT created_at FROM _v_security_alerts ORDER BY created_at DESC LIMIT 1").Scan(&stats.LastBreachAt)
 
 	return c.JSON(http.StatusOK, stats)
 }
