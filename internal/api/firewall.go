@@ -23,8 +23,6 @@ func (h *Handler) FirewallMiddleware() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			ip := c.RealIP()
 
-			// Check DB for rules
-			// Optimization TODO: Cache this in Redis/Memory map
 			ctx, cancel := context.WithTimeout(c.Request().Context(), 2*time.Second)
 			defer cancel()
 
@@ -37,23 +35,25 @@ func (h *Handler) FirewallMiddleware() echo.MiddlewareFunc {
 				WHERE ip_address = $1
 			`, ip).Scan(&ruleType, &expiresAt)
 
-			if err == nil {
-				// Rule found
-				// Check expiration
-				if expiresAt != nil && expiresAt.Before(time.Now()) {
-					// Expired, allow cleanup (async) and proceed
-					return next(c)
-				}
-
-				if ruleType == "BLOCK" {
-					return c.JSON(http.StatusForbidden, map[string]string{
-						"error": "Access denied by firewall policy",
-						"code":  "IP_BLOCKED",
-					})
-				}
-				// If ALLOW, proceed
+			if err != nil {
+				// No rule found (or DB error), proceed normally
+				return next(c)
 			}
 
+			// Rule found - check expiration
+			if expiresAt != nil && expiresAt.Before(time.Now()) {
+				// Expired, allow proceed
+				return next(c)
+			}
+
+			if ruleType == "BLOCK" {
+				return c.JSON(http.StatusForbidden, map[string]string{
+					"error": "Access denied by firewall policy",
+					"code":  "IP_BLOCKED",
+				})
+			}
+
+			// If ALLOW or any other positive rule, proceed
 			return next(c)
 		}
 	}
@@ -85,10 +85,10 @@ func (h *Handler) ListIPRules(c echo.Context) error {
 
 func (h *Handler) CreateIPRule(c echo.Context) error {
 	var req struct {
-		IP       string `json:"ip_address"`
-		Type     string `json:"rule_type"` // ALLOW or BLOCK
-		Reason   string `json:"reason"`
-		Duration int    `json:"duration_hours,omitempty"` // 0 = permanent
+		IPAddress string `json:"ip_address"`
+		RuleType  string `json:"rule_type"` // ALLOW or BLOCK
+		Reason    string `json:"reason"`
+		Duration  int    `json:"duration_hours,omitempty"` // 0 = permanent
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -108,7 +108,7 @@ func (h *Handler) CreateIPRule(c echo.Context) error {
 		VALUES ($1, $2, $3, $4, 'admin')
 		ON CONFLICT (ip_address) DO UPDATE 
 		SET rule_type = $2, reason = $3, expires_at = $4
-	`, req.IP, req.Type, req.Reason, expiresAt)
+	`, req.IPAddress, req.RuleType, req.Reason, expiresAt)
 
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
