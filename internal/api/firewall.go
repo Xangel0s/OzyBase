@@ -80,6 +80,10 @@ func (h *Handler) ListIPRules(c echo.Context) error {
 		rules = append(rules, r)
 	}
 
+	if err := rows.Err(); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
 	return c.JSON(http.StatusOK, rules)
 }
 
