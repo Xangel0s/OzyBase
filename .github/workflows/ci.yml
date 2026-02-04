@@ -10,6 +10,23 @@ jobs:
   test:
     name: Build & Test
     runs-on: ubuntu-latest
+    
+    # Añadimos Postgres como servicio para los tests
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: ozybase_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,11 +37,16 @@ jobs:
           go-version: '1.23'
           cache: true
 
+      - name: Install dependencies
+        run: go mod download
+
       - name: Build
-        # Usamos el nombre que Git tiene registrado: 'ozybase' en minúsculas
         run: go build -v ./cmd/ozybase
 
       - name: Run tests
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/ozybase_test?sslmode=disable
+          JWT_SECRET: test_secret_key_12345
         run: go test -v -race -coverprofile=coverage.txt ./...
 
   lint:
