@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -51,7 +52,7 @@ func (g *Generator) Generate(outputPath string) error {
 		})
 	}
 
-	f, err := os.Create(outputPath)
+	f, err := os.Create(filepath.Clean(outputPath))
 	if err != nil {
 		return err
 	}

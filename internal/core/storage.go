@@ -13,7 +13,7 @@ import (
 // SaveFile saves a multipart file to the destination path with a unique name
 func SaveFile(fileHeader *multipart.FileHeader, storageDir string) (string, error) {
 	// Create storage directory if it doesn't exist
-	if err := os.MkdirAll(storageDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(filepath.Clean(storageDir), 0750); err != nil {
 		return "", fmt.Errorf("failed to create storage directory: %w", err)
 	}
 
@@ -30,7 +30,7 @@ func SaveFile(fileHeader *multipart.FileHeader, storageDir string) (string, erro
 	destPath := filepath.Join(storageDir, safeFilename)
 
 	// Create the destination file
-	dst, err := os.Create(destPath)
+	dst, err := os.Create(filepath.Clean(destPath))
 	if err != nil {
 		return "", fmt.Errorf("failed to create destination file: %w", err)
 	}
