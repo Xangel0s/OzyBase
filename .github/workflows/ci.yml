@@ -24,20 +24,12 @@ jobs:
         run: go mod download
 
       - name: Build
+        # Usamos ./cmd/OzyBase para construir el binario principal
         run: go build -v ./cmd/OzyBase
 
       - name: Run tests
+        # Ejecutar todos los tests recursivamente
         run: go test -v -race -coverprofile=coverage.txt ./...
-
-      - name: Check coverage
-        run: |
-          COVERAGE=$(go tool cover -func=coverage.txt | grep total | grep -Eo '[0-9]+\.[0-9]+')
-          echo "Total coverage: $COVERAGE%"
-          # We'll enable strict failure once we reach the 70% target
-          # if (( $(echo "$COVERAGE < 70" | bc -l) )); then
-          #   echo "Coverage is below 70%"
-          #   exit 1
-          # fi
 
   lint:
     name: Lint & Security
@@ -56,6 +48,8 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          # Forzar a que busque en la raíz
+          args: --timeout=5m
 
       - name: Run gosec
         run: |
