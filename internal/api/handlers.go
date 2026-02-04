@@ -103,31 +103,31 @@ func (m *Metrics) rotateHistory(db *data.DB) {
 	for range ticker.C {
 		m.Lock()
 		// Rotate all histories
-		copy(m.DbHistory[0:], m.DbHistory[1:])
+		copy(m.DbHistory, m.DbHistory[1:])
 		m.DbHistory[59] = m.DbRequests
 		m.DbRequests = 0
 
-		copy(m.AuthHistory[0:], m.AuthHistory[1:])
+		copy(m.AuthHistory, m.AuthHistory[1:])
 		m.AuthHistory[59] = m.AuthRequests
 		m.AuthRequests = 0
 
-		copy(m.StorageHistory[0:], m.StorageHistory[1:])
+		copy(m.StorageHistory, m.StorageHistory[1:])
 		m.StorageHistory[59] = m.StorageRequests
 		m.StorageRequests = 0
 
-		copy(m.RealtimeHistory[0:], m.RealtimeHistory[1:])
+		copy(m.RealtimeHistory, m.RealtimeHistory[1:])
 		var active int
 		if err := db.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active'").Scan(&active); err == nil {
 			m.RealtimeHistory[59] = active
 		}
 
 		// System Stats
-		copy(m.CpuHistory[0:], m.CpuHistory[1:])
+		copy(m.CpuHistory, m.CpuHistory[1:])
 		if cpuPercentages, err := cpu.Percent(0, false); err == nil && len(cpuPercentages) > 0 {
 			m.CpuHistory[59] = cpuPercentages[0]
 		}
 
-		copy(m.RamHistory[0:], m.RamHistory[1:])
+		copy(m.RamHistory, m.RamHistory[1:])
 		if v, err := mem.VirtualMemory(); err == nil {
 			m.RamHistory[59] = v.UsedPercent
 		}
