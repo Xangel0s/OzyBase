@@ -2,6 +2,7 @@ package api
 
 import (
 	"crypto/subtle"
+	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -63,9 +64,9 @@ func SecurityHeadersMiddleware(config SecurityConfig) echo.MiddlewareFunc {
 
 			// HTTP Strict Transport Security (only in production with HTTPS)
 			if config.HSTSMaxAge > 0 {
-				hstsValue := "max-age=" + string(rune(config.HSTSMaxAge))
+				hstsValue := "max-age=" + strconv.Itoa(config.HSTSMaxAge)
 				if config.HSTSIncludeSubdomains {
-					hstsValue = "max-age=31536000; includeSubDomains"
+					hstsValue += "; includeSubDomains"
 				}
 				res.Header().Set("Strict-Transport-Security", hstsValue)
 			}
@@ -120,4 +121,3 @@ func APIVersionHeader(version string) echo.MiddlewareFunc {
 		}
 	}
 }
-
