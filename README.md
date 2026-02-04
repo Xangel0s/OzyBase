@@ -100,7 +100,7 @@ OzyBase.channel('products').on('INSERT', (payload) => {
 ## 📚 Documentation
 
 - [📊 Project Status & Roadmap](./PROJECT_STATUS_MASTER.md)
-- [🛠️ SDK Reference](./sdk/js/README.md)
+- [🛠️ JS/TS SDK](https://github.com/Xangel0s/-js-sdk)
 - [🏗️ Tutorial: My First App](./docs/tutorial.md)
 - [📜 API Spec (OpenAPI)](./docs/openapi.yaml)
 
