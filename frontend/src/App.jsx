@@ -66,7 +66,13 @@ function App() {
     }
 
     if (!isSystemInitialized) {
-        return <SetupWizard onComplete={() => { setIsSystemInitialized(true); }} />;
+        return <SetupWizard onComplete={(token) => {
+            if (token) {
+                localStorage.setItem('ozy_token', token);
+                setIsAuthenticated(true);
+            }
+            setIsSystemInitialized(true);
+        }} />;
     }
 
     if (!isAuthenticated) {

@@ -58,8 +58,20 @@ const SetupWizard = ({ onComplete }) => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Setup failed');
 
-            // Setup complete, auto-login logic would go here or just callback
-            onComplete();
+            // 2. Auto-login immediately for seamless experience
+            const loginRes = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: formData.email, password: formData.password })
+            });
+            const loginData = await loginRes.json();
+
+            if (loginRes.ok && loginData.token) {
+                onComplete(loginData.token);
+            } else {
+                // Fallback if login fails (unlikely)
+                onComplete(null);
+            }
 
         } catch (err) {
             setError(err.message);
@@ -107,7 +119,7 @@ const SetupWizard = ({ onComplete }) => {
                             <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${step === 2 ? 'border-primary text-primary' : 'border-zinc-700 text-transparent'}`}>
                                 <div className="w-1.5 h-1.5 bg-current rounded-full" />
                             </div>
-                            <span className={`text-xs font-medium ${step === 2 ? 'text-white' : 'text-zinc-600'}`}>Create Admin</span>
+                            <span className={`text-xs font-medium ${step === 2 ? 'text-white' : 'text-zinc-600'}`}>Register Admin</span>
                         </div>
                     </div>
                 </div>
@@ -165,8 +177,8 @@ const SetupWizard = ({ onComplete }) => {
                         <div className="animate-in slide-in-from-right duration-500 h-full flex flex-col">
                             <button onClick={() => setStep(1)} className="text-xs text-zinc-500 hover:text-white mb-4 flex items-center gap-1">← Back</button>
 
-                            <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-2">Create Root Admin</h2>
-                            <p className="text-zinc-500 text-sm mb-6">This user will have full access to the system.</p>
+                            <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-2">Register Admin Account</h2>
+                            <p className="text-zinc-500 text-sm mb-6">Create your credentials to administrate the whole system.</p>
 
                             <div className="space-y-4 flex-1">
                                 <div className="space-y-2">

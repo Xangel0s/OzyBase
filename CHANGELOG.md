@@ -24,6 +24,7 @@
 ### 🐛 Bug Fixes & Polish
 - **Frontend**: Fixed `ReferenceError` for missing icons (`ShieldAlert`, `Search`) in `Layout.jsx` and `SchemaVisualizer.jsx`.
 - **API**: Added `/api/tables` alias route to support generic table editors in the frontend.
+- **UX**: Hidden internal system tables (`_v_*`) from the default collection list response, decluttering the Table Explorer (Supabase-like experience).
 - **Security**: Hardened initial setup endpoints to prevent unauthorized re-initialization.
 
 ### 🧪 Verification

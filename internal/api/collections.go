@@ -227,6 +227,8 @@ func (h *Handler) ListCollections(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
 	defer cancel()
 
+	includeSystem := c.QueryParam("include_system") == "true"
+
 	// Fetch all tables from information_schema
 	tables, err := h.DB.ListTables(ctx)
 	if err != nil {
@@ -258,6 +260,9 @@ func (h *Handler) ListCollections(c echo.Context) error {
 	// Combine information
 	var result []Collection
 	for _, tableName := range tables {
+		if !includeSystem && strings.HasPrefix(tableName, "_v_") {
+			continue
+		}
 		if meta, ok := metaMap[tableName]; ok {
 			result = append(result, meta)
 		} else {
