@@ -20,17 +20,9 @@ jobs:
           go-version: '1.23'
           cache: true
 
-      - name: Debug - List Files
-        run: |
-          echo "Current directory: $(pwd)"
-          ls -R
-
-      - name: Install dependencies
-        run: go mod tidy && go mod download
-
       - name: Build
-        # Usamos un patrón más flexible para encontrar el programa principal
-        run: go build -v ./cmd/OzyBase/...
+        # Usamos el nombre que Git tiene registrado: 'ozybase' en minúsculas
+        run: go build -v ./cmd/ozybase
 
       - name: Run tests
         run: go test -v -race -coverprofile=coverage.txt ./...
