@@ -187,6 +187,6 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 		}
 	}
 
-	log.Println("✅ Migrations completed successfully")
+	log.Println("Ô£à Migrations completed successfully")
 	return nil
 }

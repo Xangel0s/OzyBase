@@ -14,16 +14,16 @@ import (
 func ListenDB(ctx context.Context, databaseURL string, broker *realtime.Broker) {
 	conn, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		log.Fatalf("❌ Realtime Listener failed to connect: %v", err)
+		log.Fatalf("ÔØî Realtime Listener failed to connect: %v", err)
 	}
 	defer conn.Close(ctx)
 
 	_, err = conn.Exec(ctx, "LISTEN OzyBase_events")
 	if err != nil {
-		log.Fatalf("❌ Realtime Listener failed to execute LISTEN: %v", err)
+		log.Fatalf("ÔØî Realtime Listener failed to execute LISTEN: %v", err)
 	}
 
-	log.Println("⚡ Realtime Listener active on channel 'OzyBase_events'")
+	log.Println("ÔÜí Realtime Listener active on channel 'OzyBase_events'")
 
 	for {
 		select {
@@ -33,7 +33,7 @@ func ListenDB(ctx context.Context, databaseURL string, broker *realtime.Broker) 
 			// Wait for a notification
 			notification, err := conn.WaitForNotification(ctx)
 			if err != nil {
-				log.Printf("⚠️ Realtime Listener error: %v. Retrying in 5s...", err)
+				log.Printf("ÔÜá´©Å Realtime Listener error: %v. Retrying in 5s...", err)
 				time.Sleep(5 * time.Second)
 				// Reconnect logic could be added here
 				continue
@@ -42,7 +42,7 @@ func ListenDB(ctx context.Context, databaseURL string, broker *realtime.Broker) 
 			// Broadcast raw payload
 			var payload map[string]interface{}
 			if err := json.Unmarshal([]byte(notification.Payload), &payload); err != nil {
-				log.Printf("⚠️ Failed to parse notification payload: %v", err)
+				log.Printf("ÔÜá´©Å Failed to parse notification payload: %v", err)
 				continue
 			}
 
