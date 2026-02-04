@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -168,12 +169,19 @@ func (db *DB) ListRecords(ctx context.Context, collectionName string, filters ma
 		query += " ORDER BY created_at DESC"
 	}
 
-	// Handle Limit/Offset
+	// Handle Limit/Offset (SECURE: Parse as int to prevent SQLi)
 	if l, ok := filters["limit"]; ok && len(l) > 0 {
-		query += fmt.Sprintf(" LIMIT %s", l[0]) // Basic protection: pgx will fail if not number
+		if limitVal, err := strconv.Atoi(l[0]); err == nil && limitVal > 0 {
+			query += fmt.Sprintf(" LIMIT %d", limitVal)
+		}
+	} else {
+		query += " LIMIT 30" // Default limit
 	}
+
 	if o, ok := filters["offset"]; ok && len(o) > 0 {
-		query += fmt.Sprintf(" OFFSET %s", o[0])
+		if offsetVal, err := strconv.Atoi(o[0]); err == nil && offsetVal >= 0 {
+			query += fmt.Sprintf(" OFFSET %d", offsetVal)
+		}
 	}
 
 	rows, err := db.Pool.Query(ctx, query, queryArgs...)
