@@ -195,6 +195,7 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 	mailSvc := mailer.NewLogMailer()
 
 	authService := core.NewAuthService(h.DB, cfg.JWTSecret, mailSvc)
+	h.Auth = authService // Inject dependency for System Setup
 	authHandler := api.NewAuthHandler(authService)
 	twoFactorService := core.NewTwoFactorService(h.DB)
 	twoFactorHandler := api.NewTwoFactorHandler(twoFactorService)

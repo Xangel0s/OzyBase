@@ -60,6 +60,13 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create admin: " + err.Error()})
 	}
 
+	// 2.5 Generate Token for immediate login
+	// Note: h.Auth provided via main.go
+	token, err := h.Auth.GenerateTokenForUser(userID, "admin")
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate session token"})
+	}
+
 	// 3. Apply Configuration based on Mode
 	if req.Mode == "secure" {
 		// A. Enable Geo-Fencing for the provided country
@@ -84,5 +91,8 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 		`)
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{"status": "initialized"})
+	return c.JSON(http.StatusOK, map[string]string{
+		"status": "initialized",
+		"token":  token,
+	})
 }

@@ -58,6 +58,7 @@ type Handler struct {
 	Geo          *core.GeoService
 	Mailer       mailer.Mailer
 	Integrations *realtime.WebhookIntegration
+	Auth         *core.AuthService // Added for direct token generation
 }
 
 // NewHandler creates a new Handler with the given dependencies

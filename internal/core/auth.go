@@ -103,6 +103,11 @@ func (s *AuthService) generateToken(userID, role string) (string, error) {
 	return token.SignedString([]byte(s.jwtSecret))
 }
 
+// GenerateTokenForUser exposes internal token generation logic
+func (s *AuthService) GenerateTokenForUser(userID, role string) (string, error) {
+	return s.generateToken(userID, role)
+}
+
 // RequestPasswordReset generates a reset token and saves it
 func (s *AuthService) RequestPasswordReset(ctx context.Context, email string) (string, error) {
 	var userID string

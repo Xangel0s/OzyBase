@@ -58,19 +58,12 @@ const SetupWizard = ({ onComplete }) => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Setup failed');
 
-            // 2. Auto-login immediately for seamless experience
-            const loginRes = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: formData.email, password: formData.password })
-            });
-            const loginData = await loginRes.json();
-
-            if (loginRes.ok && loginData.token) {
-                onComplete(loginData.token);
+            // 2. Auto-login immediately using the token provided by Go backend (Secure & Fast)
+            if (data.token) {
+                onComplete(data.token);
             } else {
-                // Fallback if login fails (unlikely)
-                onComplete(null);
+                // Should not happen if backend is correctly updated
+                throw new Error("Security handshake failed: No token received.");
             }
 
         } catch (err) {
