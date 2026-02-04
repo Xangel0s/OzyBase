@@ -38,7 +38,9 @@ OzyBase allows you to create dynamic collections, manage authentication, handle 
 - **⚡ SSE Realtime**: Native Server-Sent Events for instant UI updates.
 - **🛠️ TypeGen CLI**: Generate TypeScript interfaces directly from your DB schema.
 - **📂 File Storage**: Built-in local file management.
-- **🛡️ Hardened**: Rate limiting, security headers, and strict validation out of the box.
+- **🛡️ IP Firewall**: Enterprise-grade IP Whitelist/Blacklist with auto-expiration.
+- **🧙 Setup Wizard**: Secure first-run experience with auto-login and "Fortress Mode".
+- **🔒 Hardened**: Rate limiting, security headers, SQL injection defense, and strict validation.
 
 ---
 
@@ -97,9 +99,8 @@ OzyBase.channel('products').on('INSERT', (payload) => {
 
 ## 📚 Documentation
 
-- [📖 General Roadmap](./INTEGRATION_ROADMAP.md)
+- [📊 Project Status & Roadmap](./PROJECT_STATUS_MASTER.md)
 - [🛠️ SDK Reference](./sdk/js/README.md)
-- [🛡️ Security Hardening](./SECURITY_HARDENING.md)
 - [🏗️ Tutorial: My First App](./docs/tutorial.md)
 - [📜 API Spec (OpenAPI)](./docs/openapi.yaml)
 
