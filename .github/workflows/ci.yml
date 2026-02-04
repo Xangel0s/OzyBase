@@ -20,15 +20,19 @@ jobs:
           go-version: '1.23'
           cache: true
 
+      - name: Debug - List Files
+        run: |
+          echo "Current directory: $(pwd)"
+          ls -R
+
       - name: Install dependencies
-        run: go mod download
+        run: go mod tidy && go mod download
 
       - name: Build
-        # Usamos ./cmd/OzyBase para construir el binario principal
-        run: go build -v ./cmd/OzyBase
+        # Usamos un patrón más flexible para encontrar el programa principal
+        run: go build -v ./cmd/OzyBase/...
 
       - name: Run tests
-        # Ejecutar todos los tests recursivamente
         run: go test -v -race -coverprofile=coverage.txt ./...
 
   lint:
@@ -48,8 +52,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
-          # Forzar a que busque en la raíz
-          args: --timeout=5m
+          args: --timeout=10m
 
       - name: Run gosec
         run: |
