@@ -8,10 +8,10 @@ import (
 
 // FieldSchema represents a single field in a collection schema
 type FieldSchema struct {
-	Name     string      `json:"name"`
-	Type     string      `json:"type"`
-	Required bool        `json:"required,omitempty"`
-	Default  interface{} `json:"default,omitempty"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Required bool   `json:"required,omitempty"`
+	Default  any    `json:"default,omitempty"`
 }
 
 // TypeMapping maps OzyBase types to PostgreSQL types
@@ -120,7 +120,7 @@ func IsValidIdentifier(name string) bool {
 }
 
 // formatDefault formats a default value for SQL
-func formatDefault(value interface{}, fieldType string) string {
+func formatDefault(value any, fieldType string) string {
 	switch v := value.(type) {
 	case bool:
 		if v {

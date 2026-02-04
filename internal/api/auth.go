@@ -16,7 +16,7 @@ type AuthService interface {
 	ConfirmPasswordReset(ctx context.Context, token, newPassword string) error
 	VerifyEmail(ctx context.Context, token string) error
 	UpdateUserRole(ctx context.Context, userID, newRole string) error
-	HandleOAuthLogin(ctx context.Context, provider, providerID, email string, data map[string]interface{}) (string, *core.User, error)
+	HandleOAuthLogin(ctx context.Context, provider, providerID, email string, data map[string]any) (string, *core.User, error)
 }
 
 type AuthHandler struct {
@@ -69,7 +69,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	return c.JSON(http.StatusOK, map[string]any{
 		"token": token,
 		"user":  user,
 	})
@@ -90,7 +90,7 @@ func (h *AuthHandler) RequestReset(c echo.Context) error {
 
 	// In development, we return the token in the response for easy testing.
 	// In production, this would be empty or a generic "Email sent" message.
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	return c.JSON(http.StatusOK, map[string]any{
 		"message": "If the email exists, a reset token has been generated",
 		"token":   token, // TODO: Remove in true production
 	})

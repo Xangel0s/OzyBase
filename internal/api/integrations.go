@@ -20,7 +20,7 @@ func (h *Handler) ListIntegrations(c echo.Context) error {
 	}
 	defer rows.Close()
 
-	var integrations []map[string]interface{}
+	var integrations []map[string]any
 	for rows.Next() {
 		var i struct {
 			ID              string  `json:"id"`
@@ -32,7 +32,7 @@ func (h *Handler) ListIntegrations(c echo.Context) error {
 			LastTriggeredAt *string `json:"last_triggered_at"`
 		}
 		if err := rows.Scan(&i.ID, &i.Name, &i.Type, &i.WebhookURL, &i.IsActive, &i.CreatedAt, &i.LastTriggeredAt); err == nil {
-			integrations = append(integrations, map[string]interface{}{
+			integrations = append(integrations, map[string]any{
 				"id":                i.ID,
 				"name":              i.Name,
 				"type":              i.Type,
@@ -50,10 +50,10 @@ func (h *Handler) ListIntegrations(c echo.Context) error {
 // CreateIntegration handles POST /api/project/integrations
 func (h *Handler) CreateIntegration(c echo.Context) error {
 	var req struct {
-		Name       string                 `json:"name"`
-		Type       string                 `json:"type"`
-		WebhookURL string                 `json:"webhook_url"`
-		Config     map[string]interface{} `json:"config"`
+		Name       string         `json:"name"`
+		Type       string         `json:"type"`
+		WebhookURL string         `json:"webhook_url"`
+		Config     map[string]any `json:"config"`
 	}
 
 	if err := c.Bind(&req); err != nil {
@@ -116,7 +116,7 @@ func (h *Handler) TestIntegration(c echo.Context) error {
 	alert := realtime.SecurityAlertPayload{
 		Type:      "test_alert",
 		Severity:  "info",
-		Details:   map[string]interface{}{"message": "This is a test alert from OzyBase"},
+		Details:   map[string]any{"message": "This is a test alert from OzyBase"},
 		Timestamp: "now", // Should be time.Now() formatted but string is fine for json
 	}
 

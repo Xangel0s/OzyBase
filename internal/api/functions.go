@@ -42,7 +42,7 @@ func (h *FunctionsHandler) List(c echo.Context) error {
 	var functions []FunctionInfo
 	for rows.Next() {
 		var f FunctionInfo
-		var createdAt interface{}
+		var createdAt any
 		err := rows.Scan(&f.ID, &f.Name, &f.Status, &f.Script, &createdAt)
 		if err == nil {
 			f.Method = "POST"
@@ -95,24 +95,24 @@ func (h *FunctionsHandler) Invoke(c echo.Context) error {
 	vm := goja.New()
 
 	// Expose useful globals
-	reqBody := make(map[string]interface{})
+	reqBody := make(map[string]any)
 	_ = c.Bind(&reqBody)
 	_ = vm.Set("body", reqBody)
 
 	// Expose Ozy DB access
-	_ = vm.Set("ozy", map[string]interface{}{
-		"query": func(sql string, args ...interface{}) []map[string]interface{} {
+	_ = vm.Set("ozy", map[string]any{
+		"query": func(sql string, args ...any) []map[string]any {
 			rows, err := h.DB.Pool.Query(c.Request().Context(), sql, args...)
 			if err != nil {
 				panic(vm.ToValue(err.Error()))
 			}
 			defer rows.Close()
 
-			var result []map[string]interface{}
+			var result []map[string]any
 			fields := rows.FieldDescriptions()
 			for rows.Next() {
 				values, _ := rows.Values()
-				row := make(map[string]interface{})
+				row := make(map[string]any)
 				for i, field := range fields {
 					row[string(field.Name)] = values[i]
 				}
@@ -123,8 +123,8 @@ func (h *FunctionsHandler) Invoke(c echo.Context) error {
 	})
 
 	// Add console.log
-	_ = vm.Set("console", map[string]interface{}{
-		"log": func(args ...interface{}) {
+	_ = vm.Set("console", map[string]any{
+		"log": func(args ...any) {
 			// In production, capture this to logs
 		},
 	})
@@ -135,7 +135,7 @@ func (h *FunctionsHandler) Invoke(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Execution error: " + err.Error()})
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	return c.JSON(http.StatusOK, map[string]any{
 		"result": v.Export(),
 	})
 }

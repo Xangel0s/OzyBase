@@ -188,7 +188,7 @@ func (h *Handler) UpdateCollectionRules(c echo.Context) error {
 	}
 
 	query := "UPDATE _v_collections SET updated_at = NOW()"
-	args := []interface{}{req.Name}
+	args := []any{req.Name}
 	argIdx := 2
 
 	if req.ListRule != nil {
@@ -639,7 +639,7 @@ func (h *Handler) GetHealthIssues(c echo.Context) error {
 		defer rows.Close()
 		for rows.Next() {
 			var aType, severity string
-			var details map[string]interface{}
+			var details map[string]any
 			if err := rows.Scan(&aType, &severity, &details); err == nil {
 				title := "Unknown Security Alert"
 				desc := "A security event was detected."

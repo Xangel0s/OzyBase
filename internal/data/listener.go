@@ -40,7 +40,7 @@ func ListenDB(ctx context.Context, databaseURL string, broker *realtime.Broker) 
 			}
 
 			// Broadcast raw payload
-			var payload map[string]interface{}
+			var payload map[string]any
 			if err := json.Unmarshal([]byte(notification.Payload), &payload); err != nil {
 				log.Printf("ÔÜá´©Å Failed to parse notification payload: %v", err)
 				continue

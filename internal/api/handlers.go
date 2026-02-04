@@ -160,9 +160,9 @@ func (h *Handler) flushLogsToSIEM(ctx context.Context) {
 	}
 
 	// Create a copy to send
-	logsToSend := make([]map[string]interface{}, len(h.Metrics.Logs))
+	logsToSend := make([]map[string]any, len(h.Metrics.Logs))
 	for i, log := range h.Metrics.Logs {
-		logsToSend[i] = map[string]interface{}{
+		logsToSend[i] = map[string]any{
 			"id":        log.ID,
 			"time":      log.Time,
 			"method":    log.Method,
@@ -234,7 +234,7 @@ func (h *Handler) GetStats(c echo.Context) error {
 	h.Metrics.RLock()
 	defer h.Metrics.RUnlock()
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	return c.JSON(http.StatusOK, map[string]any{
 		"db":       h.Metrics.DbHistory,
 		"auth":     h.Metrics.AuthHistory,
 		"storage":  h.Metrics.StorageHistory,
@@ -289,12 +289,12 @@ func (h *Handler) GetSecurityPolicies(c echo.Context) error {
 	}
 	defer rows.Close()
 
-	policies := make(map[string]interface{})
+	policies := make(map[string]any)
 	for rows.Next() {
 		var pType string
 		var config []byte
 		if err := rows.Scan(&pType, &config); err == nil {
-			var configMap interface{}
+			var configMap any
 			_ = json.Unmarshal(config, &configMap)
 			policies[pType] = configMap
 		}
@@ -302,7 +302,7 @@ func (h *Handler) GetSecurityPolicies(c echo.Context) error {
 
 	// Default geo_fencing if not exists
 	if _, ok := policies["geo_fencing"]; !ok {
-		policies["geo_fencing"] = map[string]interface{}{
+		policies["geo_fencing"] = map[string]any{
 			"enabled":           false,
 			"allowed_countries": []string{},
 		}
@@ -314,8 +314,8 @@ func (h *Handler) GetSecurityPolicies(c echo.Context) error {
 // UpdateSecurityPolicy handles POST /api/project/security/policies
 func (h *Handler) UpdateSecurityPolicy(c echo.Context) error {
 	var req struct {
-		Type   string                 `json:"type"`
-		Config map[string]interface{} `json:"config"`
+		Type   string         `json:"type"`
+		Config map[string]any `json:"config"`
 	}
 
 	if err := c.Bind(&req); err != nil {

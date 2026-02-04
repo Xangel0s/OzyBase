@@ -11,7 +11,7 @@ import (
 
 // InsertRecord inserts a record into a dynamic collection table
 // Returns the new record ID
-func (db *DB) InsertRecord(ctx context.Context, collectionName string, data map[string]interface{}) (string, error) {
+func (db *DB) InsertRecord(ctx context.Context, collectionName string, data map[string]any) (string, error) {
 	if !IsValidIdentifier(collectionName) {
 		return "", fmt.Errorf("invalid collection name: %s", collectionName)
 	}
@@ -23,7 +23,7 @@ func (db *DB) InsertRecord(ctx context.Context, collectionName string, data map[
 	// Build column names and placeholders
 	var columns []string
 	var placeholders []string
-	var values []interface{}
+	var values []any
 	i := 1
 
 	for col, val := range data {
@@ -70,14 +70,14 @@ func (db *DB) InsertRecord(ctx context.Context, collectionName string, data map[
 }
 
 // ListRecords fetches all records from a dynamic collection table with filters and sorting
-func (db *DB) ListRecords(ctx context.Context, collectionName string, filters map[string][]string, orderBy string) ([]map[string]interface{}, error) {
+func (db *DB) ListRecords(ctx context.Context, collectionName string, filters map[string][]string, orderBy string) ([]map[string]any, error) {
 	if !IsValidIdentifier(collectionName) {
 		return nil, fmt.Errorf("invalid collection name: %s", collectionName)
 	}
 
 	// Default to filtering out soft-deleted records
 	whereClauses := []string{"deleted_at IS NULL"}
-	var queryArgs []interface{}
+	var queryArgs []any
 	argIdx := 1
 
 	// Parse filters (e.g., price=gt.100)
@@ -194,13 +194,13 @@ func (db *DB) ListRecords(ctx context.Context, collectionName string, filters ma
 }
 
 // GetRecord fetches a single record by ID, optionally filtered by owner
-func (db *DB) GetRecord(ctx context.Context, collectionName, id string, ownerField, ownerID string) (map[string]interface{}, error) {
+func (db *DB) GetRecord(ctx context.Context, collectionName, id string, ownerField, ownerID string) (map[string]any, error) {
 	if !IsValidIdentifier(collectionName) {
 		return nil, fmt.Errorf("invalid collection name: %s", collectionName)
 	}
 
 	query := fmt.Sprintf("SELECT * FROM %s WHERE id = $1 AND deleted_at IS NULL", collectionName)
-	var args []interface{}
+	var args []any
 	args = append(args, id)
 
 	if ownerField != "" && ownerID != "" && IsValidIdentifier(ownerField) {
@@ -227,9 +227,9 @@ func (db *DB) GetRecord(ctx context.Context, collectionName, id string, ownerFie
 }
 
 // rowsToMaps converts pgx.Rows to a slice of maps
-func rowsToMaps(rows pgx.Rows) ([]map[string]interface{}, error) {
+func rowsToMaps(rows pgx.Rows) ([]map[string]any, error) {
 	fieldDescriptions := rows.FieldDescriptions()
-	var results []map[string]interface{}
+	var results []map[string]any
 
 	for rows.Next() {
 		values, err := rows.Values()
@@ -237,7 +237,7 @@ func rowsToMaps(rows pgx.Rows) ([]map[string]interface{}, error) {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 
-		record := make(map[string]interface{})
+		record := make(map[string]any)
 		for i, fd := range fieldDescriptions {
 			record[string(fd.Name)] = values[i]
 		}
@@ -252,7 +252,7 @@ func rowsToMaps(rows pgx.Rows) ([]map[string]interface{}, error) {
 }
 
 // UpdateRecord updates an existing record, optionally filtered by owner
-func (db *DB) UpdateRecord(ctx context.Context, collectionName, id string, data map[string]interface{}, ownerField, ownerID string) error {
+func (db *DB) UpdateRecord(ctx context.Context, collectionName, id string, data map[string]any, ownerField, ownerID string) error {
 	if !IsValidIdentifier(collectionName) {
 		return fmt.Errorf("invalid collection name: %s", collectionName)
 	}
@@ -262,7 +262,7 @@ func (db *DB) UpdateRecord(ctx context.Context, collectionName, id string, data 
 	}
 
 	var updates []string
-	var values []interface{}
+	var values []any
 	i := 1
 
 	for col, val := range data {
@@ -317,7 +317,7 @@ func (db *DB) DeleteRecord(ctx context.Context, collectionName, id string, owner
 		return fmt.Errorf("invalid collection name: %s", collectionName)
 	}
 
-	var args []interface{}
+	var args []any
 	args = append(args, id)
 	ownerCondition := ""
 	if ownerField != "" && ownerID != "" && IsValidIdentifier(ownerField) {
@@ -353,7 +353,7 @@ func (db *DB) HardDeleteRecord(ctx context.Context, collectionName, id string) e
 }
 
 // BulkInsertRecord inserts multiple records in a single transaction
-func (db *DB) BulkInsertRecord(ctx context.Context, collectionName string, records []map[string]interface{}) error {
+func (db *DB) BulkInsertRecord(ctx context.Context, collectionName string, records []map[string]any) error {
 	if !IsValidIdentifier(collectionName) {
 		return fmt.Errorf("invalid collection name: %s", collectionName)
 	}
@@ -371,7 +371,7 @@ func (db *DB) BulkInsertRecord(ctx context.Context, collectionName string, recor
 	for _, data := range records {
 		var columns []string
 		var placeholders []string
-		var values []interface{}
+		var values []any
 		i := 1
 
 		for col, val := range data {

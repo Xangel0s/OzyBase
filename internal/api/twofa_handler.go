@@ -73,7 +73,7 @@ func (h *TwoFactorHandler) Get2FAStatus(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
-	return c.JSON(http.StatusOK, map[string]interface{}{
+	return c.JSON(http.StatusOK, map[string]any{
 		"enabled": isEnabled,
 	})
 }

@@ -6,8 +6,8 @@ import (
 
 // Event represents a realtime event data
 type Event struct {
-	Table string      `json:"table"`
-	Data  interface{} `json:"data"`
+	Table string `json:"table"`
+	Data  any    `json:"data"`
 }
 
 // Broker manages connected clients and broadcasts events

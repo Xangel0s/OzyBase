@@ -65,7 +65,7 @@ func (g *Generator) Generate(outputPath string) error {
 		return err
 	}
 
-	return tmpl.Execute(f, map[string]interface{}{
+	return tmpl.Execute(f, map[string]any{
 		"Tables": tables,
 	})
 }

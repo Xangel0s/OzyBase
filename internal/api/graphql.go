@@ -11,8 +11,8 @@ import (
 // GRAPHQL HANDLER
 func (h *Handler) HandleGraphQL(c echo.Context) error {
 	var input struct {
-		Query     string                 `json:"query"`
-		Variables map[string]interface{} `json:"variables"`
+		Query     string         `json:"query"`
+		Variables map[string]any `json:"variables"`
 	}
 	if err := c.Bind(&input); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})

@@ -231,7 +231,7 @@ func (s *AuthService) UpdateUserRole(ctx context.Context, userID, newRole string
 }
 
 // HandleOAuthLogin handles authentication via external providers
-func (s *AuthService) HandleOAuthLogin(ctx context.Context, provider, providerID, email string, data map[string]interface{}) (string, *User, error) {
+func (s *AuthService) HandleOAuthLogin(ctx context.Context, provider, providerID, email string, data map[string]any) (string, *User, error) {
 	var userID string
 	var user User
 

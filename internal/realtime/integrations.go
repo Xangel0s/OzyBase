@@ -25,20 +25,20 @@ const (
 )
 
 type Integration struct {
-	ID         string                 `json:"id"`
-	Name       string                 `json:"name"`
-	Type       IntegrationType        `json:"type"`
-	WebhookURL string                 `json:"webhook_url"`
-	IsActive   bool                   `json:"is_active"`
-	Config     map[string]interface{} `json:"config,omitempty"`
-	CreatedAt  time.Time              `json:"created_at"`
+	ID         string          `json:"id"`
+	Name       string          `json:"name"`
+	Type       IntegrationType `json:"type"`
+	WebhookURL string          `json:"webhook_url"`
+	IsActive   bool            `json:"is_active"`
+	Config     map[string]any  `json:"config,omitempty"`
+	CreatedAt  time.Time       `json:"created_at"`
 }
 
 type SecurityAlertPayload struct {
-	Type      string                 `json:"type"`
-	Severity  string                 `json:"severity"`
-	Details   map[string]interface{} `json:"details"`
-	Timestamp string                 `json:"timestamp"`
+	Type      string         `json:"type"`
+	Severity  string         `json:"severity"`
+	Details   map[string]any `json:"details"`
+	Timestamp string         `json:"timestamp"`
 }
 
 func NewWebhookIntegration(pool *pgxpool.Pool) *WebhookIntegration {
@@ -76,7 +76,7 @@ func (w *WebhookIntegration) SendSecurityAlert(ctx context.Context, alert Securi
 }
 
 func (w *WebhookIntegration) sendToIntegration(integration Integration, alert SecurityAlertPayload) {
-	var payload interface{}
+	var payload any
 
 	switch integration.Type {
 	case IntegrationSlack:
@@ -103,7 +103,7 @@ func (w *WebhookIntegration) sendToIntegration(integration Integration, alert Se
 	req.Header.Set("Content-Type", "application/json")
 
 	// Add custom headers from config
-	if headers, ok := integration.Config["headers"].(map[string]interface{}); ok {
+	if headers, ok := integration.Config["headers"].(map[string]any); ok {
 		for key, value := range headers {
 			if strValue, ok := value.(string); ok {
 				req.Header.Set(key, strValue)
@@ -118,19 +118,19 @@ func (w *WebhookIntegration) sendToIntegration(integration Integration, alert Se
 	defer resp.Body.Close()
 }
 
-func (w *WebhookIntegration) formatSlackMessage(alert SecurityAlertPayload) map[string]interface{} {
+func (w *WebhookIntegration) formatSlackMessage(alert SecurityAlertPayload) map[string]any {
 	color := "danger"
 	if alert.Severity == "warning" {
 		color = "warning"
 	}
 
-	return map[string]interface{}{
-		"attachments": []map[string]interface{}{
+	return map[string]any{
+		"attachments": []map[string]any{
 			{
 				"color": color,
 				"title": fmt.Sprintf("🚨 Security Alert: %s", alert.Type),
 				"text":  fmt.Sprintf("Severity: *%s*", alert.Severity),
-				"fields": []map[string]interface{}{
+				"fields": []map[string]any{
 					{
 						"title": "Details",
 						"value": formatDetails(alert.Details),
@@ -149,19 +149,19 @@ func (w *WebhookIntegration) formatSlackMessage(alert SecurityAlertPayload) map[
 	}
 }
 
-func (w *WebhookIntegration) formatDiscordMessage(alert SecurityAlertPayload) map[string]interface{} {
+func (w *WebhookIntegration) formatDiscordMessage(alert SecurityAlertPayload) map[string]any {
 	color := 15158332 // Red
 	if alert.Severity == "warning" {
 		color = 16776960 // Yellow
 	}
 
-	return map[string]interface{}{
-		"embeds": []map[string]interface{}{
+	return map[string]any{
+		"embeds": []map[string]any{
 			{
 				"title":       fmt.Sprintf("🚨 Security Alert: %s", alert.Type),
 				"description": fmt.Sprintf("**Severity:** %s", alert.Severity),
 				"color":       color,
-				"fields": []map[string]interface{}{
+				"fields": []map[string]any{
 					{
 						"name":   "Details",
 						"value":  formatDetails(alert.Details),
@@ -177,9 +177,9 @@ func (w *WebhookIntegration) formatDiscordMessage(alert SecurityAlertPayload) ma
 	}
 }
 
-func (w *WebhookIntegration) formatSIEMMessage(alert SecurityAlertPayload) map[string]interface{} {
+func (w *WebhookIntegration) formatSIEMMessage(alert SecurityAlertPayload) map[string]any {
 	// Common Event Format (CEF) or JSON format for SIEM
-	return map[string]interface{}{
+	return map[string]any{
 		"event_type": "security_alert",
 		"source":     "ozybase",
 		"alert_type": alert.Type,
@@ -190,7 +190,7 @@ func (w *WebhookIntegration) formatSIEMMessage(alert SecurityAlertPayload) map[s
 	}
 }
 
-func formatDetails(details map[string]interface{}) string {
+func formatDetails(details map[string]any) string {
 	result := ""
 	for key, value := range details {
 		result += fmt.Sprintf("**%s:** %v\n", key, value)
@@ -199,7 +199,7 @@ func formatDetails(details map[string]interface{}) string {
 }
 
 // SendLogBatch sends a batch of logs to SIEM integrations
-func (w *WebhookIntegration) SendLogBatch(ctx context.Context, logs []map[string]interface{}) error {
+func (w *WebhookIntegration) SendLogBatch(ctx context.Context, logs []map[string]any) error {
 	rows, err := w.pool.Query(ctx, `
 		SELECT id, name, webhook_url, config 
 		FROM _v_integrations 
@@ -228,8 +228,8 @@ func (w *WebhookIntegration) SendLogBatch(ctx context.Context, logs []map[string
 	return nil
 }
 
-func (w *WebhookIntegration) sendLogBatchToSIEM(integration Integration, logs []map[string]interface{}) {
-	payload := map[string]interface{}{
+func (w *WebhookIntegration) sendLogBatchToSIEM(integration Integration, logs []map[string]any) {
+	payload := map[string]any{
 		"source":    "ozybase",
 		"timestamp": time.Now().Format(time.RFC3339),
 		"logs":      logs,
@@ -250,7 +250,7 @@ func (w *WebhookIntegration) sendLogBatchToSIEM(integration Integration, logs []
 	req.Header.Set("Content-Type", "application/json")
 
 	// Add custom headers (e.g., API keys for Splunk, ELK)
-	if headers, ok := integration.Config["headers"].(map[string]interface{}); ok {
+	if headers, ok := integration.Config["headers"].(map[string]any); ok {
 		for key, value := range headers {
 			if strValue, ok := value.(string); ok {
 				req.Header.Set(key, strValue)

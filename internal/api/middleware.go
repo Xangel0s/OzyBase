@@ -34,7 +34,7 @@ func AuthMiddleware(jwtSecret string, optional bool) echo.MiddlewareFunc {
 			}
 
 			tokenString := tokenParts[1]
-			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 				}
@@ -184,7 +184,7 @@ func MetricsMiddleware(h *Handler) echo.MiddlewareFunc {
 				`, userID, ip, entry.Method, entry.Path, entry.Status, latency.Milliseconds(), geo.Country, geo.City, c.Request().UserAgent())
 
 				if isBreach {
-					details, _ := json.Marshal(map[string]interface{}{
+					details, _ := json.Marshal(map[string]any{
 						"ip":      ip,
 						"country": geo.Country,
 						"city":    geo.City,
@@ -220,7 +220,7 @@ func MetricsMiddleware(h *Handler) echo.MiddlewareFunc {
 
 					// Send to webhook integrations (Slack, Discord, SIEM)
 					go func() {
-						var detailsMap map[string]interface{}
+						var detailsMap map[string]any
 						_ = json.Unmarshal(details, &detailsMap)
 
 						_ = h.Integrations.SendSecurityAlert(context.Background(), realtime.SecurityAlertPayload{

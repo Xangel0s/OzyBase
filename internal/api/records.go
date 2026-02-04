@@ -40,7 +40,7 @@ func (h *Handler) CreateRecord(c echo.Context) error {
 	}
 
 	// Parse body as dynamic map using json decoder directly
-	var data map[string]interface{}
+	var data map[string]any
 	if err := json.NewDecoder(c.Request().Body).Decode(&data); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Invalid JSON body: " + err.Error(),
@@ -110,7 +110,7 @@ func (h *Handler) ListRecords(c echo.Context) error {
 	}
 
 	if records == nil {
-		records = []map[string]interface{}{}
+		records = []map[string]any{}
 	}
 
 	return c.JSON(http.StatusOK, records)
@@ -152,7 +152,7 @@ func (h *Handler) UpdateRecord(c echo.Context) error {
 		})
 	}
 
-	var data map[string]interface{}
+	var data map[string]any
 	if err := json.NewDecoder(c.Request().Body).Decode(&data); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "Invalid JSON body: " + err.Error(),
@@ -205,7 +205,7 @@ func (h *Handler) ImportRecords(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Name required"})
 	}
 
-	var records []map[string]interface{}
+	var records []map[string]any
 	if err := json.NewDecoder(c.Request().Body).Decode(&records); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid JSON array"})
 	}

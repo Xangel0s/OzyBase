@@ -64,7 +64,7 @@ func (h *AuthHandler) OAuthCallback(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	var email, providerID string
-	var extraData map[string]interface{}
+	var extraData map[string]any
 
 	switch provider {
 	case "google":
@@ -88,7 +88,7 @@ func (h *AuthHandler) OAuthCallback(c echo.Context) error {
 		_ = json.NewDecoder(resp.Body).Decode(&gUser)
 		email = gUser.Email
 		providerID = gUser.ID
-		extraData = map[string]interface{}{"google_id": gUser.ID}
+		extraData = map[string]any{"google_id": gUser.ID}
 
 	case "github":
 		conf := h.getGithubConfig()
@@ -109,7 +109,7 @@ func (h *AuthHandler) OAuthCallback(c echo.Context) error {
 		} else {
 			email = fmt.Sprintf("%s@github.com", *user.Login)
 		}
-		extraData = map[string]interface{}{"github_user": *user.Login}
+		extraData = map[string]any{"github_user": *user.Login}
 	}
 
 	// Sign in or register via AuthService

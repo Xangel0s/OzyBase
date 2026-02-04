@@ -132,7 +132,7 @@ func (h *FileHandler) Upload(c echo.Context) error {
 		})
 	}
 
-	return c.JSON(http.StatusCreated, map[string]interface{}{
+	return c.JSON(http.StatusCreated, map[string]any{
 		"id":       objectID,
 		"filename": filename,
 		"url":      "/api/files/" + filename,
@@ -152,7 +152,7 @@ func (h *FileHandler) List(c echo.Context) error {
 	}
 
 	query := `SELECT name, size, content_type, path, created_at FROM _v_storage_objects WHERE bucket_id = $1`
-	args := []interface{}{bucketID}
+	args := []any{bucketID}
 
 	if ownerFilter != "" {
 		query += ` AND owner_id = $2`
@@ -165,13 +165,13 @@ func (h *FileHandler) List(c echo.Context) error {
 	}
 	defer rows.Close()
 
-	var files []map[string]interface{}
+	var files []map[string]any
 	for rows.Next() {
 		var name, contentType, path string
 		var size int64
-		var createdAt interface{}
+		var createdAt any
 		if err := rows.Scan(&name, &size, &contentType, &path, &createdAt); err == nil {
-			files = append(files, map[string]interface{}{
+			files = append(files, map[string]any{
 				"name":         name,
 				"size":         size,
 				"content_type": contentType,
@@ -182,7 +182,7 @@ func (h *FileHandler) List(c echo.Context) error {
 	}
 
 	if files == nil {
-		files = []map[string]interface{}{}
+		files = []map[string]any{}
 	}
 
 	return c.JSON(http.StatusOK, files)
@@ -199,13 +199,13 @@ func (h *FileHandler) ListBuckets(c echo.Context) error {
 	}
 	defer rows.Close()
 
-	var buckets []map[string]interface{}
+	var buckets []map[string]any
 	for rows.Next() {
 		var id, name, rlsRule string
 		var public, rlsEnabled bool
-		var createdAt interface{}
+		var createdAt any
 		if err := rows.Scan(&id, &name, &public, &rlsEnabled, &rlsRule, &createdAt); err == nil {
-			buckets = append(buckets, map[string]interface{}{
+			buckets = append(buckets, map[string]any{
 				"id":          id,
 				"name":        name,
 				"public":      public,
@@ -217,7 +217,7 @@ func (h *FileHandler) ListBuckets(c echo.Context) error {
 	}
 
 	if buckets == nil {
-		buckets = []map[string]interface{}{}
+		buckets = []map[string]any{}
 	}
 
 	return c.JSON(http.StatusOK, buckets)

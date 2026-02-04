@@ -71,7 +71,7 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 	if req.Mode == "secure" {
 		// A. Enable Geo-Fencing for the provided country
 		if req.AllowCountry != "" {
-			config := map[string]interface{}{
+			config := map[string]any{
 				"enabled":           true,
 				"allowed_countries": []string{req.AllowCountry},
 			}
