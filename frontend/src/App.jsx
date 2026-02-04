@@ -24,6 +24,7 @@ import NotificationSettings from './components/NotificationSettings'
 import TwoFactorAuth from './components/TwoFactorAuth'
 import IntegrationsManager from './components/IntegrationsManager'
 import SetupWizard from './components/SetupWizard'
+import FirewallManager from './components/FirewallManager'
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('ozy_token'));
@@ -101,6 +102,7 @@ function App() {
             case 'policies': return <PermissionManager />;
             case 'security': return <SecurityDashboard />;
             case 'security_policies': return <SecurityManager />;
+            case 'firewall': return <FirewallManager />;
             case 'security_notifications': return <NotificationSettings />;
             case 'integrations': return <IntegrationsManager />;
             case 'two_factor': return <TwoFactorAuth />;

@@ -163,6 +163,7 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 
 	// Middleware
 	e.Use(middleware.Logger())
+	e.Use(h.FirewallMiddleware()) // 🛡️ IP Firewall (Whitelist/Blacklist) - Very First Defense
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: cfg.AllowedOrigins,
@@ -300,8 +301,12 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 		apiGroup.GET("/analytics/traffic", h.GetTrafficStats, authRequired)
 		apiGroup.GET("/analytics/geo", h.GetGeoStats, authRequired)
 
+		// Security Dashboard Routes
 		apiGroup.POST("/project/health/fix", h.FixHealthIssues, authRequired)
 		apiGroup.GET("/project/logs", h.GetLogs, authRequired)
+		apiGroup.GET("/security/firewall", h.ListIPRules, authRequired)
+		apiGroup.POST("/security/firewall", h.CreateIPRule, authRequired)
+		apiGroup.DELETE("/security/firewall/:id", h.DeleteIPRule, authRequired)
 
 		// Extensions
 		apiGroup.GET("/extensions", h.ListExtensions, authRequired)

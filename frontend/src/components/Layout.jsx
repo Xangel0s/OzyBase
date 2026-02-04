@@ -40,7 +40,8 @@ import {
     Server,
     Check,
     Trash2,
-    X
+    X,
+    ShieldBan
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
 
@@ -412,6 +413,7 @@ const Layout = ({ children, selectedView, selectedTable, onTableSelect, onMenuVi
                 { id: 'two_factor', name: '2FA Settings', icon: ShieldCheck },
                 { id: 'security', name: 'Security Hub', icon: ShieldAlert },
                 { id: 'security_policies', name: 'Geo-Fencing', icon: Globe },
+                { id: 'firewall', name: 'IP Firewall', icon: ShieldBan },
                 { id: 'security_notifications', name: 'Alert Notifications', icon: Bell },
                 { id: 'integrations', name: 'Integrations & SIEM', icon: Activity },
                 { id: 'templates', name: 'Email Templates', icon: FileText },

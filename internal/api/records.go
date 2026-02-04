@@ -102,8 +102,10 @@ func (h *Handler) ListRecords(c echo.Context) error {
 
 	records, err := h.DB.ListRecords(ctx, collectionName, filters, orderBy)
 	if err != nil {
+		// SECURITY: Don't leak SQL errors to client
+		fmt.Printf("[ERROR] ListRecords: %v\n", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": err.Error(),
+			"error": "Failed to fetch records. Please verify your query parameters.",
 		})
 	}
 

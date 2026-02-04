@@ -2,6 +2,8 @@
 
 ![OzyBase Banner](./docs/banner.jpg)
 
+> 🚧 **Development Status**: See [PROJECT_STATUS_MASTER.md](./PROJECT_STATUS_MASTER.md) for live roadmap and consolidated audit report.
+
 [![Go Report Card](https://goreportcard.com/badge/github.com/Xangel0s/OzyBase)](https://goreportcard.com/report/github.com/Xangel0s/OzyBase)
 [![Tests Passing](https://img.shields.io/badge/tests-passing-brightgreen.svg)](https://github.com/Xangel0s/OzyBase)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)

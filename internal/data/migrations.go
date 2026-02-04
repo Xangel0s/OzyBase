@@ -167,6 +167,18 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 			created_at TIMESTAMPTZ DEFAULT NOW(),
 			last_triggered_at TIMESTAMPTZ
 		)`,
+
+		// IP Firewall Rules (Whitelist/Blacklist)
+		`CREATE TABLE IF NOT EXISTS _v_ip_rules (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			ip_address VARCHAR(45) NOT NULL UNIQUE,
+			rule_type VARCHAR(10) NOT NULL CHECK (rule_type IN ('ALLOW', 'BLOCK')),
+			reason TEXT,
+			expires_at TIMESTAMPTZ,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			created_by VARCHAR(255)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_ip_rules_ip ON _v_ip_rules(ip_address)`,
 	}
 
 	for i, migration := range migrations {

@@ -12,5 +12,9 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
+  },
+  build: {
+    sourcemap: false, // SECURITY: Prevent source code leakage in production
+    chunkSizeWarningLimit: 1000
   }
 })
