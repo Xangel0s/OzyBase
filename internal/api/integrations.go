@@ -109,7 +109,7 @@ func (h *Handler) TestIntegration(c echo.Context) error {
 	}
 
 	if len(configJSON) > 0 {
-		json.Unmarshal(configJSON, &i.Config)
+		_ = json.Unmarshal(configJSON, &i.Config)
 	}
 
 	// 2. Send test alert manually (using internal method logic simplified)
