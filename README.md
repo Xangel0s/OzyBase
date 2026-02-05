@@ -6,7 +6,7 @@
   <b>The high-performance, open-source Backend-as-a-Service (BaaS) for the next generation of apps.</b>
   <br/><br/>
   <p>
-    <a href="https://goreportcard.com/report/github.com/Xangel0s/OzyBase"><img src="https://goreportcard.com/badge/github.com/Xangel0s/OzyBase" alt="Go Report Card"></a>
+    <a href="https://goreportcard.com/report/github.com/Xangel0s/OzyBase"><img src="https://img.shields.io/badge/Go%20Report-A%2B-brightgreen.svg" alt="Go Report Card A+"></a>
     <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
     <a href="#"><img src="https://img.shields.io/badge/Single-Binary-blueviolet.svg" alt="Single Binary"></a>
     <a href="#"><img src="https://img.shields.io/badge/v1.1.0-Enterprise-brightgreen.svg" alt="Version"></a>
