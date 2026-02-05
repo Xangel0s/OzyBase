@@ -179,6 +179,22 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 			created_by VARCHAR(255)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_ip_rules_ip ON _v_ip_rules(ip_address)`,
+
+		// Realtime & Hooks Trigger Function
+		`CREATE OR REPLACE FUNCTION notify_event() RETURNS TRIGGER AS $$
+		DECLARE
+			payload JSON;
+		BEGIN
+			payload = json_build_object(
+				'table', TG_TABLE_NAME,
+				'action', TG_OP,
+				'record', CASE WHEN TG_OP = 'DELETE' THEN row_to_json(OLD) ELSE row_to_json(NEW) END,
+				'old', CASE WHEN TG_OP = 'UPDATE' THEN row_to_json(OLD) ELSE NULL END
+			);
+			PERFORM pg_notify('ozy_events', payload::text);
+			RETURN NEW;
+		END;
+		$$ LANGUAGE plpgsql;`,
 	}
 
 	for i, migration := range migrations {

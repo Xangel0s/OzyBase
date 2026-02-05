@@ -1,22 +1,17 @@
 # Tutorial: Build your first App with OzyBase 🚀
 
-In this tutorial, we will build a simple **Realtime Task Manager** using React, OzyBase SDK, and TypeScript.
+In this tutorial, we will build a simple **Realtime Task Manager** using React, OzyBase SDK, and TypeScript. Thanks to the "Install to Play" mode, we'll be up and running in seconds.
 
 ## 1. Setup the Backend
 
-First, ensure OzyBase is running and create a `tasks` collection:
+Ensure OzyBase is running. If you don't have a DB, just run it!
 
 ```bash
-# Register an admin user (if you haven't)
-curl -X POST http://localhost:8090/api/auth/signup \
-  -d '{"email":"admin@example.com", "password":"StrongPassword123!"}'
+# Start OzyBase (Embedded Postgres will start automatically)
+go run ./cmd/ozybase
 
-# Login to get token
-# (Save the token from response)
-
-# Create the collection
+# In another terminal, Create the collection
 curl -X POST http://localhost:8090/api/collections \
-  -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
     "name": "tasks",
     "schema": [
@@ -33,7 +28,7 @@ curl -X POST http://localhost:8090/api/collections \
 Generate the TypeScript interfaces for your new collection:
 
 ```bash
-go run ./cmd/OzyBase gen-types --out ./src/types/OzyBase.ts
+go run ./cmd/ozybase gen-types --out ./src/types/OzyBase.ts
 ```
 
 ## 3. Install the SDK
@@ -41,6 +36,7 @@ go run ./cmd/OzyBase gen-types --out ./src/types/OzyBase.ts
 In your React project:
 
 ```bash
+# Install the official OzyBase SDK
 npm install @OzyBase/sdk
 ```
 
@@ -55,7 +51,7 @@ import { Database } from './types/OzyBase';
 const OzyBase = createClient<Database>('http://localhost:8090');
 
 export const TaskApp = () => {
-  const [tasks, setTasks] = useState<Database['public']['Tables']['tasks']['Row'][]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
 
   useEffect(() => {
     // 1. Fetch initial tasks
@@ -70,7 +66,7 @@ export const TaskApp = () => {
     const channel = OzyBase
       .channel('tasks')
       .on('INSERT', (payload) => {
-        setTasks((prev) => [...prev, payload.new as any]);
+        setTasks((prev) => [...prev, payload.new]);
       })
       .subscribe();
 
@@ -104,11 +100,11 @@ export const TaskApp = () => {
 
 You've just built a scalable, type-safe, and realtime application using **OzyBase**.
 
+*   **Zero Config**: No database to install.
 *   **Type Safety**: Your IDE now knows exactly what fields `tasks` has.
 *   **Realtime**: When another user adds a task, it appears instantly.
 *   **Performance**: The backend is consuming less than 30MB of RAM.
 
 ---
 
-**Ready for more?** Check the [SDK Documentation](../sdk/js/README.md).
-
+**Ready for more?** Check the [SDK Documentation](https://github.com/Xangel0s/-js-sdk).

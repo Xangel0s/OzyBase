@@ -48,11 +48,30 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	db, err := data.Connect(ctx, cfg.DatabaseURL)
+	var embeddedDB *data.EmbeddedDB
+	dbURL := cfg.DatabaseURL
+
+	if dbURL == "" {
+		embeddedDB = data.NewEmbeddedDB()
+		if err := embeddedDB.Start(); err != nil {
+			return fmt.Errorf("failed to start embedded database: %w", err)
+		}
+		dbURL = embeddedDB.GetConnectionString()
+	}
+
+	db, err := data.Connect(ctx, dbURL)
 	if err != nil {
+		if embeddedDB != nil {
+			_ = embeddedDB.Stop()
+		}
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
-	defer db.Close()
+	defer func() {
+		db.Close()
+		if embeddedDB != nil {
+			_ = embeddedDB.Stop()
+		}
+	}()
 
 	logger.Log.Info().Msg("✅ Connected to PostgreSQL")
 

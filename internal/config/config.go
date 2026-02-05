@@ -45,7 +45,7 @@ func Load() (*Config, error) {
 			getEnv("DB_SSLMODE", "disable"),
 		)
 	} else {
-		dbURL = getEnv("DATABASE_URL", "postgres://localhost:5432/OzyBase?sslmode=disable")
+		dbURL = os.Getenv("DATABASE_URL")
 	}
 
 	jwtSecret := os.Getenv("JWT_SECRET")

@@ -44,25 +44,36 @@ OzyBase allows you to create dynamic collections, manage authentication, handle 
 
 ---
 
-## 🚀 Quick Start (in 30 seconds)
+## � The Perfect Circle (DX-First)
 
-### 1. Requirements
-- PostgreSQL 14+
+OzyBase closes the gap between Backend and Frontend with a seamless 3-step workflow:
 
-### 2. Environment Setup
+1. **Auto-Config Backend**: Embedded PostgreSQL starts automatically. No Docker, no external DB needed.
+2. **Dynamic Dashboard**: Tables created in the UI are immediately available. No migrations to write.
+3. **Type-Safe Frontend**: Run `gen-types` to get full TypeScript autocomplete in your app via our official SDK.
+
+---
+
+## �🚀 Quick Start (in 10 seconds)
+
+### 1. Requirements: Just Go! 🚀
+OzyBase is **Install to Play**. You only need [Go 1.22+](https://go.dev/) installed on your machine.
+OzyBase now includes an **Embedded PostgreSQL** engine, so you don't need to install or configure any database manually.
+
+### 2. Run the Engine
 ```bash
-cp .env.example .env
-# Edit .env with your DB credentials
+# Clone and run
+git clone https://github.com/Xangel0s/OzyBase
+cd OzyBase
+go run ./cmd/ozybase
 ```
+*The first run will download the PostgreSQL engine automatically (~20MB). Subsequent starts are instant.*
 
-### 3. Run the Engine
+### 3. Alternative: Run with your own DB
+If you prefer to use an existing PostgreSQL instance:
 ```bash
-# Option A: Go Run
-go run ./cmd/OzyBase
-
-# Option B: Optimized Binary
-go build -ldflags="-s -w" -o OzyBase ./cmd/OzyBase
-./OzyBase
+export DATABASE_URL=postgres://user:pass@host:port/dbname
+go run ./cmd/ozybase
 ```
 
 ### 4. Create your first collection
