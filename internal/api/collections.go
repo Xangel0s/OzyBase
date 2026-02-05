@@ -87,8 +87,8 @@ func (h *Handler) CreateCollection(c echo.Context) error {
 
 	// Attach Realtime Trigger
 	triggerSQL := fmt.Sprintf(`
-		CREATE TRIGGER tr_notify_%s 
-		AFTER INSERT OR UPDATE OR DELETE ON %s 
+		CREATE TRIGGER tr_notify_%s
+		AFTER INSERT OR UPDATE OR DELETE ON %s
 		FOR EACH ROW EXECUTE FUNCTION notify_event();
 	`, req.Name, req.Name)
 
@@ -423,9 +423,9 @@ func (h *Handler) GetProjectInfo(c echo.Context) error {
 
 	// Get table count (public schema, excluding system tables)
 	err = h.DB.Pool.QueryRow(ctx, `
-		SELECT COUNT(*) 
-		FROM information_schema.tables 
-		WHERE table_schema = 'public' 
+		SELECT COUNT(*)
+		FROM information_schema.tables
+		WHERE table_schema = 'public'
 		AND table_type = 'BASE TABLE'
 	`).Scan(&info.TableCount)
 	if err != nil {
@@ -434,9 +434,9 @@ func (h *Handler) GetProjectInfo(c echo.Context) error {
 
 	// Get function count
 	err = h.DB.Pool.QueryRow(ctx, `
-		SELECT COUNT(*) 
-		FROM information_schema.routines 
-		WHERE routine_schema = 'public' 
+		SELECT COUNT(*)
+		FROM information_schema.routines
+		WHERE routine_schema = 'public'
 		AND routine_type = 'FUNCTION'
 	`).Scan(&info.FunctionCount)
 	if err != nil {
@@ -445,8 +445,8 @@ func (h *Handler) GetProjectInfo(c echo.Context) error {
 
 	// Get schema count
 	err = h.DB.Pool.QueryRow(ctx, `
-		SELECT COUNT(*) 
-		FROM information_schema.schemata 
+		SELECT COUNT(*)
+		FROM information_schema.schemata
 		WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
 	`).Scan(&info.SchemaCount)
 	if err != nil {
@@ -503,13 +503,13 @@ func (h *Handler) GetProjectInfo(c echo.Context) error {
 
 	// SLOW QUERIES (Attempt to use pg_stat_statements if available, otherwise use pg_stat_activity)
 	rows, err := h.DB.Pool.Query(ctx, `
-		SELECT query, 
+		SELECT query,
 		       EXTRACT(EPOCH FROM (now() - query_start)) as duration,
 		       1 as calls
-		FROM pg_stat_activity 
-		WHERE state = 'active' 
+		FROM pg_stat_activity
+		WHERE state = 'active'
 		AND query NOT LIKE '%pg_stat_activity%'
-		ORDER BY duration DESC 
+		ORDER BY duration DESC
 		LIMIT 5
 	`)
 
@@ -561,8 +561,8 @@ func (h *Handler) GetHealthIssues(c echo.Context) error {
 	// but we can check actual PG tables)
 	// 1. Check for tables without RLS enabled in OzyBase metadata
 	rows, err := h.DB.Pool.Query(ctx, `
-		SELECT name 
-		FROM _v_collections 
+		SELECT name
+		FROM _v_collections
 		WHERE rls_enabled = false
 	`)
 	if err == nil {

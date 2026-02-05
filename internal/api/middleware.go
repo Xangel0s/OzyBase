@@ -199,7 +199,7 @@ func MetricsMiddleware(h *Handler) echo.MiddlewareFunc {
 					// Send email notifications to all active recipients
 					go func() {
 						rows, err := h.DB.Pool.Query(context.Background(), `
-							SELECT email FROM _v_security_notification_recipients 
+							SELECT email FROM _v_security_notification_recipients
 							WHERE is_active = true AND 'geo_breach' = ANY(alert_types)
 						`)
 						if err != nil {

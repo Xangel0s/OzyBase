@@ -48,8 +48,8 @@ func NewWebhookIntegration(pool *pgxpool.Pool) *WebhookIntegration {
 // SendSecurityAlert sends a security alert to all active integrations
 func (w *WebhookIntegration) SendSecurityAlert(ctx context.Context, alert SecurityAlertPayload) error {
 	rows, err := w.pool.Query(ctx, `
-		SELECT id, name, type, webhook_url, config 
-		FROM _v_integrations 
+		SELECT id, name, type, webhook_url, config
+		FROM _v_integrations
 		WHERE is_active = true AND type IN ('slack', 'discord', 'siem', 'custom')
 	`)
 	if err != nil {
@@ -201,8 +201,8 @@ func formatDetails(details map[string]any) string {
 // SendLogBatch sends a batch of logs to SIEM integrations
 func (w *WebhookIntegration) SendLogBatch(ctx context.Context, logs []map[string]any) error {
 	rows, err := w.pool.Query(ctx, `
-		SELECT id, name, webhook_url, config 
-		FROM _v_integrations 
+		SELECT id, name, webhook_url, config
+		FROM _v_integrations
 		WHERE is_active = true AND type = 'siem'
 	`)
 	if err != nil {

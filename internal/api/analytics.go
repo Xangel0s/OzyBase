@@ -21,7 +21,7 @@ func (h *Handler) GetTrafficStats(c echo.Context) error {
 	// 1. Calculate Request Rate (Last 24h, grouped by hour)
 	// Using PostgreSQL's date_trunc for high efficient grouping
 	rows, err := h.DB.Pool.Query(ctx, `
-		SELECT 
+		SELECT
 			date_trunc('hour', created_at) as bucket,
 			COUNT(*) as count,
 			AVG(latency_ms) as avg_latency
@@ -59,7 +59,7 @@ func (h *Handler) GetGeoStats(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	rows, err := h.DB.Pool.Query(ctx, `
-		SELECT 
+		SELECT
 			country,
 			COUNT(*) as count
 		FROM _v_audit_logs

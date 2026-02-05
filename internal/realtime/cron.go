@@ -68,8 +68,8 @@ func (m *CronManager) executeJob(id, name, command string) {
 
 	// Update last_run
 	_, _ = m.pool.Exec(ctx, `
-		UPDATE _v_cron_jobs 
-		SET last_run = $2, updated_at = NOW() 
+		UPDATE _v_cron_jobs
+		SET last_run = $2, updated_at = NOW()
 		WHERE id = $1
 	`, id, start)
 

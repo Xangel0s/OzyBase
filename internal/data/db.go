@@ -43,8 +43,8 @@ func (db *DB) Health(ctx context.Context) error {
 // ListSchemas returns a list of all schema names in the database
 func (db *DB) ListSchemas(ctx context.Context) ([]string, error) {
 	rows, err := db.Pool.Query(ctx, `
-		SELECT schema_name 
-		FROM information_schema.schemata 
+		SELECT schema_name
+		FROM information_schema.schemata
 		WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
 		ORDER BY schema_name
 	`)

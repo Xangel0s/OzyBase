@@ -237,7 +237,7 @@ func (s *AuthService) HandleOAuthLogin(ctx context.Context, provider, providerID
 
 	// 1. Check if identity already exists
 	err := s.db.Pool.QueryRow(ctx, `
-		SELECT user_id FROM _v_identities 
+		SELECT user_id FROM _v_identities
 		WHERE provider = $1 AND provider_id = $2
 	`, provider, providerID).Scan(&userID)
 

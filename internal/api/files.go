@@ -17,7 +17,7 @@ func (h *FileHandler) checkBucketAccess(c echo.Context, bucketName string) (stri
 	var rlsRule string
 
 	err := h.DB.Pool.QueryRow(c.Request().Context(), `
-		SELECT id, public, rls_enabled, rls_rule 
+		SELECT id, public, rls_enabled, rls_rule
 		FROM _v_buckets WHERE name = $1
 	`, bucketName).Scan(&bucketID, &public, &rlsEnabled, &rlsRule)
 
@@ -191,7 +191,7 @@ func (h *FileHandler) List(c echo.Context) error {
 // ListBuckets handles GET /api/files/buckets
 func (h *FileHandler) ListBuckets(c echo.Context) error {
 	rows, err := h.DB.Pool.Query(c.Request().Context(), `
-		SELECT id, name, public, rls_enabled, rls_rule, created_at 
+		SELECT id, name, public, rls_enabled, rls_rule, created_at
 		FROM _v_buckets ORDER BY created_at ASC
 	`)
 	if err != nil {

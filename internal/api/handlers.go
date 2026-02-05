@@ -384,11 +384,11 @@ func (h *Handler) GetSecurityStats(c echo.Context) error {
 
 	// 3. Top Countries
 	rows, _ := h.DB.Pool.Query(ctx, `
-		SELECT country, COUNT(*) as count 
-		FROM _v_audit_logs 
+		SELECT country, COUNT(*) as count
+		FROM _v_audit_logs
 		WHERE country != 'Localhost' AND country != 'Internal'
-		GROUP BY country 
-		ORDER BY count DESC 
+		GROUP BY country
+		ORDER BY count DESC
 		LIMIT 5
 	`)
 	for rows.Next() {
@@ -401,10 +401,10 @@ func (h *Handler) GetSecurityStats(c echo.Context) error {
 
 	// 4. Top IPs
 	rows, _ = h.DB.Pool.Query(ctx, `
-		SELECT ip_address, COUNT(*) as count 
-		FROM _v_audit_logs 
-		GROUP BY ip_address 
-		ORDER BY count DESC 
+		SELECT ip_address, COUNT(*) as count
+		FROM _v_audit_logs
+		GROUP BY ip_address
+		ORDER BY count DESC
 		LIMIT 5
 	`)
 	for rows.Next() {
@@ -417,10 +417,10 @@ func (h *Handler) GetSecurityStats(c echo.Context) error {
 
 	// 5. Timeline (Last 24 hours of alerts)
 	rows, _ = h.DB.Pool.Query(ctx, `
-		SELECT TO_CHAR(created_at, 'HH24:00') as hour, COUNT(*) 
-		FROM _v_security_alerts 
+		SELECT TO_CHAR(created_at, 'HH24:00') as hour, COUNT(*)
+		FROM _v_security_alerts
 		WHERE created_at > NOW() - INTERVAL '24 hours'
-		GROUP BY hour 
+		GROUP BY hour
 		ORDER BY hour ASC
 	`)
 	for rows.Next() {
@@ -440,8 +440,8 @@ func (h *Handler) GetSecurityStats(c echo.Context) error {
 // GetNotificationRecipients handles GET /api/project/security/notifications
 func (h *Handler) GetNotificationRecipients(c echo.Context) error {
 	rows, err := h.DB.Pool.Query(c.Request().Context(), `
-		SELECT id, email, alert_types, is_active, created_at 
-		FROM _v_security_notification_recipients 
+		SELECT id, email, alert_types, is_active, created_at
+		FROM _v_security_notification_recipients
 		ORDER BY created_at DESC
 	`)
 	if err != nil {

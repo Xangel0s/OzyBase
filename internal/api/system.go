@@ -86,7 +86,7 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 
 		// Security: Initialize logs
 		_, _ = h.DB.Pool.Exec(c.Request().Context(), `
-			INSERT INTO _v_audit_logs (method, path, status, country) 
+			INSERT INTO _v_audit_logs (method, path, status, country)
 			VALUES ('SYSTEM', 'SETUP_SECURE', 200, 'SYSTEM')
 		`)
 	}

@@ -51,7 +51,7 @@ func (s *TwoFactorService) GenerateSecret(ctx context.Context, userID, email str
 	_, err = s.db.Pool.Exec(ctx, `
 		INSERT INTO _v_user_2fa (user_id, secret, is_enabled, backup_codes)
 		VALUES ($1, $2, false, $3)
-		ON CONFLICT (user_id) DO UPDATE 
+		ON CONFLICT (user_id) DO UPDATE
 		SET secret = $2, backup_codes = $3, is_enabled = false
 	`, userID, key.Secret(), backupCodes)
 

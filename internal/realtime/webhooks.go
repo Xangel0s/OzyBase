@@ -28,8 +28,8 @@ func (d *WebhookDispatcher) Dispatch(event Event) {
 
 	// 1. Get all active webhooks for this event type
 	rows, err := d.pool.Query(ctx, `
-		SELECT url, secret FROM _v_webhooks 
-		WHERE is_active = TRUE 
+		SELECT url, secret FROM _v_webhooks
+		WHERE is_active = TRUE
 		AND (events = '*' OR events LIKE '%' || $1 || '%')
 	`, event.Table)
 	if err != nil {

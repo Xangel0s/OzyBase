@@ -30,8 +30,8 @@ func (h *Handler) FirewallMiddleware() echo.MiddlewareFunc {
 			var expiresAt *time.Time
 
 			err := h.DB.Pool.QueryRow(ctx, `
-				SELECT rule_type, expires_at 
-				FROM _v_ip_rules 
+				SELECT rule_type, expires_at
+				FROM _v_ip_rules
 				WHERE ip_address = $1
 			`, ip).Scan(&ruleType, &expiresAt)
 
@@ -110,7 +110,7 @@ func (h *Handler) CreateIPRule(c echo.Context) error {
 	_, err := h.DB.Pool.Exec(ctx, `
 		INSERT INTO _v_ip_rules (ip_address, rule_type, reason, expires_at, created_by)
 		VALUES ($1, $2, $3, $4, 'admin')
-		ON CONFLICT (ip_address) DO UPDATE 
+		ON CONFLICT (ip_address) DO UPDATE
 		SET rule_type = $2, reason = $3, expires_at = $4
 	`, req.IPAddress, req.RuleType, req.Reason, expiresAt)
 
