@@ -13,6 +13,7 @@ import (
 	"github.com/Xangel0s/OzyBase/internal/core"
 	"github.com/Xangel0s/OzyBase/internal/data"
 	"github.com/Xangel0s/OzyBase/internal/mailer"
+	"github.com/Xangel0s/OzyBase/internal/migrations"
 	"github.com/Xangel0s/OzyBase/internal/realtime"
 	"github.com/Xangel0s/OzyBase/internal/storage"
 	"github.com/labstack/echo/v4"
@@ -63,10 +64,12 @@ type Handler struct {
 	Auth         *core.AuthService
 	Storage      storage.Provider
 	PubSub       realtime.PubSub
+	Migrations   *migrations.Generator
+	Applier      *migrations.Applier
 }
 
 // NewHandler creates a new Handler with the given dependencies
-func NewHandler(db *data.DB, broker *realtime.Broker, webhooks *realtime.WebhookDispatcher, mailSvc mailer.Mailer, storageSvc storage.Provider, ps realtime.PubSub) *Handler {
+func NewHandler(db *data.DB, broker *realtime.Broker, webhooks *realtime.WebhookDispatcher, mailSvc mailer.Mailer, storageSvc storage.Provider, ps realtime.PubSub, migrator *migrations.Generator, applier *migrations.Applier) *Handler {
 	m := &Metrics{
 		DbHistory:       make([]int, 60),
 		AuthHistory:     make([]int, 60),
@@ -89,6 +92,8 @@ func NewHandler(db *data.DB, broker *realtime.Broker, webhooks *realtime.Webhook
 		Integrations: realtime.NewWebhookIntegration(db.Pool),
 		Storage:      storageSvc,
 		PubSub:       ps,
+		Migrations:   migrator,
+		Applier:      applier,
 	}
 }
 

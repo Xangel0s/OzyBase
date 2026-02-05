@@ -1,135 +1,118 @@
 # OzyBase Core 🛡️🚀
 
-![OzyBase Banner](./docs/banner.jpg)
-
-> 🚧 **Development Status**: See [PROJECT_STATUS_MASTER.md](./PROJECT_STATUS_MASTER.md) for live roadmap and consolidated audit report.
-
-[![Go Report Card](https://goreportcard.com/badge/github.com/Xangel0s/OzyBase)](https://goreportcard.com/report/github.com/Xangel0s/OzyBase)
-[![Tests Passing](https://img.shields.io/badge/tests-passing-brightgreen.svg)](https://github.com/Xangel0s/OzyBase)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Single Binary](https://img.shields.io/badge/Single-Binary-blueviolet.svg)](#)
-
-**The high-performance, open-source Backend-as-a-Service (BaaS) for the next generation of apps.** 
-
-OzyBase allows you to create dynamic collections, manage authentication, handle real-time subscriptions, and store files with **zero configuration** and **minimal resource usage**.
-
-> **💡 Real World Fact:** OzyBase runs perfectly on a $5/mo VPS while others require $20-40/mo just to idle. **1/8 of the cost, same power.**
+<div align="center">
+  <img src="https://raw.githubusercontent.com/Xangel0s/OzyBase/main/docs/banner.jpg" alt="OzyBase Banner" width="100%" />
+  <br/>
+  <b>The high-performance, open-source Backend-as-a-Service (BaaS) for the next generation of apps.</b>
+  <br/><br/>
+  <p>
+    <a href="https://goreportcard.com/report/github.com/Xangel0s/OzyBase"><img src="https://goreportcard.com/badge/github.com/Xangel0s/OzyBase" alt="Go Report Card"></a>
+    <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+    <a href="#"><img src="https://img.shields.io/badge/Single-Binary-blueviolet.svg" alt="Single Binary"></a>
+    <a href="#"><img src="https://img.shields.io/badge/v1.1.0-Enterprise-brightgreen.svg" alt="Version"></a>
+  </p>
+</div>
 
 ---
 
-## ⚡ Why OzyBase?
+## ⚡ PocketBase Simplicity, Supabase Power
+
+OzyBase is a high-performance, single-binary BaaS that allows you to manage authentication, dynamic collections, real-time subscriptions, and file storage with **zero configuration**. It is designed to run perfectly on a $5/mo VPS while providing enterprise-grade security and scalability.
+
+### 📊 Comparative Performance
 
 | Metric | Supabase (Docker) | PocketBase | **OzyBase-Core** |
-|--------|-------------------|------------|-------------------|
+|:---|:---:|:---:|:---:|
 | **Language** | Elixir/JS/Go | Go | **Go 🚀** |
 | **RAM at rest** | ~1.5 GB | ~20-50 MB | **< 30 MB ✅** |
 | **Binary size** | ~2 GB (Images) | ~40 MB | **< 15 MB 💎** |
 | **Database** | Postgres | SQLite | **Postgres (Native) 🐘** |
-| **Realtime** | WebSockets | SSE | **SSE (Scalable) ⚡** |
 | **Deployment** | Complex | Single Binary | **Single Binary 📦** |
 
 ---
 
-## ✨ Key Features
+## ✨ Enterprise Features (v1.1.0) 🛡️
 
-- **🚀 Extreme Performance**: Built with Go and Echo. Zero overhead.
-- **🏗️ Meta-Schema Ops**: Create tables and fields via API at runtime. No migrations needed.
-- **🔐 Auth & Security**: JWT-based auth with granular ACL (Public/Auth/Admin).
-- **⚡ SSE Realtime**: Native Server-Sent Events for instant UI updates.
-- **🛠️ TypeGen CLI**: Generate TypeScript interfaces directly from your DB schema.
-- **📂 File Storage**: Built-in local file management.
-- **🛡️ IP Firewall**: Enterprise-grade IP Whitelist/Blacklist with auto-expiration.
-- **🧙 Setup Wizard**: Secure first-run experience with auto-login and "Fortress Mode".
-- **🔒 Hardened**: Rate limiting, security headers, SQL injection defense, and strict validation.
+OzyBase Core has evolved. The **v1.1.0-Enterprise** update brings mission-critical capabilities to your pocket backend:
 
----
-
-## � The Perfect Circle (DX-First)
-
-OzyBase closes the gap between Backend and Frontend with a seamless 3-step workflow:
-
-1. **Auto-Config Backend**: Embedded PostgreSQL starts automatically. No Docker, no external DB needed.
-2. **Dynamic Dashboard**: Tables created in the UI are immediately available. No migrations to write.
-3. **Type-Safe Frontend**: Run `gen-types` to get full TypeScript autocomplete in your app via our official SDK.
+- **🔐 Native RLS Engine**: Real PostgreSQL **Row-Level Security** powered by JWT context. Enforce security policies directly in the database.
+- **📂 Hybrid Storage**: Seamlessly switch between **Local Storage** and **S3-Compatible** backends (Minio, AWS, DigitalOcean).
+- **⚡ Distributed Realtime**: Real-time events synchronized across nodes via **Redis Pub/Sub** for horizontal scaling.
+- **📜 Ozy-Migrations**: Visual schema editor that automatically generates versioned SQL migrations and provides a `migrate-apply` CLI.
+- **📈 Prometheus Observability**: Built-in `/metrics` endpoint for real-time monitoring with Grafana.
+- **🤝 OAuth & Social Sync**: Multi-provider support (GitHub & Google) out of the box with `goth`.
 
 ---
 
-## �🚀 Quick Start (in 10 seconds)
+## 🧙 The Perfect Circle (DX-First Workflow)
 
-### 1. Requirements: Just Go! 🚀
-OzyBase is **Install to Play**. You only need [Go 1.22+](https://go.dev/) installed on your machine.
-OzyBase now includes an **Embedded PostgreSQL** engine, so you don't need to install or configure any database manually.
+1. **Auto-Config Backend**: Embedded PostgreSQL starts automatically. No Docker needed for local development.
+2. **Dynamic Dashboard**: Create tables and fields via UI; Ozy-Migrations handles the SQL records for you.
+3. **Type-Safe Frontend**: Use the **JS/TS SDK** and run `gen-types` to get full TypeScript autocomplete instantly.
 
-### 2. Run the Engine
+---
+
+## 🚀 Quick Start (Production & Local)
+
+### 1. Requirements
+OzyBase is **Install to Play**. You only need [Go 1.23+](https://go.dev/) if running from source, or download the binary for your platform.
+
+### 2. Local Installation
 ```bash
-# Clone and run
 git clone https://github.com/Xangel0s/OzyBase
 cd OzyBase
 go run ./cmd/ozybase
 ```
-*The first run will download the PostgreSQL engine automatically (~20MB). Subsequent starts are instant.*
+*The first run downloads the Embedded PostgreSQL engine (~20MB) and starts the Setup Wizard at `http://localhost:8090`.*
 
-### 3. Alternative: Run with your own DB
-If you prefer to use an existing PostgreSQL instance:
+### 3. Docker Deployment (Recommended)
 ```bash
-export DATABASE_URL=postgres://user:pass@host:port/dbname
-go run ./cmd/ozybase
+docker pull xangel0s/ozybase:latest
+docker run -p 8090:8090 -v ozy_data:/app/data xangel0s/ozybase
 ```
+*Check our [Dockerfile](./Dockerfile) and [Deployment Guide](./docs/DEPLOYMENT.md) for advanced multi-node configurations.*
 
-### 4. Create your first collection
-```bash
-curl -X POST http://localhost:8090/api/collections \
-  -H "Content-Type: application/json" \
-  -d '{"name": "posts", "schema": [{"name": "title", "type": "text"}]}'
-```
+### 4. CLI Commands
+- `ozybase.exe reset-admin "newpassword"`: Reset access to the dashboard.
+- `ozybase.exe migrate-apply`: Sync pending SQL migrations from `./migrations`.
+- `ozybase.exe gen-types`: Export TypeScript interfaces from your DB.
 
 ---
 
-## 💎 OzyBase SDK (The Developer Expirience)
+## 💎 OzyBase SDK
 
-We provide a **Supabase-style** JavaScript/TypeScript SDK for seamless integration.
+Manage your data with a clean, Supabase-style interface:
 
 ```typescript
-import { createClient } from '@OzyBase/sdk'
+import { createClient } from '@ozybase/sdk'
 
-const OzyBase = createClient('http://localhost:8090')
+const ozy = createClient('http://localhost:8090')
 
-// Full Autocomplete & Type Safety!
-const { data, error } = await OzyBase
-  .from('products')
-  .select('*')
-  .eq('active', true)
-
-// Realtime just works
-OzyBase.channel('products').on('INSERT', (payload) => {
-  console.log('New product!', payload.new)
-}).subscribe()
+// Realtime & Security in 3 lines
+ozy.from('orders')
+   .select('*')
+   .on('INSERT', (payload) => console.log(payload))
+   .subscribe()
 ```
 
 ---
 
-## 📚 Documentation
+## 🗺️ Roadmap & Community
 
-- [📊 Project Status & Roadmap](./PROJECT_STATUS_MASTER.md)
-- [🛠️ JS/TS SDK](https://github.com/Xangel0s/-js-sdk)
-- [🏗️ Tutorial: My First App](./docs/tutorial.md)
-- [📜 API Spec (OpenAPI)](./docs/openapi.yaml)
-
----
-
-## 🛠️ Development Progress
-
-- [x] **Phase 0**: Foundation ✅
-- [x] **Phase 1**: Security & Hardening ✅
-- [x] **Phase 2**: JavaScript/TypeScript SDK ✅
-- [x] **Phase 3**: Type Generation CLI ✅
-- [x] **Phase 4**: Linux Production Optimization ✅
-- [x] **Phase 5**: Documentation & Testing ✅
+We are currently in **Fase 2: Management & Intelligence**.
+- [x] v1.1.0 Enterprise Readiness (RLS, S3, Redis).
+- [ ] **Ozy-AI**: Natural Language Querying (NLX) for SQL.
+- [ ] **Vector Support**: Native `pgvector` integration.
+- [ ] **MCP Implementation**: Context server for AI coding assistants.
 
 ---
+
+## 📚 Detailed Documentation
+- [🏗️ Full Roadmap & Status](./docs/ROADMAP.md)
+- [🛡️ Security Audit & Hardening](./docs/SECURITY_AUDIT.md)
+- [📦 Deployment & Multi-Arch Build](./docs/DEPLOYMENT.md)
+- [🎨 Branding & Design System](./docs/branding.md)
+- [📜 Changelog](./CHANGELOG.md)
 
 Developed with ❤️ by **Xangel0s**.  
 **OzyBase: Power in a single binary.** 🛡️🚀
-
-
-

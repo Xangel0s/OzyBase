@@ -131,6 +131,11 @@ func (h *Handler) CreateCollection(c echo.Context) error {
 		})
 	}
 
+	// 📜 Record Migration
+	fullMigrationSQL := fmt.Sprintf("%s\n\n%s", createSQL, triggerSQL)
+	description := fmt.Sprintf("create_collection_%s", req.Name)
+	_, _ = h.Migrations.CreateMigration(description, fullMigrationSQL)
+
 	collection.Schema = req.Schema
 	return c.JSON(http.StatusCreated, collection)
 }
@@ -169,6 +174,11 @@ func (h *Handler) DeleteCollection(c echo.Context) error {
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
+
+	// 📜 Record Migration
+	dropSQL := fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE;", name)
+	description := fmt.Sprintf("delete_collection_%s", name)
+	_, _ = h.Migrations.CreateMigration(description, dropSQL)
 
 	return c.NoContent(http.StatusNoContent)
 }
@@ -330,9 +340,14 @@ func (h *Handler) AddColumn(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
 	defer cancel()
 
-	if err := h.DB.AddColumn(ctx, tableName, field); err != nil {
+	sql, err := h.DB.AddColumn(ctx, tableName, field)
+	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
+
+	// 📜 Record Migration
+	description := fmt.Sprintf("add_column_%s_to_%s", field.Name, tableName)
+	_, _ = h.Migrations.CreateMigration(description, sql)
 
 	return c.JSON(http.StatusCreated, field)
 }
@@ -345,9 +360,14 @@ func (h *Handler) DeleteColumn(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
 	defer cancel()
 
-	if err := h.DB.DeleteColumn(ctx, tableName, columnName); err != nil {
+	sql, err := h.DB.DeleteColumn(ctx, tableName, columnName)
+	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
+
+	// 📜 Record Migration
+	description := fmt.Sprintf("delete_column_%s_from_%s", columnName, tableName)
+	_, _ = h.Migrations.CreateMigration(description, sql)
 
 	return c.NoContent(http.StatusNoContent)
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/Xangel0s/OzyBase/internal/data"
 	"github.com/Xangel0s/OzyBase/internal/logger"
 	"github.com/Xangel0s/OzyBase/internal/mailer"
+	"github.com/Xangel0s/OzyBase/internal/migrations"
 	"github.com/Xangel0s/OzyBase/internal/realtime"
 	"github.com/Xangel0s/OzyBase/internal/storage"
 	"github.com/Xangel0s/OzyBase/internal/typegen"
@@ -130,8 +131,12 @@ func run() error {
 	// Setup Mailer
 	mailSvc := mailer.NewLogMailer()
 
+	// 📜 Initialize Migrations Generator & Applier
+	migrator := migrations.NewGenerator("./migrations")
+	applier := migrations.NewApplier(db.Pool, "./migrations")
+
 	// Initialize Server Components
-	h := api.NewHandler(db, broker, dispatcher, mailSvc, storageSvc, ps)
+	h := api.NewHandler(db, broker, dispatcher, mailSvc, storageSvc, ps, migrator, applier)
 
 	// Start Log Export Worker
 	go h.StartLogExporter(context.Background())
@@ -206,6 +211,20 @@ func handleCLI(db *data.DB) bool {
 		log.Printf("✅ Admin password reset successfully to: %s", newPass)
 		return true
 	}
+
+	if len(os.Args) > 1 && os.Args[1] == "migrate-apply" {
+		ctx := context.Background()
+		applier := migrations.NewApplier(db.Pool, "./migrations")
+
+		log.Println("⚡ Running Ozy-Apply: Checking for pending migrations...")
+		if err := applier.ApplyPendingMigrations(ctx); err != nil {
+			log.Fatalf("❌ Migration application failed: %v", err)
+		}
+
+		log.Println("✅ All migrations applied successfully.")
+		return true
+	}
+
 	return false
 }
 

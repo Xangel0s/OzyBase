@@ -329,14 +329,14 @@ func (db *DB) GetDatabaseSchema(ctx context.Context) (*DatabaseSchema, error) {
 }
 
 // AddColumn adds a new column to an existing table
-func (db *DB) AddColumn(ctx context.Context, tableName string, field FieldSchema) error {
+func (db *DB) AddColumn(ctx context.Context, tableName string, field FieldSchema) (string, error) {
 	if !IsValidIdentifier(tableName) || !IsValidIdentifier(field.Name) {
-		return fmt.Errorf("invalid table or column name")
+		return "", fmt.Errorf("invalid table or column name")
 	}
 
 	pgType, ok := TypeMapping[strings.ToLower(field.Type)]
 	if !ok {
-		return fmt.Errorf("unknown type: %s", field.Type)
+		return "", fmt.Errorf("unknown type: %s", field.Type)
 	}
 
 	// #nosec G201
@@ -349,19 +349,19 @@ func (db *DB) AddColumn(ctx context.Context, tableName string, field FieldSchema
 	}
 
 	_, err := db.Pool.Exec(ctx, sql)
-	return err
+	return sql, err
 }
 
 // DeleteColumn removes a column from an existing table
-func (db *DB) DeleteColumn(ctx context.Context, tableName string, columnName string) error {
+func (db *DB) DeleteColumn(ctx context.Context, tableName string, columnName string) (string, error) {
 	if !IsValidIdentifier(tableName) || !IsValidIdentifier(columnName) {
-		return fmt.Errorf("invalid table or column name")
+		return "", fmt.Errorf("invalid table or column name")
 	}
 
 	// #nosec G201
 	sql := fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", tableName, columnName)
 	_, err := db.Pool.Exec(ctx, sql)
-	return err
+	return sql, err
 }
 
 // DeleteTable drops an existing table

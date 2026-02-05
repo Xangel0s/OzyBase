@@ -225,6 +225,14 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 			expires_at TIMESTAMPTZ NOT NULL,
 			created_at TIMESTAMPTZ DEFAULT NOW()
 		)`,
+
+		// Migrations History
+		`CREATE TABLE IF NOT EXISTS _v_migrations_history (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			file_name VARCHAR(255) UNIQUE NOT NULL,
+			applied_at TIMESTAMPTZ DEFAULT NOW(),
+			description TEXT
+		)`,
 	}
 
 	for i, migration := range migrations {
