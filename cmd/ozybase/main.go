@@ -83,21 +83,12 @@ func run() error {
 	}
 
 	// 🔐 Initialize OAuth
-	if err := core.InitOAuth(); err != nil {
-		logger.Log.Warn().Err(err).Msg("OAuth initialization failed")
-	}
+	initOAuth()
 
 	// 📦 Initialize Storage
-	var storageSvc storage.Provider
-	if cfg.StorageProvider == "s3" {
-		storageSvc, err = storage.NewS3Provider(cfg.S3Endpoint, cfg.S3AccessKey, cfg.S3SecretKey, cfg.S3UseSSL)
-		if err != nil {
-			return fmt.Errorf("failed to initialize S3 storage: %w", err)
-		}
-		logger.Log.Info().Msg("📦 Using S3-Compatible Storage")
-	} else {
-		storageSvc = storage.NewLocalProvider(cfg.StoragePath)
-		logger.Log.Info().Str("path", cfg.StoragePath).Msg("📦 Using Local Storage")
+	storageSvc, err := initStorage(cfg)
+	if err != nil {
+		return err
 	}
 
 	// Auto-setup admin user
@@ -109,24 +100,10 @@ func run() error {
 	}
 
 	// Initialize Realtime components
-	broker := realtime.NewBroker()
-	dispatcher := realtime.NewWebhookDispatcher(db.Pool)
+	broker, dispatcher, cronMgr := initRealtime(db)
 
 	// 🔄 Initialize PubSub (for horizontal scaling)
-	var ps realtime.PubSub
-	if cfg.RealtimeBroker == "redis" {
-		ps = realtime.NewRedisPubSub(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
-		logger.Log.Info().Msg("🔄 Using Redis PubSub for Realtime")
-	} else {
-		ps = realtime.NewLocalPubSub(broker)
-		logger.Log.Info().Msg("🔄 Using Local PubSub")
-	}
-
-	cronMgr := realtime.NewCronManager(db.Pool)
-	cronMgr.Start()
-
-	// Start database event listener
-	go realtime.ListenForEvents(context.Background(), db.Pool, broker, dispatcher)
+	ps := initPubSub(cfg, broker)
 
 	// Setup Mailer
 	mailSvc := mailer.NewLogMailer()
@@ -226,6 +203,47 @@ func handleCLI(db *data.DB) bool {
 	}
 
 	return false
+}
+
+func initOAuth() {
+	if err := core.InitOAuth(); err != nil {
+		logger.Log.Warn().Err(err).Msg("OAuth initialization failed")
+	}
+}
+
+func initStorage(cfg *config.Config) (storage.Provider, error) {
+	if cfg.StorageProvider == "s3" {
+		svc, err := storage.NewS3Provider(cfg.S3Endpoint, cfg.S3AccessKey, cfg.S3SecretKey, cfg.S3UseSSL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize S3 storage: %w", err)
+		}
+		logger.Log.Info().Msg("📦 Using S3-Compatible Storage")
+		return svc, nil
+	}
+	logger.Log.Info().Str("path", cfg.StoragePath).Msg("📦 Using Local Storage")
+	return storage.NewLocalProvider(cfg.StoragePath), nil
+}
+
+func initRealtime(db *data.DB) (*realtime.Broker, *realtime.WebhookDispatcher, *realtime.CronManager) {
+	broker := realtime.NewBroker()
+	dispatcher := realtime.NewWebhookDispatcher(db.Pool)
+
+	cronMgr := realtime.NewCronManager(db.Pool)
+	cronMgr.Start()
+
+	// Start database event listener
+	go realtime.ListenForEvents(context.Background(), db.Pool, broker, dispatcher)
+
+	return broker, dispatcher, cronMgr
+}
+
+func initPubSub(cfg *config.Config, broker *realtime.Broker) realtime.PubSub {
+	if cfg.RealtimeBroker == "redis" {
+		logger.Log.Info().Msg("🔄 Using Redis PubSub")
+		return realtime.NewRedisPubSub(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+	}
+	logger.Log.Info().Msg("🔄 Using Local PubSub")
+	return realtime.NewLocalPubSub(broker)
 }
 
 func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager) *echo.Echo {

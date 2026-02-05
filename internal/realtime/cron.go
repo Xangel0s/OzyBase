@@ -45,10 +45,13 @@ func (m *CronManager) Refresh() {
 	for rows.Next() {
 		var id, name, schedule, command string
 		if err := rows.Scan(&id, &name, &schedule, &command); err == nil {
-			_, _ = m.scheduler.AddFunc(schedule, func() {
+			if _, err := m.scheduler.AddFunc(schedule, func() {
 				m.executeJob(id, name, command)
-			})
-			log.Printf("⏰ Job added: %s (%s)", name, schedule)
+			}); err == nil {
+				log.Printf("⏰ Job added: %s (%s)", name, schedule)
+			} else {
+				log.Printf("❌ Failed to add job %s: %v", name, err)
+			}
 		}
 	}
 }
@@ -67,11 +70,13 @@ func (m *CronManager) executeJob(id, name, command string) {
 	}
 
 	// Update last_run
-	_, _ = m.pool.Exec(ctx, `
+	if _, err := m.pool.Exec(ctx, `
 		UPDATE _v_cron_jobs
 		SET last_run = $2, updated_at = NOW()
 		WHERE id = $1
-	`, id, start)
+	`, id, start); err != nil {
+		log.Printf("⚠️ Failed to update cron job history: %v", err)
+	}
 
 	log.Printf("✅ Job %s finished with status: %s", name, status)
 }

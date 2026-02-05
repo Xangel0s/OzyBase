@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/Xangel0s/OzyBase/internal/data"
@@ -254,7 +255,9 @@ func (s *AuthService) HandleOAuthLogin(ctx context.Context, provider, providerID
 		}
 
 		// Update last sign-in
-		_, _ = s.db.Pool.Exec(ctx, "UPDATE _v_identities SET last_signin_at = NOW(), identity_data = $1 WHERE provider = $2 AND provider_id = $3", data, provider, providerID)
+		if _, err := s.db.Pool.Exec(ctx, "UPDATE _v_identities SET last_signin_at = NOW(), identity_data = $1 WHERE provider = $2 AND provider_id = $3", data, provider, providerID); err != nil {
+			log.Printf("⚠️ Warning: Failed to update OAuth identity: %v", err)
+		}
 
 	} else {
 		// 2. Identity does not exist, check if user with email exists

@@ -134,7 +134,9 @@ func (h *Handler) CreateCollection(c echo.Context) error {
 	// 📜 Record Migration
 	fullMigrationSQL := fmt.Sprintf("%s\n\n%s", createSQL, triggerSQL)
 	description := fmt.Sprintf("create_collection_%s", req.Name)
-	_, _ = h.Migrations.CreateMigration(description, fullMigrationSQL)
+	if _, err := h.Migrations.CreateMigration(description, fullMigrationSQL); err != nil {
+		log.Printf("⚠️ Warning: Failed to record migration: %v", err)
+	}
 
 	collection.Schema = req.Schema
 	return c.JSON(http.StatusCreated, collection)
@@ -178,7 +180,9 @@ func (h *Handler) DeleteCollection(c echo.Context) error {
 	// 📜 Record Migration
 	dropSQL := fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE;", name)
 	description := fmt.Sprintf("delete_collection_%s", name)
-	_, _ = h.Migrations.CreateMigration(description, dropSQL)
+	if _, err := h.Migrations.CreateMigration(description, dropSQL); err != nil {
+		log.Printf("⚠️ Warning: Failed to record migration: %v", err)
+	}
 
 	return c.NoContent(http.StatusNoContent)
 }
@@ -347,7 +351,9 @@ func (h *Handler) AddColumn(c echo.Context) error {
 
 	// 📜 Record Migration
 	description := fmt.Sprintf("add_column_%s_to_%s", field.Name, tableName)
-	_, _ = h.Migrations.CreateMigration(description, sql)
+	if _, err := h.Migrations.CreateMigration(description, sql); err != nil {
+		log.Printf("⚠️ Warning: Failed to record migration: %v", err)
+	}
 
 	return c.JSON(http.StatusCreated, field)
 }
@@ -367,7 +373,9 @@ func (h *Handler) DeleteColumn(c echo.Context) error {
 
 	// 📜 Record Migration
 	description := fmt.Sprintf("delete_column_%s_from_%s", columnName, tableName)
-	_, _ = h.Migrations.CreateMigration(description, sql)
+	if _, err := h.Migrations.CreateMigration(description, sql); err != nil {
+		log.Printf("⚠️ Warning: Failed to record migration: %v", err)
+	}
 
 	return c.NoContent(http.StatusNoContent)
 }
