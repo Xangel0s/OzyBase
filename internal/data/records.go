@@ -3,372 +3,19 @@ package data
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
 
 // InsertRecord inserts a record into a dynamic collection table
-// Returns the new record ID
 func (db *DB) InsertRecord(ctx context.Context, collectionName string, data map[string]any) (string, error) {
 	if !IsValidIdentifier(collectionName) {
 		return "", fmt.Errorf("invalid collection name: %s", collectionName)
 	}
 
-	if len(data) == 0 {
-		return "", fmt.Errorf("data cannot be empty")
-	}
-
-	// Build column names and placeholders
-	var columns []string
-	var placeholders []string
-	var values []any
-	i := 1
-
-	for col, val := range data {
-		if !IsValidIdentifier(col) {
-			return "", fmt.Errorf("invalid column name: %s", col)
-		}
-
-		// Skip standard generated columns if provided
-		if col == "id" || col == "created_at" || col == "updated_at" || col == "deleted_at" {
-			continue
-		}
-
-		columns = append(columns, col)
-		placeholders = append(placeholders, fmt.Sprintf("$%d", i))
-
-		// Refine value (handle date strings, etc.)
-		sanitizedVal := val
-		if str, ok := val.(string); ok && str == "" {
-			sanitizedVal = nil
-		}
-
-		values = append(values, sanitizedVal)
-		i++
-	}
-
-	if len(columns) == 0 {
-		return "", fmt.Errorf("no valid data columns provided")
-	}
-
-	query := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES (%s) RETURNING id",
-		collectionName,
-		strings.Join(columns, ", "),
-		strings.Join(placeholders, ", "),
-	)
-
 	var id string
-	err := db.Pool.QueryRow(ctx, query, values...).Scan(&id)
-	if err != nil {
-		return "", fmt.Errorf("database error: %v", err)
-	}
-
-	return id, nil
-}
-
-// ListRecords fetches all records from a dynamic collection table with filters and sorting
-func (db *DB) ListRecords(ctx context.Context, collectionName string, filters map[string][]string, orderBy string) ([]map[string]any, error) {
-	if !IsValidIdentifier(collectionName) {
-		return nil, fmt.Errorf("invalid collection name: %s", collectionName)
-	}
-
-	// Default to filtering out soft-deleted records
-	whereClauses := []string{"deleted_at IS NULL"}
-	var queryArgs []any
-	argIdx := 1
-
-	// Parse filters (e.g., price=gt.100)
-	for col, values := range filters {
-		if col == "order" || col == "select" || col == "limit" || col == "offset" {
-			continue // Reserved keywords
-		}
-
-		if !IsValidIdentifier(col) {
-			continue
-		}
-
-		for _, valStr := range values {
-			parts := strings.SplitN(valStr, ".", 2)
-			op := "eq"
-			val := valStr
-			if len(parts) == 2 {
-				op = parts[0]
-				val = parts[1]
-			}
-
-			var sqlOp string
-			switch op {
-			case "eq":
-				sqlOp = "="
-			case "neq":
-				sqlOp = "!="
-			case "gt":
-				sqlOp = ">"
-			case "gte":
-				sqlOp = ">="
-			case "lt":
-				sqlOp = "<"
-			case "lte":
-				sqlOp = "<="
-			case "like":
-				sqlOp = "ILIKE"
-				val = "%" + val + "%"
-			case "is":
-				if strings.ToLower(val) == "null" {
-					whereClauses = append(whereClauses, fmt.Sprintf("%s IS NULL", col))
-					continue
-				}
-			default:
-				sqlOp = "="
-			}
-
-			if sqlOp != "" {
-				whereClauses = append(whereClauses, fmt.Sprintf("%s %s $%d", col, sqlOp, argIdx))
-				queryArgs = append(queryArgs, val)
-				argIdx++
-			}
-		}
-	}
-
-	// Handle Select
-	selectCols := "*"
-	if sel, ok := filters["select"]; ok && len(sel) > 0 {
-		cols := strings.Split(sel[0], ",")
-		var validCols []string
-		for _, c := range cols {
-			c = strings.TrimSpace(c)
-			if IsValidIdentifier(c) {
-				validCols = append(validCols, c)
-			}
-		}
-		if len(validCols) > 0 {
-			selectCols = strings.Join(validCols, ", ")
-		}
-	}
-
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE %s", selectCols, collectionName, strings.Join(whereClauses, " AND "))
-
-	// Add ordering if provided and valid
-	if orderBy != "" {
-		parts := strings.Split(orderBy, ".")
-		col := parts[0]
-		dir := "ASC"
-		if len(parts) > 1 && strings.ToUpper(parts[1]) == "DESC" {
-			dir = "DESC"
-		}
-
-		if IsValidIdentifier(col) {
-			query += fmt.Sprintf(" ORDER BY %s %s", col, dir)
-		} else {
-			query += " ORDER BY created_at DESC"
-		}
-	} else {
-		query += " ORDER BY created_at DESC"
-	}
-
-	// Handle Limit/Offset (SECURE: Parse as int to prevent SQLi)
-	if l, ok := filters["limit"]; ok && len(l) > 0 {
-		if limitVal, err := strconv.Atoi(l[0]); err == nil && limitVal > 0 {
-			query += fmt.Sprintf(" LIMIT %d", limitVal)
-		}
-	} else {
-		query += " LIMIT 30" // Default limit
-	}
-
-	if o, ok := filters["offset"]; ok && len(o) > 0 {
-		if offsetVal, err := strconv.Atoi(o[0]); err == nil && offsetVal >= 0 {
-			query += fmt.Sprintf(" OFFSET %d", offsetVal)
-		}
-	}
-
-	rows, err := db.Pool.Query(ctx, query, queryArgs...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query records: %w", err)
-	}
-	defer rows.Close()
-
-	return rowsToMaps(rows)
-}
-
-// GetRecord fetches a single record by ID, optionally filtered by owner
-func (db *DB) GetRecord(ctx context.Context, collectionName, id string, ownerField, ownerID string) (map[string]any, error) {
-	if !IsValidIdentifier(collectionName) {
-		return nil, fmt.Errorf("invalid collection name: %s", collectionName)
-	}
-
-	query := fmt.Sprintf("SELECT * FROM %s WHERE id = $1 AND deleted_at IS NULL", collectionName)
-	var args []any
-	args = append(args, id)
-
-	if ownerField != "" && ownerID != "" && IsValidIdentifier(ownerField) {
-		query += fmt.Sprintf(" AND %s = $2", ownerField)
-		args = append(args, ownerID)
-	}
-
-	rows, err := db.Pool.Query(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query record: %w", err)
-	}
-	defer rows.Close()
-
-	records, err := rowsToMaps(rows)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(records) == 0 {
-		return nil, fmt.Errorf("record not found")
-	}
-
-	return records[0], nil
-}
-
-// rowsToMaps converts pgx.Rows to a slice of maps
-func rowsToMaps(rows pgx.Rows) ([]map[string]any, error) {
-	fieldDescriptions := rows.FieldDescriptions()
-	var results []map[string]any
-
-	for rows.Next() {
-		values, err := rows.Values()
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
-		}
-
-		record := make(map[string]any)
-		for i, fd := range fieldDescriptions {
-			record[string(fd.Name)] = values[i]
-		}
-		results = append(results, record)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("row iteration error: %w", err)
-	}
-
-	return results, nil
-}
-
-// UpdateRecord updates an existing record, optionally filtered by owner
-func (db *DB) UpdateRecord(ctx context.Context, collectionName, id string, data map[string]any, ownerField, ownerID string) error {
-	if !IsValidIdentifier(collectionName) {
-		return fmt.Errorf("invalid collection name: %s", collectionName)
-	}
-
-	if len(data) == 0 {
-		return nil // Nothing to update
-	}
-
-	var updates []string
-	var values []any
-	i := 1
-
-	for col, val := range data {
-		if !IsValidIdentifier(col) {
-			return fmt.Errorf("invalid column name: %s", col)
-		}
-
-		// Skip system columns
-		if col == "id" || col == "created_at" || col == "updated_at" {
-			continue
-		}
-
-		updates = append(updates, fmt.Sprintf("%s = $%d", col, i))
-		values = append(values, val)
-		i++
-	}
-
-	if len(updates) == 0 {
-		return nil
-	}
-
-	// Add updated_at if it exists
-	updates = append(updates, "updated_at = NOW()")
-
-	whereClause := fmt.Sprintf("WHERE id = $%d", i)
-	values = append(values, id)
-	i++
-
-	if ownerField != "" && ownerID != "" && IsValidIdentifier(ownerField) {
-		whereClause += fmt.Sprintf(" AND %s = $%d", ownerField, i)
-		values = append(values, ownerID)
-	}
-
-	query := fmt.Sprintf(
-		"UPDATE %s SET %s %s",
-		collectionName,
-		strings.Join(updates, ", "),
-		whereClause,
-	)
-
-	_, err := db.Pool.Exec(ctx, query, values...)
-	if err != nil {
-		return fmt.Errorf("database error: %v", err)
-	}
-
-	return nil
-}
-
-// DeleteRecord performs a soft-delete, optionally filtered by owner
-func (db *DB) DeleteRecord(ctx context.Context, collectionName, id string, ownerField, ownerID string) error {
-	if !IsValidIdentifier(collectionName) {
-		return fmt.Errorf("invalid collection name: %s", collectionName)
-	}
-
-	var args []any
-	args = append(args, id)
-	ownerCondition := ""
-	if ownerField != "" && ownerID != "" && IsValidIdentifier(ownerField) {
-		ownerCondition = fmt.Sprintf(" AND %s = $2", ownerField)
-		args = append(args, ownerID)
-	}
-
-	// For system tables (starting with _), we do hard delete for now
-	if strings.HasPrefix(collectionName, "_v_") {
-		query := fmt.Sprintf("DELETE FROM %s WHERE id = $1%s", collectionName, ownerCondition)
-		_, err := db.Pool.Exec(ctx, query, args...)
-		return err
-	}
-
-	query := fmt.Sprintf("UPDATE %s SET deleted_at = NOW() WHERE id = $1%s", collectionName, ownerCondition)
-	_, err := db.Pool.Exec(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("database error: %v", err)
-	}
-
-	return nil
-}
-
-// HardDeleteRecord permanently removes a record
-func (db *DB) HardDeleteRecord(ctx context.Context, collectionName, id string) error {
-	if !IsValidIdentifier(collectionName) {
-		return fmt.Errorf("invalid collection name: %s", collectionName)
-	}
-
-	query := fmt.Sprintf("DELETE FROM %s WHERE id = $1", collectionName)
-	_, err := db.Pool.Exec(ctx, query, id)
-	return err
-}
-
-// BulkInsertRecord inserts multiple records in a single transaction
-func (db *DB) BulkInsertRecord(ctx context.Context, collectionName string, records []map[string]any) error {
-	if !IsValidIdentifier(collectionName) {
-		return fmt.Errorf("invalid collection name: %s", collectionName)
-	}
-
-	if len(records) == 0 {
-		return nil
-	}
-
-	tx, err := db.Pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	for _, data := range records {
+	err := db.WithTransactionAndRLS(ctx, func(tx pgx.Tx) error {
 		var columns []string
 		var placeholders []string
 		var values []any
@@ -388,21 +35,210 @@ func (db *DB) BulkInsertRecord(ctx context.Context, collectionName string, recor
 			i++
 		}
 
-		if len(columns) == 0 {
-			continue
-		}
+		query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING id",
+			collectionName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
 
-		query := fmt.Sprintf(
-			"INSERT INTO %s (%s) VALUES (%s)",
-			collectionName,
-			strings.Join(columns, ", "),
-			strings.Join(placeholders, ", "),
-		)
+		return tx.QueryRow(ctx, query, values...).Scan(&id)
+	})
 
-		if _, err := tx.Exec(ctx, query, values...); err != nil {
-			return err
-		}
+	return id, err
+}
+
+// ListRecords fetches all records with filters and sorting, respecting RLS if configured in DB
+func (db *DB) ListRecords(ctx context.Context, collectionName string, filters map[string][]string, orderBy string) ([]map[string]any, error) {
+	if !IsValidIdentifier(collectionName) {
+		return nil, fmt.Errorf("invalid collection name: %s", collectionName)
 	}
 
-	return tx.Commit(ctx)
+	var results []map[string]any
+	err := db.WithTransactionAndRLS(ctx, func(tx pgx.Tx) error {
+		whereClauses := []string{"deleted_at IS NULL"}
+		var queryArgs []any
+		argIdx := 1
+
+		for col, values := range filters {
+			if col == "order" || col == "select" || col == "limit" || col == "offset" {
+				continue
+			}
+			if !IsValidIdentifier(col) {
+				continue
+			}
+
+			for _, valStr := range values {
+				parts := strings.SplitN(valStr, ".", 2)
+				op := "eq"
+				val := valStr
+				if len(parts) == 2 {
+					op = parts[0]
+					val = parts[1]
+				}
+
+				sqlOp := "="
+				switch op {
+				case "gt":
+					sqlOp = ">"
+				case "gte":
+					sqlOp = ">="
+				case "lt":
+					sqlOp = "<"
+				case "lte":
+					sqlOp = "<="
+				case "neq":
+					sqlOp = "!="
+				case "like":
+					sqlOp = "ILIKE"
+					val = "%" + val + "%"
+				}
+
+				whereClauses = append(whereClauses, fmt.Sprintf("%s %s $%d", col, sqlOp, argIdx))
+				queryArgs = append(queryArgs, val)
+				argIdx++
+			}
+		}
+
+		query := fmt.Sprintf("SELECT * FROM %s WHERE %s", collectionName, strings.Join(whereClauses, " AND "))
+
+		if orderBy != "" {
+			// Basic sanitization: only allow alphanumeric and underscores
+			if IsValidIdentifier(strings.ReplaceAll(orderBy, ".", "")) {
+				query += " ORDER BY " + strings.ReplaceAll(orderBy, ".", " ")
+			} else {
+				query += " ORDER BY created_at DESC"
+			}
+		} else {
+			query += " ORDER BY created_at DESC"
+		}
+
+		rows, err := tx.Query(ctx, query, queryArgs...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		results, err = rowsToMaps(rows)
+		return err
+	})
+
+	return results, err
+}
+
+// GetRecord fetches a single record, respecting RLS
+func (db *DB) GetRecord(ctx context.Context, collectionName, id string, ownerField, ownerID string) (map[string]any, error) {
+	var record map[string]any
+	err := db.WithTransactionAndRLS(ctx, func(tx pgx.Tx) error {
+		query := fmt.Sprintf("SELECT * FROM %s WHERE id = $1 AND deleted_at IS NULL", collectionName)
+		rows, err := tx.Query(ctx, query, id)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		records, err := rowsToMaps(rows)
+		if err != nil {
+			return err
+		}
+		if len(records) == 0 {
+			return fmt.Errorf("record not found")
+		}
+		record = records[0]
+		return nil
+	})
+	return record, err
+}
+
+// UpdateRecord updates a record, respecting RLS
+func (db *DB) UpdateRecord(ctx context.Context, collectionName, id string, data map[string]any, ownerField, ownerID string) error {
+	return db.WithTransactionAndRLS(ctx, func(tx pgx.Tx) error {
+		var updates []string
+		var values []any
+		i := 1
+
+		for col, val := range data {
+			if !IsValidIdentifier(col) {
+				continue
+			}
+			if col == "id" || col == "created_at" || col == "updated_at" {
+				continue
+			}
+			updates = append(updates, fmt.Sprintf("%s = $%d", col, i))
+			values = append(values, val)
+			i++
+		}
+
+		if len(updates) == 0 {
+			return nil
+		}
+
+		query := fmt.Sprintf("UPDATE %s SET %s, updated_at = NOW() WHERE id = $%d",
+			collectionName, strings.Join(updates, ", "), i)
+		values = append(values, id)
+
+		_, err := tx.Exec(ctx, query, values...)
+		return err
+	})
+}
+
+// DeleteRecord soft-deletes a record, respecting RLS
+func (db *DB) DeleteRecord(ctx context.Context, collectionName, id string, ownerField, ownerID string) error {
+	return db.WithTransactionAndRLS(ctx, func(tx pgx.Tx) error {
+		query := fmt.Sprintf("UPDATE %s SET deleted_at = NOW() WHERE id = $1", collectionName)
+		_, err := tx.Exec(ctx, query, id)
+		return err
+	})
+}
+
+func rowsToMaps(rows pgx.Rows) ([]map[string]any, error) {
+	fieldDescriptions := rows.FieldDescriptions()
+	var results []map[string]any
+
+	for rows.Next() {
+		values, err := rows.Values()
+		if err != nil {
+			return nil, err
+		}
+
+		record := make(map[string]any)
+		for i, fd := range fieldDescriptions {
+			record[string(fd.Name)] = values[i]
+		}
+		results = append(results, record)
+	}
+
+	return results, rows.Err()
+}
+
+// BulkInsertRecord inserts multiple records
+func (db *DB) BulkInsertRecord(ctx context.Context, collectionName string, records []map[string]any) error {
+	return db.WithTransactionAndRLS(ctx, func(tx pgx.Tx) error {
+		for _, data := range records {
+			var columns []string
+			var placeholders []string
+			var values []any
+			i := 1
+
+			for col, val := range data {
+				if !IsValidIdentifier(col) {
+					continue
+				}
+				if col == "id" || col == "created_at" || col == "updated_at" {
+					continue
+				}
+				columns = append(columns, col)
+				placeholders = append(placeholders, fmt.Sprintf("$%d", i))
+				values = append(values, val)
+				i++
+			}
+
+			if len(columns) == 0 {
+				continue
+			}
+			query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
+				collectionName, strings.Join(columns, ", "), strings.Join(placeholders, ", "))
+			_, err := tx.Exec(ctx, query, values...)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

@@ -19,6 +19,20 @@ type Config struct {
 	RateLimitRPS   float64
 	RateLimitBurst int
 	BodyLimit      string
+
+	// Storage
+	StorageProvider string
+	StoragePath     string
+	S3Endpoint      string
+	S3AccessKey     string
+	S3SecretKey     string
+	S3UseSSL        bool
+
+	// Realtime
+	RealtimeBroker string
+	RedisAddr      string
+	RedisPassword  string
+	RedisDB        int
 }
 
 func Load() (*Config, error) {
@@ -57,6 +71,8 @@ func Load() (*Config, error) {
 	rps, _ := strconv.ParseFloat(getEnv("RATE_LIMIT_RPS", "20"), 64)
 	burst, _ := strconv.Atoi(getEnv("RATE_LIMIT_BURST", "20"))
 
+	redisDB, _ := strconv.Atoi(getEnv("REDIS_DB", "0"))
+
 	cfg := &Config{
 		DatabaseURL:    dbURL,
 		Port:           getEnv("PORT", "8090"),
@@ -65,6 +81,20 @@ func Load() (*Config, error) {
 		RateLimitRPS:   rps,
 		RateLimitBurst: burst,
 		BodyLimit:      getEnv("BODY_LIMIT", "10M"),
+
+		// Storage
+		StorageProvider: getEnv("OZY_STORAGE_PROVIDER", "local"),
+		StoragePath:     getEnv("OZY_STORAGE_PATH", "./data/storage"),
+		S3Endpoint:      os.Getenv("S3_ENDPOINT"),
+		S3AccessKey:     os.Getenv("S3_ACCESS_KEY"),
+		S3SecretKey:     os.Getenv("S3_SECRET_KEY"),
+		S3UseSSL:        getEnv("S3_USE_SSL", "false") == "true",
+
+		// Realtime
+		RealtimeBroker: getEnv("OZY_REALTIME_BROKER", "local"),
+		RedisAddr:      os.Getenv("REDIS_ADDR"),
+		RedisPassword:  os.Getenv("REDIS_PASSWORD"),
+		RedisDB:        redisDB,
 	}
 
 	return cfg, nil

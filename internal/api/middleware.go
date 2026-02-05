@@ -57,7 +57,45 @@ func AuthMiddleware(jwtSecret string, optional bool) echo.MiddlewareFunc {
 			}
 
 			c.Set("user_id", claims["user_id"])
+			c.Set("email", claims["email"])
 			c.Set("role", claims["role"])
+
+			return next(c)
+		}
+	}
+}
+
+// RLSMiddleware injects user context into Postgres for the duration of the request
+func RLSMiddleware(db *data.DB) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			userID, _ := c.Get("user_id").(string)
+			if userID == "" {
+				return next(c)
+			}
+
+			email, _ := c.Get("email").(string)
+			role, _ := c.Get("role").(string)
+
+			// Inject RLS context into the database pool for this request
+			// Note: This uses SET LOCAL, so it only affects the current session/transaction within the DB pool connection.
+			// Since pgxpool connections are reused, we MUST ensure this is done per request.
+			// However, SET LOCAL only works within a transaction.
+			// If we are not in a transaction, we should use SET.
+			// Best practice with pgxpool is to use a transaction for RLS.
+
+			// Store the RLS context in the echo context so handlers can use it
+			// when they start their own transactions.
+			rlsCtx := data.RLSContext{
+				UserID:  userID,
+				Email:   email,
+				Roles:   []string{role},
+				IsAdmin: role == "admin",
+			}
+			c.Set("rls_ctx", rlsCtx)
+
+			// Also wrap the Request Context
+			c.SetRequest(c.Request().WithContext(data.NewContext(c.Request().Context(), rlsCtx)))
 
 			return next(c)
 		}

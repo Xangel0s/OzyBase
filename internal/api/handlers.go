@@ -14,6 +14,7 @@ import (
 	"github.com/Xangel0s/OzyBase/internal/data"
 	"github.com/Xangel0s/OzyBase/internal/mailer"
 	"github.com/Xangel0s/OzyBase/internal/realtime"
+	"github.com/Xangel0s/OzyBase/internal/storage"
 	"github.com/labstack/echo/v4"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
@@ -59,11 +60,13 @@ type Handler struct {
 	Geo          *core.GeoService
 	Mailer       mailer.Mailer
 	Integrations *realtime.WebhookIntegration
-	Auth         *core.AuthService // Added for direct token generation
+	Auth         *core.AuthService
+	Storage      storage.Provider
+	PubSub       realtime.PubSub
 }
 
 // NewHandler creates a new Handler with the given dependencies
-func NewHandler(db *data.DB, broker *realtime.Broker, webhooks *realtime.WebhookDispatcher, mailSvc mailer.Mailer) *Handler {
+func NewHandler(db *data.DB, broker *realtime.Broker, webhooks *realtime.WebhookDispatcher, mailSvc mailer.Mailer, storageSvc storage.Provider, ps realtime.PubSub) *Handler {
 	m := &Metrics{
 		DbHistory:       make([]int, 60),
 		AuthHistory:     make([]int, 60),
@@ -84,6 +87,8 @@ func NewHandler(db *data.DB, broker *realtime.Broker, webhooks *realtime.Webhook
 		Geo:          core.NewGeoService(db),
 		Mailer:       mailSvc,
 		Integrations: realtime.NewWebhookIntegration(db.Pool),
+		Storage:      storageSvc,
+		PubSub:       ps,
 	}
 }
 

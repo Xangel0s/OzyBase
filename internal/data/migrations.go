@@ -195,6 +195,36 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 			RETURN NEW;
 		END;
 		$$ LANGUAGE plpgsql;`,
+
+		// Identities (OAuth)
+		`CREATE TABLE IF NOT EXISTS _v_identities (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id UUID REFERENCES _v_users(id) ON DELETE CASCADE,
+			provider VARCHAR(50) NOT NULL,
+			provider_id TEXT NOT NULL,
+			identity_data JSONB,
+			last_signin_at TIMESTAMPTZ DEFAULT NOW(),
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			UNIQUE(provider, provider_id)
+		)`,
+
+		// Verification Tokens (Email)
+		`CREATE TABLE IF NOT EXISTS _v_verification_tokens (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id UUID REFERENCES _v_users(id) ON DELETE CASCADE,
+			token TEXT NOT NULL UNIQUE,
+			expires_at TIMESTAMPTZ NOT NULL,
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
+
+		// Password Reset Tokens
+		`CREATE TABLE IF NOT EXISTS _v_reset_tokens (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id UUID REFERENCES _v_users(id) ON DELETE CASCADE,
+			token TEXT NOT NULL UNIQUE,
+			expires_at TIMESTAMPTZ NOT NULL,
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
 	}
 
 	for i, migration := range migrations {
@@ -203,6 +233,6 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 		}
 	}
 
-	log.Println("Ô£à Migrations completed successfully")
+	log.Println("🛠️ Migrations completed successfully")
 	return nil
 }

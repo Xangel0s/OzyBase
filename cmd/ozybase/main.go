@@ -19,6 +19,7 @@ import (
 	"github.com/Xangel0s/OzyBase/internal/logger"
 	"github.com/Xangel0s/OzyBase/internal/mailer"
 	"github.com/Xangel0s/OzyBase/internal/realtime"
+	"github.com/Xangel0s/OzyBase/internal/storage"
 	"github.com/Xangel0s/OzyBase/internal/typegen"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -80,6 +81,24 @@ func run() error {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
+	// 🔐 Initialize OAuth
+	if err := core.InitOAuth(); err != nil {
+		logger.Log.Warn().Err(err).Msg("OAuth initialization failed")
+	}
+
+	// 📦 Initialize Storage
+	var storageSvc storage.Provider
+	if cfg.StorageProvider == "s3" {
+		storageSvc, err = storage.NewS3Provider(cfg.S3Endpoint, cfg.S3AccessKey, cfg.S3SecretKey, cfg.S3UseSSL)
+		if err != nil {
+			return fmt.Errorf("failed to initialize S3 storage: %w", err)
+		}
+		logger.Log.Info().Msg("📦 Using S3-Compatible Storage")
+	} else {
+		storageSvc = storage.NewLocalProvider(cfg.StoragePath)
+		logger.Log.Info().Str("path", cfg.StoragePath).Msg("📦 Using Local Storage")
+	}
+
 	// Auto-setup admin user
 	ozyauth.EnsureAdminUser(db)
 
@@ -88,9 +107,20 @@ func run() error {
 		return nil
 	}
 
-	// Initialize Realtime, Webhooks & Cron
+	// Initialize Realtime components
 	broker := realtime.NewBroker()
 	dispatcher := realtime.NewWebhookDispatcher(db.Pool)
+
+	// 🔄 Initialize PubSub (for horizontal scaling)
+	var ps realtime.PubSub
+	if cfg.RealtimeBroker == "redis" {
+		ps = realtime.NewRedisPubSub(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+		logger.Log.Info().Msg("🔄 Using Redis PubSub for Realtime")
+	} else {
+		ps = realtime.NewLocalPubSub(broker)
+		logger.Log.Info().Msg("🔄 Using Local PubSub")
+	}
+
 	cronMgr := realtime.NewCronManager(db.Pool)
 	cronMgr.Start()
 
@@ -101,12 +131,15 @@ func run() error {
 	mailSvc := mailer.NewLogMailer()
 
 	// Initialize Server Components
-	h := api.NewHandler(db, broker, dispatcher, mailSvc)
+	h := api.NewHandler(db, broker, dispatcher, mailSvc, storageSvc, ps)
 
 	// Start Log Export Worker
 	go h.StartLogExporter(context.Background())
 
 	e := setupEcho(h, cfg, cronMgr)
+
+	// 📊 Register Prometheus
+	api.RegisterPrometheus(e)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Port)
@@ -207,6 +240,8 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 	)))
 	e.Use(api.SecurityHeadersDefault())
 	e.Use(middleware.BodyLimit(cfg.BodyLimit))
+	e.Use(api.PrometheusMiddleware()) // 📊 Stats
+	e.Use(api.RLSMiddleware(h.DB))    // 🛡️ RLS Context Injection
 	e.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
 		TokenLookup: "header:X-CSRF-Token",
 		ContextKey:  "csrf",

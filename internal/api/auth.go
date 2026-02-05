@@ -7,6 +7,7 @@ import (
 
 	"github.com/Xangel0s/OzyBase/internal/core"
 	"github.com/labstack/echo/v4"
+	"github.com/markbates/goth/gothic"
 )
 
 type AuthService interface {
@@ -146,4 +147,49 @@ func (h *AuthHandler) UpdateRole(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "user role updated successfully"})
+}
+
+func (h *AuthHandler) GetOAuthURL(c echo.Context) error {
+	provider := c.Param("provider")
+	if provider == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "provider is required"})
+	}
+
+	// Update context with provider for goth/gothic
+	req := c.Request()
+	q := req.URL.Query()
+	q.Set("provider", provider)
+	req.URL.RawQuery = q.Encode()
+
+	gothic.BeginAuthHandler(c.Response(), req)
+	return nil
+}
+
+func (h *AuthHandler) OAuthCallback(c echo.Context) error {
+	provider := c.Param("provider")
+
+	// Update context with provider
+	req := c.Request()
+	q := req.URL.Query()
+	q.Set("provider", provider)
+	req.URL.RawQuery = q.Encode()
+
+	user, err := gothic.CompleteUserAuth(c.Response(), req)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
+	}
+
+	token, dbUser, err := h.authService.HandleOAuthLogin(c.Request().Context(), provider, user.UserID, user.Email, map[string]any{
+		"name":       user.Name,
+		"avatar_url": user.AvatarURL,
+	})
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"token": token,
+		"user":  dbUser,
+	})
 }
