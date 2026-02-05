@@ -1,3 +1,4 @@
+// Package core implements the central business logic of OzyBase.
 package core
 
 import (
