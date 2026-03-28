@@ -2,6 +2,7 @@ import React, { useState, useEffect, lazy, Suspense, useCallback } from 'react'
 import Layout from './components/Layout'
 import Login from './components/Login'
 import { fetchWithAuth } from './utils/api'
+import { getViewMeta } from './viewRegistry'
 
 // Dynamic imports for bundle optimization (bundle-dynamic-imports)
 const TableEditor = lazy(() => import('./components/TableEditor'));
@@ -24,6 +25,9 @@ const PermissionManager = lazy(() => import('./components/PermissionManager'));
 const NotificationSettings = lazy(() => import('./components/NotificationSettings'));
 const TwoFactorAuth = lazy(() => import('./components/TwoFactorAuth'));
 const IntegrationsManager = lazy(() => import('./components/IntegrationsManager'));
+const AuthProvidersView = lazy(() => import('./components/AuthProvidersView'));
+const EmailTemplatesView = lazy(() => import('./components/EmailTemplatesView'));
+const AuthSettingsView = lazy(() => import('./components/AuthSettingsView'));
 const SetupWizard = lazy(() => import('./components/SetupWizard'));
 const FirewallManager = lazy(() => import('./components/FirewallManager'));
 const WorkspaceManager = lazy(() => import('./components/WorkspaceManager'));
@@ -104,89 +108,64 @@ function App() {
     }
 
     const renderView = () => {
-        switch (selectedView) {
-            case 'table': return <TableEditor tableName={selectedTable} onTableSelect={handleTableSelect} allTables={tables} />;
-            case 'tables': return <TableEditor tableName={null} onTableSelect={handleTableSelect} allTables={tables} />;
-            case 'visualizer': return <SchemaVisualizer viewMode={selectedTable === '__visualizer_system__' ? 'system' : 'user'} />;
-            case 'overview': return <Overview onTableSelect={handleTableSelect} onViewSelect={setSelectedView} />;
-            case 'sql': return <SqlTerminal />;
-            case 'auth':
-            case 'users':
-            case 'providers':
-            case 'two_factor':
-            case 'templates':
-                return <AuthManager view={selectedView === 'auth' ? 'users' : selectedView} />;
-            case 'storage':
-            case 'buckets':
-            case 'storage_policies':
-            case 'usage':
-            case 'storage_settings':
-                {
-                    const view = selectedView === 'storage' ? 'buckets' : (selectedView === 'storage_policies' ? 'policies' : (selectedView === 'storage_settings' ? 'settings' : selectedView));
-                    return <StorageManager view={view} />;
-                }
-            case 'edge':
-            case 'functions':
-            case 'deployments':
-            case 'secrets':
-            case 'edge_logs':
-                {
-                    const view = selectedView === 'edge' ? 'functions' : (selectedView === 'edge_logs' ? 'logs' : selectedView);
-                    return <EdgeFunctions view={view} />;
-                }
-            case 'realtime':
-            case 'inspector':
-            case 'channels':
-            case 'config':
-                return <RealtimeInspector view={selectedView === 'realtime' ? 'inspector' : selectedView} />;
-            case 'advisors': return <Advisors />;
-            case 'observability': return <Observability onViewSelect={setSelectedView} />;
-            case 'logs':
-            case 'explorer':
-            case 'live':
-            case 'alerts':
-            case 'metrics':
-                return <LogsAnalytics view={selectedView === 'logs' ? 'explorer' : selectedView} />;
-            case 'policies': return <PermissionManager />;
-            case 'security': return <SecurityDashboard />;
-            case 'security_policies': return <SecurityManager />;
-            case 'firewall': return <FirewallManager />;
-            case 'security_notifications': return <NotificationSettings />;
-            case 'auth_settings': return <Settings />;
-            case 'settings':
-            case 'general':
-            case 'infrastructure':
-            case 'billing':
-            case 'api_keys':
-                return <Settings view={selectedView === 'settings' ? 'general' : selectedView} />;
-            case 'docs':
-            case 'intro':
-            case 'auth_api':
-            case 'db_api':
-            case 'storage_api':
-            case 'realtime_api':
-            case 'edge_api':
-            case 'sdk':
-                return <ApiDocs page={selectedView === 'docs' ? 'intro' : selectedView} />;
-            case 'integrations':
-            case 'wrappers':
-            case 'webhooks':
-            case 'cron':
-            case 'extensions':
-            case 'vault':
-            case 'graphql':
-                return <Integrations page={selectedView === 'integrations' ? 'wrappers' : selectedView} />;
-            case 'workspaces':
-            case 'wm_overview':
-            case 'wm_shared':
-            case 'wm_templates':
-                return <WorkspaceManager onWorkspaceChange={(id) => setWorkspaceId(id)} onViewSelect={setSelectedView} view={selectedView.startsWith('wm_') ? selectedView : 'wm_overview'} />;
-            case 'workspace_settings':
-            case 'ws_general':
-            case 'ws_members':
-            case 'ws_danger':
-                return <WorkspaceSettings workspaceId={workspaceId} view={selectedView.startsWith('ws_') ? selectedView : 'ws_general'} />;
-            default: return <Overview onTableSelect={handleTableSelect} />;
+        const viewMeta = getViewMeta(selectedView);
+        const props = viewMeta.props || {};
+
+        switch (viewMeta.component) {
+            case 'TableEditor':
+                return <TableEditor tableName={selectedView === 'table' ? selectedTable : null} onTableSelect={handleTableSelect} allTables={tables} />;
+            case 'SchemaVisualizer':
+                return <SchemaVisualizer viewMode={selectedTable === '__visualizer_system__' ? 'system' : 'user'} />;
+            case 'Overview':
+                return <Overview onTableSelect={handleTableSelect} onViewSelect={setSelectedView} />;
+            case 'SqlTerminal':
+                return <SqlTerminal />;
+            case 'AuthManager':
+                return <AuthManager view={props.view} onViewSelect={setSelectedView} />;
+            case 'AuthProvidersView':
+                return <AuthProvidersView />;
+            case 'TwoFactorAuth':
+                return <TwoFactorAuth />;
+            case 'EmailTemplatesView':
+                return <EmailTemplatesView />;
+            case 'AuthSettingsView':
+                return <AuthSettingsView />;
+            case 'StorageManager':
+                return <StorageManager view={props.view} />;
+            case 'EdgeFunctions':
+                return <EdgeFunctions view={props.view} />;
+            case 'RealtimeInspector':
+                return <RealtimeInspector view={props.view} />;
+            case 'Advisors':
+                return <Advisors />;
+            case 'Observability':
+                return <Observability onViewSelect={setSelectedView} />;
+            case 'LogsAnalytics':
+                return <LogsAnalytics view={props.view} />;
+            case 'PermissionManager':
+                return <PermissionManager />;
+            case 'SecurityDashboard':
+                return <SecurityDashboard />;
+            case 'SecurityManager':
+                return <SecurityManager />;
+            case 'FirewallManager':
+                return <FirewallManager />;
+            case 'NotificationSettings':
+                return <NotificationSettings />;
+            case 'Settings':
+                return <Settings view={props.view} onViewSelect={setSelectedView} />;
+            case 'ApiDocs':
+                return <ApiDocs page={props.page} />;
+            case 'Integrations':
+                return <Integrations page={props.page} />;
+            case 'IntegrationsManager':
+                return <IntegrationsManager />;
+            case 'WorkspaceManager':
+                return <WorkspaceManager onWorkspaceChange={(id) => setWorkspaceId(id)} onViewSelect={setSelectedView} view={props.view} />;
+            case 'WorkspaceSettings':
+                return <WorkspaceSettings workspaceId={workspaceId} onViewSelect={setSelectedView} onWorkspaceChange={(id) => setWorkspaceId(id)} view={props.view} />;
+            default:
+                return <Overview onTableSelect={handleTableSelect} onViewSelect={setSelectedView} />;
         }
     };
 
@@ -194,6 +173,7 @@ function App() {
         <Layout
             selectedView={selectedView}
             selectedTable={selectedTable}
+            workspaceId={workspaceId}
             onTableSelect={handleTableSelect}
             tables={tables}
             refreshTables={loadTables}

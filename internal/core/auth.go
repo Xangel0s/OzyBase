@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/Xangel0s/OzyBase/internal/data"
@@ -33,6 +35,14 @@ func NewAuthService(db *data.DB, jwtSecret string, mailer mailer.Mailer) *AuthSe
 
 func (s *AuthService) DB() *data.DB {
 	return s.db
+}
+
+func appSiteURL() string {
+	siteURL := os.Getenv("SITE_URL")
+	if siteURL == "" {
+		siteURL = "http://localhost:5342"
+	}
+	return strings.TrimRight(siteURL, "/")
 }
 
 // Signup handles user registration
@@ -66,7 +76,11 @@ func (s *AuthService) Signup(ctx context.Context, email, password string) (*User
 		`, user.ID, token, expiresAt)
 
 		// Send email (async ideally, but simple for now)
-		_ = s.mailer.SendVerificationEmail(user.Email, token)
+		_ = mailer.SendTemplateEmail(ctx, s.db, s.mailer, "verification", user.Email, map[string]string{
+			"app_name":    "OzyBase",
+			"action_link": appSiteURL() + "/verify-email?token=" + token,
+			"token":       token,
+		})
 	}
 
 	return &user, nil
@@ -125,7 +139,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*AuthL
 	}, nil
 }
 
-func (s *AuthService) generateToken(userID, role string) (string, error) {
+func (s *AuthService) generateToken(userID, role, email string) (string, error) {
 	// Generate a unique ID for this token to prevent collisions if generated in same second
 	b := make([]byte, 16)
 	rand.Read(b)
@@ -133,6 +147,7 @@ func (s *AuthService) generateToken(userID, role string) (string, error) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID,
+		"email":   email,
 		"role":    role,
 		"exp":     time.Now().Add(time.Hour * 72).Unix(),
 		"jti":     jti,
@@ -143,7 +158,12 @@ func (s *AuthService) generateToken(userID, role string) (string, error) {
 
 // GenerateTokenForUser exposes internal token generation logic and creates a session
 func (s *AuthService) GenerateTokenForUser(ctx context.Context, userID, role, ip, ua string, isMFA bool) (string, error) {
-	tokenString, err := s.generateToken(userID, role)
+	var email string
+	if err := s.db.Pool.QueryRow(ctx, "SELECT email FROM _v_users WHERE id = $1", userID).Scan(&email); err != nil {
+		return "", fmt.Errorf("failed to resolve user email: %w", err)
+	}
+
+	tokenString, err := s.generateToken(userID, role, email)
 	if err != nil {
 		return "", err
 	}
@@ -196,8 +216,15 @@ func (s *AuthService) RequestPasswordReset(ctx context.Context, email string) (s
 		return "", fmt.Errorf("failed to save reset token: %w", err)
 	}
 
-	// In a real app, you would send an email here.
-	_ = s.mailer.SendPasswordResetEmail(email, token)
+	// Send email notification (log error but don't fail the request)
+	if err := mailer.SendTemplateEmail(ctx, s.db, s.mailer, "password_reset", email, map[string]string{
+		"app_name":    "OzyBase",
+		"action_link": appSiteURL() + "/reset-password?token=" + token,
+		"token":       token,
+	}); err != nil {
+		// Log the error but don't expose it to the user
+		fmt.Fprintf(os.Stderr, "⚠️ [Auth] Failed to send reset email to %s: %v\n", email, err)
+	}
 
 	return token, nil
 }

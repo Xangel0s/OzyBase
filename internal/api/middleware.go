@@ -12,12 +12,13 @@ import (
 	"time"
 
 	"github.com/Xangel0s/OzyBase/internal/data"
+	mailerpkg "github.com/Xangel0s/OzyBase/internal/mailer"
 	"github.com/Xangel0s/OzyBase/internal/realtime"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 )
 
-func AuthMiddleware(jwtSecret string, optional bool) echo.MiddlewareFunc {
+func AuthMiddleware(db *data.DB, jwtSecret string, optional bool) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			authHeader := c.Request().Header.Get("Authorization")
@@ -59,10 +60,51 @@ func AuthMiddleware(jwtSecret string, optional bool) echo.MiddlewareFunc {
 				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token claims"})
 			}
 
-			c.Set("user_id", claims["user_id"])
-			c.Set("email", claims["email"])
-			c.Set("role", claims["role"])
+			userID, _ := claims["user_id"].(string)
+			if userID == "" {
+				if optional {
+					return next(c)
+				}
+				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token user"})
+			}
 
+			tokenHashBytes := sha256.Sum256([]byte(tokenString))
+			tokenHash := hex.EncodeToString(tokenHashBytes[:])
+
+			var sessionUserID string
+			var email string
+			var role string
+			err = db.Pool.QueryRow(c.Request().Context(), `
+				SELECT s.user_id, u.email, u.role
+				FROM _v_sessions s
+				JOIN _v_users u ON u.id = s.user_id
+				WHERE s.token_hash = $1
+				  AND s.expires_at > NOW()
+				LIMIT 1
+			`, tokenHash).Scan(&sessionUserID, &email, &role)
+			if err != nil || sessionUserID != userID {
+				if optional {
+					return next(c)
+				}
+				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "session is no longer valid"})
+			}
+
+			c.Set("user_id", sessionUserID)
+			c.Set("email", email)
+			c.Set("role", role)
+
+			return next(c)
+		}
+	}
+}
+
+func RequireAdmin() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			role, _ := c.Get("role").(string)
+			if role != "admin" && role != "service_role" {
+				return c.JSON(http.StatusForbidden, map[string]string{"error": "admin access required"})
+			}
 			return next(c)
 		}
 	}
@@ -372,7 +414,11 @@ func MetricsMiddleware(h *Handler) echo.MiddlewareFunc {
 						for rows.Next() {
 							var email string
 							if err := rows.Scan(&email); err == nil {
-								_ = h.Mailer.SendSecurityAlert(email, "Geographic Access Breach", alertDetails)
+								_ = mailerpkg.SendTemplateEmail(context.Background(), h.DB, h.Mailer, "security_alert", email, map[string]string{
+									"app_name":   "OzyBase",
+									"alert_type": "Geographic Access Breach",
+									"details":    alertDetails,
+								})
 							}
 						}
 					}()

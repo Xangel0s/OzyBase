@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
 
-const WorkspaceSwitcher = ({ onWorkspaceChange, onViewSelect, isExpanded }) => {
+const WorkspaceSwitcher = ({ workspaceId, onWorkspaceChange, onViewSelect, isExpanded }) => {
     const [workspaces, setWorkspaces] = useState([]);
     const [activeWorkspace, setActiveWorkspace] = useState(null);
     const [isOpen, setIsOpen] = useState(false);
@@ -60,6 +60,10 @@ const WorkspaceSwitcher = ({ onWorkspaceChange, onViewSelect, isExpanded }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [fetchWorkspaces]);
 
+    useEffect(() => {
+        fetchWorkspaces();
+    }, [workspaceId, fetchWorkspaces]);
+
     const handleSelect = (workspace) => {
         setActiveWorkspace(workspace);
         localStorage.setItem('ozy_workspace_id', workspace.id);
@@ -90,7 +94,12 @@ const WorkspaceSwitcher = ({ onWorkspaceChange, onViewSelect, isExpanded }) => {
     return (
         <div className={`relative w-full transition-all duration-300 ${isExpanded ? 'px-4 mb-6' : 'px-1 mb-4'}`} ref={dropdownRef}>
             <div 
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => {
+                    if (!isOpen) {
+                        fetchWorkspaces();
+                    }
+                    setIsOpen(!isOpen);
+                }}
                 className={`group relative flex items-center transition-all cursor-pointer select-none ${
                     isExpanded 
                     ? `gap-4 p-3 rounded-2xl bg-[#0a0a0a] border hover:border-primary/30 hover:bg-[#111111] ${isOpen ? 'ring-2 ring-primary/20 border-primary/50 bg-[#111111]' : 'border-[#2e2e2e]'}`

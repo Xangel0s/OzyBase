@@ -36,6 +36,10 @@ func (h *Handler) ListSecrets(c echo.Context) error {
 		secrets = append(secrets, s)
 	}
 
+	if secrets == nil {
+		secrets = []Secret{}
+	}
+
 	return c.JSON(http.StatusOK, secrets)
 }
 

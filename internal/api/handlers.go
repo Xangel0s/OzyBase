@@ -8,11 +8,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"runtime"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/Xangel0s/OzyBase/internal/config"
 	"github.com/Xangel0s/OzyBase/internal/core"
 	"github.com/Xangel0s/OzyBase/internal/data"
 	"github.com/Xangel0s/OzyBase/internal/mailer"
@@ -65,11 +67,15 @@ type Handler struct {
 	Integrations *realtime.WebhookIntegration
 	Auth         *core.AuthService
 	Audit        *core.AuditService
+	Config       *config.Config
 	Storage      storage.Provider
 	PubSub       realtime.PubSub
 	Migrations   *migrations.Generator
 	Applier      *migrations.Applier
 	StartTime    time.Time
+	shutdownCtx  context.Context
+	shutdownFunc context.CancelFunc
+	wg           sync.WaitGroup
 }
 
 // NewHandler creates a new Handler with the given dependencies
@@ -82,8 +88,10 @@ func NewHandler(db *data.DB, broker *realtime.Broker, webhooks *realtime.Webhook
 		CpuHistory:      make([]float64, 60),
 		RamHistory:      make([]float64, 60),
 	}
-	// Start background workers
-	go m.rotateHistory(db)
+
+	// Create shutdown context for graceful termination
+	shutdownCtx, shutdownFunc := context.WithCancel(context.Background())
+
 	h := &Handler{
 		DB:           db,
 		Metrics:      m,
@@ -98,52 +106,88 @@ func NewHandler(db *data.DB, broker *realtime.Broker, webhooks *realtime.Webhook
 		Migrations:   migrator,
 		Applier:      applier,
 		StartTime:    time.Now(),
+		shutdownCtx:  shutdownCtx,
+		shutdownFunc: shutdownFunc,
 	}
-	go h.StartLogCleaner(context.Background())
+
+	// Start background workers with context
+	h.wg.Add(2)
+	go m.rotateHistory(shutdownCtx, db, &h.wg)
+	go h.StartLogCleaner(shutdownCtx)
 
 	return h
 }
 
-func (m *Metrics) rotateHistory(db *data.DB) {
+// Shutdown gracefully stops all background workers
+func (h *Handler) Shutdown() {
+	fmt.Println("🛑 [Handler] Shutting down background workers...")
+	h.shutdownFunc()
+	h.wg.Wait()
+	fmt.Println("✅ [Handler] All workers stopped")
+}
+
+func (m *Metrics) rotateHistory(ctx context.Context, db *data.DB, wg *sync.WaitGroup) {
+	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)
-	for range ticker.C {
-		m.Lock()
-		// Rotate all histories
-		copy(m.DbHistory, m.DbHistory[1:])
-		m.DbHistory[59] = m.DbRequests
-		m.DbRequests = 0
+	defer ticker.Stop()
 
-		copy(m.AuthHistory, m.AuthHistory[1:])
-		m.AuthHistory[59] = m.AuthRequests
-		m.AuthRequests = 0
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Println("✅ [Metrics] Rotation worker stopped")
+			return
+		case <-ticker.C:
+			// Query DB outside of lock to prevent blocking
+			var active int
+			queryCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			err := db.Pool.QueryRow(queryCtx, "SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active'").Scan(&active)
+			cancel()
 
-		copy(m.StorageHistory, m.StorageHistory[1:])
-		m.StorageHistory[59] = m.StorageRequests
-		m.StorageRequests = 0
+			// Get system stats outside of lock
+			var cpuPercent float64
+			var ramPercent float64
+			if cpuPercentages, err := cpu.Percent(0, false); err == nil && len(cpuPercentages) > 0 {
+				cpuPercent = cpuPercentages[0]
+			}
+			if v, err := mem.VirtualMemory(); err == nil {
+				ramPercent = v.UsedPercent
+			}
 
-		copy(m.RealtimeHistory, m.RealtimeHistory[1:])
-		var active int
-		if err := db.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active'").Scan(&active); err == nil {
-			m.RealtimeHistory[59] = active
+			// Now lock and update quickly
+			m.Lock()
+			// Rotate all histories
+			copy(m.DbHistory, m.DbHistory[1:])
+			m.DbHistory[59] = m.DbRequests
+			m.DbRequests = 0
+
+			copy(m.AuthHistory, m.AuthHistory[1:])
+			m.AuthHistory[59] = m.AuthRequests
+			m.AuthRequests = 0
+
+			copy(m.StorageHistory, m.StorageHistory[1:])
+			m.StorageHistory[59] = m.StorageRequests
+			m.StorageRequests = 0
+
+			copy(m.RealtimeHistory, m.RealtimeHistory[1:])
+			if err == nil {
+				m.RealtimeHistory[59] = active
+			}
+
+			// System Stats
+			copy(m.CpuHistory, m.CpuHistory[1:])
+			m.CpuHistory[59] = cpuPercent
+
+			copy(m.RamHistory, m.RamHistory[1:])
+			m.RamHistory[59] = ramPercent
+
+			m.Unlock()
 		}
-
-		// System Stats
-		copy(m.CpuHistory, m.CpuHistory[1:])
-		if cpuPercentages, err := cpu.Percent(0, false); err == nil && len(cpuPercentages) > 0 {
-			m.CpuHistory[59] = cpuPercentages[0]
-		}
-
-		copy(m.RamHistory, m.RamHistory[1:])
-		if v, err := mem.VirtualMemory(); err == nil {
-			m.RamHistory[59] = v.UsedPercent
-		}
-
-		m.Unlock()
 	}
 }
 
 // StartLogCleaner removes logs older than 30 days every 24 hours
 func (h *Handler) StartLogCleaner(ctx context.Context) {
+	defer h.wg.Done()
 	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()
 
@@ -153,6 +197,7 @@ func (h *Handler) StartLogCleaner(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			fmt.Println("✅ [LogCleaner] Worker stopped")
 			return
 		case <-ticker.C:
 			h.cleanOldLogs(ctx)
@@ -161,10 +206,14 @@ func (h *Handler) StartLogCleaner(ctx context.Context) {
 }
 
 func (h *Handler) cleanOldLogs(ctx context.Context) {
-	// 30 days retention
-	res, err := h.DB.Pool.Exec(ctx, "DELETE FROM _v_audit_logs WHERE created_at < NOW() - INTERVAL '30 days'")
+	// 30 days retention with timeout
+	cleanCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	res, err := h.DB.Pool.Exec(cleanCtx, "DELETE FROM _v_audit_logs WHERE created_at < NOW() - INTERVAL '30 days'")
 	if err != nil {
-		fmt.Printf("⚠️ [Log Cleaner] Failed to purge old logs: %v\n", err)
+		// Log error instead of silencing it
+		fmt.Fprintf(os.Stderr, "⚠️ [Log Cleaner] Failed to purge old logs: %v\n", err)
 		return
 	}
 	count := res.RowsAffected()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/mail"
+	"os"
 
 	"github.com/Xangel0s/OzyBase/internal/core"
 	"github.com/labstack/echo/v4"
@@ -100,12 +101,17 @@ func (h *AuthHandler) RequestReset(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
-	// In development, we return the token in the response for easy testing.
-	// In production, this would be empty or a generic "Email sent" message.
-	return c.JSON(http.StatusOK, map[string]any{
+	response := map[string]any{
 		"message": "If the email exists, a reset token has been generated",
-		"token":   token, // TODO: Remove in true production
-	})
+	}
+
+	// Only expose token in development mode for testing
+	if os.Getenv("DEBUG") == "true" {
+		response["token"] = token
+		response["dev_warning"] = "Token exposed for development only - remove DEBUG=true in production"
+	}
+
+	return c.JSON(http.StatusOK, response)
 }
 
 func (h *AuthHandler) ConfirmReset(c echo.Context) error {

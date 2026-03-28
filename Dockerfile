@@ -7,7 +7,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # --- Stage 2: Build Backend (Go) ---
-FROM golang:1.23-alpine AS backend-builder
+FROM golang:1.24-alpine AS backend-builder
 RUN apk add --no-cache git
 WORKDIR /app
 
@@ -25,7 +25,9 @@ COPY --from=frontend-builder /app/frontend/dist/ internal/api/frontend_dist/
 
 # Build the OzyBase binary
 # CGO_ENABLED=0 ensures a static binary for portability
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o ozybase ./cmd/OzyBase
+ARG VERSION=dev
+ARG COMMIT=unknown
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w -X github.com/Xangel0s/OzyBase/internal/buildinfo.Version=${VERSION} -X github.com/Xangel0s/OzyBase/internal/buildinfo.Commit=${COMMIT}" -o ozybase ./cmd/ozybase
 
 # --- Stage 3: Final Production Image ---
 FROM alpine:latest

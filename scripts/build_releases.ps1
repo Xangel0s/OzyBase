@@ -3,6 +3,7 @@
 
 $VERSION = "1.1.0"
 $DIST_DIR = "./dist"
+$COMMIT = (git rev-parse --short HEAD).Trim()
 
 # Ensure dist directory exists
 if (!(Test-Path $DIST_DIR)) {
@@ -31,7 +32,7 @@ function Build-Ozy($os, $arch, $suffix) {
     Write-Host "🚀 Building for $os/$arch..." -ForegroundColor Green
     $env:GOOS = $os
     $env:GOARCH = $arch
-    go build -ldflags="-s -w" -o $output ./cmd/ozybase
+    go build -ldflags="-s -w -X github.com/Xangel0s/OzyBase/internal/buildinfo.Version=$VERSION -X github.com/Xangel0s/OzyBase/internal/buildinfo.Commit=$COMMIT" -o $output ./cmd/ozybase
 }
 
 # Windows x64

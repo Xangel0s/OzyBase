@@ -86,7 +86,7 @@ func (db *DB) ListTables(ctx context.Context) ([]string, error) {
 }
 
 // HasColumn checks if a specific table has a specific column
-func (db *DB) HasColumn(ctx context.Context, tableName, columnName string) bool {
+func (db *DB) HasColumn(ctx context.Context, tableName, columnName string) (bool, error) {
 	var exists bool
 	err := db.Pool.QueryRow(ctx, `
 		SELECT EXISTS (
@@ -96,9 +96,9 @@ func (db *DB) HasColumn(ctx context.Context, tableName, columnName string) bool 
 		)
 	`, tableName, columnName).Scan(&exists)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("failed to check column existence for %s.%s: %w", tableName, columnName, err)
 	}
-	return exists
+	return exists, nil
 }
 
 // GetTableColumns returns a map of column names for a specific table

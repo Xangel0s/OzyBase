@@ -159,13 +159,25 @@ func (db *DB) GetRecord(ctx context.Context, collectionName, id string, ownerFie
 		queryArgs = append(queryArgs, id)
 		argIdx := 2
 
-		if db.HasColumn(ctx, collectionName, "deleted_at") {
+		// Check for soft delete column
+		hasDeletedAt, err := db.HasColumn(ctx, collectionName, "deleted_at")
+		if err != nil {
+			return fmt.Errorf("failed to check deleted_at column: %w", err)
+		}
+		if hasDeletedAt {
 			where += " AND deleted_at IS NULL"
 		}
 
-		if ownerField != "" && ownerID != "" && db.HasColumn(ctx, collectionName, ownerField) {
-			where += fmt.Sprintf(" AND %s = $%d", ownerField, argIdx)
-			queryArgs = append(queryArgs, ownerID)
+		// Check for owner field
+		if ownerField != "" && ownerID != "" {
+			hasOwnerField, err := db.HasColumn(ctx, collectionName, ownerField)
+			if err != nil {
+				return fmt.Errorf("failed to check owner field: %w", err)
+			}
+			if hasOwnerField {
+				where += fmt.Sprintf(" AND %s = $%d", ownerField, argIdx)
+				queryArgs = append(queryArgs, ownerID)
+			}
 		}
 
 		query := fmt.Sprintf("SELECT * FROM %s WHERE %s", collectionName, where)

@@ -17,6 +17,13 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
     const [searchQuery, setSearchQuery] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newWorkspaceName, setNewWorkspaceName] = useState('');
+    const [creatingTemplate, setCreatingTemplate] = useState('');
+
+    const templates = [
+        { id: 'saas_starter', name: 'SaaS Starter', description: 'Auth, storage and API key defaults.' },
+        { id: 'ecommerce', name: 'E-commerce', description: 'Catalog, orders and payment-focused metadata.' },
+        { id: 'internal_tool', name: 'Internal Tool', description: 'Admin-heavy workspace starter.' }
+    ];
 
     const fetchWorkspaces = async () => {
         try {
@@ -51,6 +58,32 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
             }
         } catch (err) {
             console.error("Failed to create workspace", err);
+        }
+    };
+
+    const handleUseTemplate = async (template) => {
+        setCreatingTemplate(template.id);
+        try {
+            const res = await fetchWithAuth('/api/workspaces', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: `${template.name} Workspace`,
+                    config: {
+                        template: template.id,
+                        template_name: template.name
+                    }
+                })
+            });
+            if (res.ok) {
+                const workspace = await res.json();
+                await fetchWorkspaces();
+                handleSelect(workspace);
+            }
+        } catch (err) {
+            console.error("Failed to create workspace from template", err);
+        } finally {
+            setCreatingTemplate('');
         }
     };
 
@@ -212,14 +245,19 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
 
             {view === 'wm_templates' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-500">
-                    {['SaaS Starter', 'E-commerce', 'Internal Tool'].map((template, i) => (
-                        <div key={i} className="group bg-[#0a0a0a] border border-[#2e2e2e] rounded-3xl p-6 hover:border-primary/50 transition-all cursor-pointer">
+                    {templates.map((template) => (
+                        <div key={template.id} className="group bg-[#0a0a0a] border border-[#2e2e2e] rounded-3xl p-6 hover:border-primary/50 transition-all">
                             <div className="h-32 bg-zinc-900 rounded-2xl mb-6 flex items-center justify-center">
-                                <span className="text-4xl font-black text-zinc-800 group-hover:text-zinc-700 transition-colors">{template.charAt(0)}</span>
+                                <span className="text-4xl font-black text-zinc-800 group-hover:text-zinc-700 transition-colors">{template.name.charAt(0)}</span>
                             </div>
-                            <h3 className="text-lg font-black text-white uppercase tracking-tight mb-2">{template}</h3>
-                            <button className="w-full py-3 bg-[#1a1a1a] text-zinc-400 font-black uppercase text-xs tracking-widest rounded-xl group-hover:bg-primary group-hover:text-black transition-all">
-                                Use Template
+                            <h3 className="text-lg font-black text-white uppercase tracking-tight mb-2">{template.name}</h3>
+                            <p className="text-xs text-zinc-500 mb-5 min-h-[40px]">{template.description}</p>
+                            <button
+                                onClick={() => handleUseTemplate(template)}
+                                disabled={creatingTemplate === template.id}
+                                className="w-full py-3 bg-[#1a1a1a] text-zinc-400 font-black uppercase text-xs tracking-widest rounded-xl group-hover:bg-primary group-hover:text-black transition-all disabled:opacity-50"
+                            >
+                                {creatingTemplate === template.id ? 'Creating...' : 'Use Template'}
                             </button>
                         </div>
                     ))}

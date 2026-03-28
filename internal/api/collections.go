@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/Xangel0s/OzyBase/internal/data"
+	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
 )
 
@@ -505,10 +507,7 @@ func (h *Handler) GetVisualizeSchema(c echo.Context) error {
 // ProjectInfo represents the project information response
 type ProjectInfo struct {
 	Name             string      `json:"name"`
-	Host             string      `json:"host"`
-	Port             string      `json:"port"`
 	Database         string      `json:"database"`
-	User             string      `json:"user"`
 	TableCount       int         `json:"table_count"`
 	UserTableCount   int         `json:"user_table_count"`
 	SystemTableCount int         `json:"system_table_count"`
@@ -676,9 +675,6 @@ func (h *Handler) GetProjectInfo(c echo.Context) error {
 
 	// Connection info
 	info.Name = info.Database
-	info.Host = "localhost"
-	info.Port = "5432"
-	info.User = "postgres"
 
 	return c.JSON(http.StatusOK, info)
 }
@@ -847,6 +843,133 @@ type FixHealthRequest struct {
 	Issue string `json:"issue"`
 }
 
+func extractHealthIssueTableName(issue string) string {
+	parts := strings.Split(issue, "`")
+	for i := 1; i < len(parts); i += 2 {
+		candidate := strings.TrimSpace(parts[i])
+		if data.IsValidIdentifier(candidate) {
+			return candidate
+		}
+	}
+
+	match := regexp.MustCompile(`(?i)table\s+([a-zA-Z_][a-zA-Z0-9_]*)`).FindStringSubmatch(issue)
+	if len(match) == 2 && data.IsValidIdentifier(match[1]) {
+		return match[1]
+	}
+
+	return ""
+}
+
+func extractMissingRLSPermissions(issue string) []string {
+	defaultPermissions := []string{"select", "insert", "update", "delete"}
+	issueLower := strings.ToLower(issue)
+	forIdx := strings.Index(issueLower, "for:")
+	if forIdx == -1 {
+		return defaultPermissions
+	}
+
+	permissionSegment := issueLower[forIdx+len("for:"):]
+	fields := strings.FieldsFunc(permissionSegment, func(r rune) bool {
+		switch r {
+		case ',', ' ', '\t', '\n', '\r', '.', ';', ':':
+			return true
+		default:
+			return false
+		}
+	})
+
+	found := make(map[string]bool, len(defaultPermissions))
+	for _, field := range fields {
+		permission := strings.Trim(field, "`'\"")
+		switch permission {
+		case "select", "insert", "update", "delete":
+			found[permission] = true
+		}
+	}
+
+	permissions := make([]string, 0, len(defaultPermissions))
+	for _, permission := range defaultPermissions {
+		if found[permission] {
+			permissions = append(permissions, permission)
+		}
+	}
+
+	if len(permissions) == 0 {
+		return defaultPermissions
+	}
+
+	return permissions
+}
+
+func inferSafeRLSRule(ctx context.Context, tx pgx.Tx, tableName string) (string, error) {
+	rows, err := tx.Query(ctx, `
+		SELECT column_name
+		FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = $1
+	`, tableName)
+	if err != nil {
+		return "", fmt.Errorf("failed to inspect table columns: %w", err)
+	}
+	defer rows.Close()
+
+	columns := map[string]bool{}
+	for rows.Next() {
+		var columnName string
+		if err := rows.Scan(&columnName); err != nil {
+			return "", fmt.Errorf("failed to read table column: %w", err)
+		}
+		columns[columnName] = true
+	}
+
+	if len(columns) == 0 {
+		return "", fmt.Errorf("table '%s' was not found in schema public", tableName)
+	}
+
+	if columns["user_id"] {
+		return "user_id = auth.uid()", nil
+	}
+
+	if columns["owner_id"] {
+		return "owner_id = auth.uid()", nil
+	}
+
+	if tableName == "users" || tableName == "_v_users" {
+		if columns["id"] {
+			return "id = auth.uid()", nil
+		}
+	}
+
+	return "", fmt.Errorf("could not infer a safe RLS rule for table '%s'; expected user_id, owner_id, or a users table with id", tableName)
+}
+
+func createOperationSpecificRLSPolicy(ctx context.Context, tx pgx.Tx, tableName, operation, rule string) error {
+	policyName := fmt.Sprintf("ozybase_%s_%s_policy", tableName, operation)
+
+	if _, err := tx.Exec(ctx, fmt.Sprintf("DROP POLICY IF EXISTS %s ON %s", policyName, tableName)); err != nil {
+		return fmt.Errorf("failed to drop existing %s policy: %w", operation, err)
+	}
+
+	var sql string
+	switch operation {
+	case "select":
+		sql = fmt.Sprintf("CREATE POLICY %s ON %s FOR SELECT USING (%s)", policyName, tableName, rule)
+	case "insert":
+		sql = fmt.Sprintf("CREATE POLICY %s ON %s FOR INSERT WITH CHECK (%s)", policyName, tableName, rule)
+	case "update":
+		sql = fmt.Sprintf("CREATE POLICY %s ON %s FOR UPDATE USING (%s) WITH CHECK (%s)", policyName, tableName, rule, rule)
+	case "delete":
+		sql = fmt.Sprintf("CREATE POLICY %s ON %s FOR DELETE USING (%s)", policyName, tableName, rule)
+	default:
+		return fmt.Errorf("unsupported RLS operation '%s'", operation)
+	}
+
+	if _, err := tx.Exec(ctx, sql); err != nil {
+		return fmt.Errorf("failed to create %s policy: %w", operation, err)
+	}
+
+	return nil
+}
+
 // FixHealthIssues handles POST /api/project/health/fix
 func (h *Handler) FixHealthIssues(c echo.Context) error {
 	var req FixHealthRequest
@@ -863,34 +986,40 @@ func (h *Handler) FixHealthIssues(c echo.Context) error {
 	issueLower := strings.ToLower(req.Issue)
 	typeLower := strings.ToLower(req.Type)
 
-	if typeLower == "security" && strings.Contains(issueLower, "row level security") {
-		// Extract table name from issue title: "Table `tablename` does not have..."
-		parts := strings.Split(req.Issue, "`")
-		if len(parts) < 3 {
+	if typeLower == "security" && (strings.Contains(issueLower, "row level security") || strings.Contains(issueLower, "missing rls policies")) {
+		tableName := extractHealthIssueTableName(req.Issue)
+		if tableName == "" {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Could not identify table"})
 		}
-		tableName := parts[1]
 
 		if !data.IsValidIdentifier(tableName) {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid table name"})
 		}
 
-		// Apply RLS
+		permissions := extractMissingRLSPermissions(req.Issue)
+
 		tx, err := h.DB.Pool.Begin(ctx)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Transaction failed"})
 		}
 		defer func() { _ = tx.Rollback(ctx) }()
 
-		// 1. Primary PG RLS (Native)
-		sql := fmt.Sprintf("ALTER TABLE %s ENABLE ROW LEVEL SECURITY", tableName)
-		if _, err := tx.Exec(ctx, sql); err != nil {
-			log.Printf("Warning: Failed to enable native RLS (might not have permission): %v", err)
+		rule, err := inferSafeRLSRule(ctx, tx, tableName)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 		}
 
-		// 2. OzyBase Metadata RLS (Internal)
-		_, err = tx.Exec(ctx, "UPDATE _v_collections SET rls_enabled = true, rls_rule = 'user_id = auth.uid()' WHERE name = $1", tableName)
-		if err != nil {
+		if _, err := tx.Exec(ctx, fmt.Sprintf("ALTER TABLE %s ENABLE ROW LEVEL SECURITY", tableName)); err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to enable RLS: " + err.Error()})
+		}
+
+		for _, permission := range permissions {
+			if err := createOperationSpecificRLSPolicy(ctx, tx, tableName, permission, rule); err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			}
+		}
+
+		if _, err := tx.Exec(ctx, "UPDATE _v_collections SET rls_enabled = true, rls_rule = $1 WHERE name = $2", rule, tableName); err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update metadata: " + err.Error()})
 		}
 
@@ -898,7 +1027,9 @@ func (h *Handler) FixHealthIssues(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to commit fix"})
 		}
 
-		return c.JSON(http.StatusOK, map[string]string{"message": "RLS enabled successfully"})
+		return c.JSON(http.StatusOK, map[string]string{
+			"message": fmt.Sprintf("RLS configured successfully on '%s' with policies for: %s", tableName, strings.Join(permissions, ", ")),
+		})
 	}
 
 	if typeLower == "performance" && strings.Contains(issueLower, "sequential scans") {

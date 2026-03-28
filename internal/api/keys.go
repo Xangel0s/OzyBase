@@ -36,7 +36,7 @@ func GenerateRandomKey() (string, error) {
 func (h *Handler) ListAPIKeys(c echo.Context) error {
 	workspaceID, _ := c.Get("workspace_id").(string)
 
-	query := `SELECT id, name, prefix, role, is_active, expires_at, created_at, last_used_at, workspace_id 
+	query := `SELECT id, name, prefix, role, is_active, expires_at, created_at, last_used_at, COALESCE(workspace_id::text, '')
 		FROM _v_api_keys`
 
 	var rows pgx.Rows
@@ -87,13 +87,14 @@ func (h *Handler) CreateAPIKey(c echo.Context) error {
 	keyHash := hex.EncodeToString(hash[:])
 
 	workspaceID, _ := c.Get("workspace_id").(string)
+	workspaceValue := normalizeWorkspaceID(workspaceID)
 
 	var id string
 	err = h.DB.Pool.QueryRow(c.Request().Context(), `
 		INSERT INTO _v_api_keys (name, key_hash, prefix, role, workspace_id)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
-	`, req.Name, keyHash, prefix, req.Role, workspaceID).Scan(&id)
+	`, req.Name, keyHash, prefix, req.Role, workspaceValue).Scan(&id)
 
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -131,4 +132,11 @@ func (h *Handler) ToggleAPIKey(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 	return c.JSON(http.StatusOK, map[string]string{"status": "updated"})
+}
+
+func normalizeWorkspaceID(workspaceID string) any {
+	if workspaceID == "" {
+		return nil
+	}
+	return workspaceID
 }

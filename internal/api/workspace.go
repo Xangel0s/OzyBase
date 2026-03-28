@@ -1,26 +1,29 @@
 package api
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/Xangel0s/OzyBase/internal/core"
-	"github.com/Xangel0s/OzyBase/internal/mailer"
+	mailerpkg "github.com/Xangel0s/OzyBase/internal/mailer"
 	"github.com/labstack/echo/v4"
 )
 
 type WorkspaceHandler struct {
 	service *core.WorkspaceService
-	mailer  mailer.Mailer
+	mailer  mailerpkg.Mailer
 }
 
-func NewWorkspaceHandler(service *core.WorkspaceService, mailer mailer.Mailer) *WorkspaceHandler {
+func NewWorkspaceHandler(service *core.WorkspaceService, mailer mailerpkg.Mailer) *WorkspaceHandler {
 	return &WorkspaceHandler{service: service, mailer: mailer}
 }
 
 func (h *WorkspaceHandler) Create(c echo.Context) error {
 	userID := c.Get("user_id").(string)
 	var req struct {
-		Name string `json:"name"`
+		Name   string                 `json:"name"`
+		Config map[string]interface{} `json:"config"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
@@ -30,7 +33,7 @@ func (h *WorkspaceHandler) Create(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "name is required"})
 	}
 
-	ws, err := h.service.CreateWorkspace(c.Request().Context(), req.Name, userID)
+	ws, err := h.service.CreateWorkspace(c.Request().Context(), req.Name, userID, req.Config)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
@@ -97,9 +100,12 @@ func (h *WorkspaceHandler) AddMember(c echo.Context) error {
 
 	// Try to notify the user via email (async)
 	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		// 1. Get user email and workspace name
 		var email, workspaceName string
-		err := h.service.GetDB().Pool.QueryRow(c.Request().Context(), `
+		err := h.service.GetDB().Pool.QueryRow(ctx, `
 			SELECT u.email, w.name 
 			FROM _v_users u, _v_workspaces w 
 			WHERE u.id = $1 AND w.id = $2
@@ -110,7 +116,11 @@ func (h *WorkspaceHandler) AddMember(c echo.Context) error {
 			if inviterEmail == "" {
 				inviterEmail = "An admin"
 			}
-			_ = h.mailer.SendWorkspaceInvite(email, workspaceName, inviterEmail)
+			_ = mailerpkg.SendTemplateEmail(ctx, h.service.GetDB(), h.mailer, "workspace_invite", email, map[string]string{
+				"app_name":       "OzyBase",
+				"workspace_name": workspaceName,
+				"inviter_email":  inviterEmail,
+			})
 		}
 	}()
 

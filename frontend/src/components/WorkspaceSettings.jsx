@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
 
-const WorkspaceSettings = ({ workspaceId, view = 'ws_general' }) => {
+const WorkspaceSettings = ({ workspaceId, view = 'ws_general', onViewSelect, onWorkspaceChange }) => {
     const [workspace, setWorkspace] = useState(null);
     const [members, setMembers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -99,6 +99,31 @@ const WorkspaceSettings = ({ workspaceId, view = 'ws_general' }) => {
             if (res.ok) {
                 setInviteEmail('');
                 fetchData();
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleDeleteWorkspace = async () => {
+        if (!workspaceId) {
+            return;
+        }
+        if (!window.confirm(`Delete workspace "${workspace?.name}"? This cannot be undone.`)) {
+            return;
+        }
+        try {
+            const res = await fetchWithAuth(`/api/workspaces/${workspaceId}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                localStorage.removeItem('ozy_workspace_id');
+                if (onWorkspaceChange) {
+                    onWorkspaceChange(null);
+                }
+                if (onViewSelect) {
+                    onViewSelect('workspaces');
+                }
             }
         } catch (err) {
             console.error(err);
@@ -269,7 +294,7 @@ const WorkspaceSettings = ({ workspaceId, view = 'ws_general' }) => {
                             <p className="text-sm text-zinc-400 font-bold mb-6 italic">
                                 Deleting this project will permanently erase all associated data, configurations, and edge functions. This action is catastrophic and irreversible.
                             </p>
-                            <button className="px-8 py-3 bg-red-600 text-white font-black uppercase text-xs tracking-[0.2em] rounded-xl hover:bg-red-700 transition-colors flex items-center gap-3">
+                            <button onClick={handleDeleteWorkspace} className="px-8 py-3 bg-red-600 text-white font-black uppercase text-xs tracking-[0.2em] rounded-xl hover:bg-red-700 transition-colors flex items-center gap-3">
                                 <Trash2 size={16} />
                                 Delete Workspace
                             </button>

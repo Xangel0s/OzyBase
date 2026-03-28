@@ -60,6 +60,7 @@ func run() error {
 		}
 		dbURL = embeddedDB.GetConnectionString()
 	}
+	cfg.DatabaseURL = dbURL
 
 	db, err := data.Connect(ctx, dbURL)
 	if err != nil {
@@ -119,9 +120,9 @@ func run() error {
 
 	// Initialize Server Components
 	h := api.NewHandler(db, broker, dispatcher, mailSvc, storageSvc, ps, migrator, applier, auditService)
-
-	// Start Log Export Worker
-	go h.StartLogExporter(context.Background())
+	h.Config = cfg
+	defer broker.Shutdown() // Stop realtime broker goroutines on shutdown
+	defer h.Shutdown()      // Graceful shutdown of background workers
 
 	e := setupEcho(h, cfg, cronMgr)
 
@@ -330,8 +331,9 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 	workspaceHandler := api.NewWorkspaceHandler(workspaceService, mailSvc)
 
 	// API Groups and Middlewares
-	authRequired := api.AuthMiddleware(cfg.JWTSecret, false)
-	authOptional := api.AuthMiddleware(cfg.JWTSecret, true)
+	authRequired := api.AuthMiddleware(h.DB, cfg.JWTSecret, false)
+	authOptional := api.AuthMiddleware(h.DB, cfg.JWTSecret, true)
+	adminRequired := api.RequireAdmin()
 	accessList := api.AccessMiddleware(h.DB, "list")
 	accessCreate := api.AccessMiddleware(h.DB, "create")
 	accessUpdate := api.AccessMiddleware(h.DB, "update")
@@ -359,7 +361,7 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 		// ... (Auth/System/etc) ...
 
 		// API Keys (Enterprise Phase 1)
-		keysGroup := apiGroup.Group("/project/keys", authRequired)
+		keysGroup := apiGroup.Group("/project/keys", authRequired, adminRequired)
 		keysGroup.GET("", h.ListAPIKeys)
 		keysGroup.POST("", h.CreateAPIKey)
 		keysGroup.DELETE("/:id", h.DeleteAPIKey)
@@ -369,15 +371,19 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 		authGroup := apiGroup.Group("/auth")
 		authGroup.POST("/login", authHandler.Login)
 		// Signup is now protected, only an authenticated user (admin) can create others
-		authGroup.POST("/signup", authHandler.Signup, authRequired)
+		authGroup.POST("/signup", authHandler.Signup, authRequired, adminRequired)
 		authGroup.POST("/reset-password/request", authHandler.RequestReset)
 		authGroup.POST("/reset-password/confirm", authHandler.ConfirmReset)
 		authGroup.GET("/verify-email", authHandler.VerifyEmail)
-		authGroup.PATCH("/users/:id/role", authHandler.UpdateRole, authRequired)
+		authGroup.PATCH("/users/:id/role", authHandler.UpdateRole, authRequired, adminRequired)
 
 		// Social Login
 		authGroup.GET("/login/:provider", authHandler.GetOAuthURL)
 		authGroup.GET("/callback/:provider", authHandler.OAuthCallback)
+		authGroup.GET("/providers", h.ListAuthProviders, authRequired, adminRequired)
+		authGroup.GET("/config", h.GetAuthConfig, authRequired, adminRequired)
+		authGroup.GET("/templates", h.ListAuthTemplates, authRequired, adminRequired)
+		authGroup.PUT("/templates/:type", h.UpdateAuthTemplate, authRequired, adminRequired)
 
 		// Sessions (Enterprise Phase 2)
 		authGroup.GET("/sessions", authHandler.ListSessions, authRequired)
@@ -425,6 +431,7 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 
 		// Project Info
 		apiGroup.GET("/project/info", h.GetProjectInfo, authRequired)
+		apiGroup.GET("/project/connection", h.GetProjectConnection, authRequired, adminRequired)
 		apiGroup.GET("/project/health", h.GetHealthIssues, authRequired)
 		apiGroup.GET("/project/security/policies", h.GetSecurityPolicies, authRequired)
 		apiGroup.POST("/project/security/policies", h.UpdateSecurityPolicy, authRequired)
@@ -461,15 +468,18 @@ func setupEcho(h *api.Handler, cfg *config.Config, cronMgr *realtime.CronManager
 		apiGroup.POST("/webhooks", webhookHandler.Create, authRequired)
 		apiGroup.DELETE("/webhooks/:id", webhookHandler.Delete, authRequired)
 
-		apiGroup.GET("/cron", cronHandler.List, authRequired)
-		apiGroup.POST("/cron", cronHandler.Create, authRequired)
-		apiGroup.DELETE("/cron/:id", cronHandler.Delete, authRequired)
+		apiGroup.GET("/cron", cronHandler.List, authRequired, adminRequired)
+		apiGroup.POST("/cron/enable", cronHandler.Enable, authRequired, adminRequired)
+		apiGroup.POST("/cron", cronHandler.Create, authRequired, adminRequired)
+		apiGroup.DELETE("/cron/:id", cronHandler.Delete, authRequired, adminRequired)
 
 		apiGroup.GET("/vault", h.ListSecrets, authRequired)
 		apiGroup.POST("/vault", h.CreateSecret, authRequired)
 		apiGroup.DELETE("/vault/:id", h.DeleteSecret, authRequired)
 
-		apiGroup.GET("/wrappers", h.ListWrappers, authRequired)
+		apiGroup.GET("/wrappers", h.ListWrappers, authRequired, adminRequired)
+		apiGroup.POST("/wrappers", h.CreateWrapper, authRequired, adminRequired)
+		apiGroup.DELETE("/wrappers/:name", h.DeleteWrapper, authRequired, adminRequired)
 		apiGroup.POST("/graphql/v1", h.HandleGraphQL, authRequired)
 
 		apiGroup.GET("/schema/:name", h.GetTableSchema, authRequired)

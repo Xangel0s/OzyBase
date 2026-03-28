@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, FileText, Code, Shield, Database, FolderOpen, Zap, MousePointer2, Copy, Check, Loader2, ChevronRight, Hash, Key, ToggleLeft, Calendar, Type, FileJson, Search, Lock } from 'lucide-react';
+import { BookOpen, FileText, Code, Shield, Database, FolderOpen, Zap, MousePointer2, Copy, Check, Loader2, ChevronRight, Hash, Key, ToggleLeft, Calendar, Type, FileJson, Search, Lock, Globe } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
 
 const ApiDocs = ({ page = 'intro' }) => {

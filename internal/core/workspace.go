@@ -22,7 +22,7 @@ func (s *WorkspaceService) GetDB() *data.DB {
 }
 
 // CreateWorkspace creates a new isolated environment and assigns an owner
-func (s *WorkspaceService) CreateWorkspace(ctx context.Context, name, ownerID string) (*Workspace, error) {
+func (s *WorkspaceService) CreateWorkspace(ctx context.Context, name, ownerID string, config map[string]interface{}) (*Workspace, error) {
 	slug := s.GenerateSlug(name)
 
 	tx, err := s.db.Pool.Begin(ctx)
@@ -33,10 +33,10 @@ func (s *WorkspaceService) CreateWorkspace(ctx context.Context, name, ownerID st
 
 	var ws Workspace
 	err = tx.QueryRow(ctx, `
-		INSERT INTO _v_workspaces (name, slug)
-		VALUES ($1, $2)
+		INSERT INTO _v_workspaces (name, slug, config)
+		VALUES ($1, $2, $3)
 		RETURNING id, name, slug, config, created_at, updated_at
-	`, name, slug).Scan(&ws.ID, &ws.Name, &ws.Slug, &ws.Config, &ws.CreatedAt, &ws.UpdatedAt)
+	`, name, slug, config).Scan(&ws.ID, &ws.Name, &ws.Slug, &ws.Config, &ws.CreatedAt, &ws.UpdatedAt)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create workspace: %w", err)

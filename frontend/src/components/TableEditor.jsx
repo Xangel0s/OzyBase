@@ -177,14 +177,6 @@ const TableEditor = ({ tableName, onTableSelect, allTables = [] }) => {
         }
     }, [tableName, currentPage, pageSize, debouncedSearch]);
 
-    useEffect(() => {
-        if (tableName) {
-            fetchData();
-            fetchRealtimeStatus();
-            setEditingCell(null); // Clear editing state when table changes
-        }
-    }, [tableName, fetchData, fetchRealtimeStatus]);
-
     const fetchRealtimeStatus = useCallback(async () => {
         if (!tableName) return;
         try {
@@ -194,6 +186,14 @@ const TableEditor = ({ tableName, onTableSelect, allTables = [] }) => {
             if (current) setRealtimeEnabled(current.realtime_enabled);
         } catch (e) { console.error(e); }
     }, [tableName]);
+
+    useEffect(() => {
+        if (tableName) {
+            fetchData();
+            fetchRealtimeStatus();
+            setEditingCell(null); // Clear editing state when table changes
+        }
+    }, [tableName, fetchData, fetchRealtimeStatus]);
 
     const toggleRealtime = useCallback(async () => {
         setIsRealtimeLoading(true);

@@ -178,6 +178,52 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 			last_triggered_at TIMESTAMPTZ
 		)`,
 
+		// Vault
+		`CREATE TABLE IF NOT EXISTS _v_secrets (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			key VARCHAR(255) UNIQUE NOT NULL,
+			value TEXT NOT NULL,
+			description TEXT DEFAULT '',
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
+
+		// Email Templates
+		`CREATE TABLE IF NOT EXISTS _v_email_templates (
+			template_type VARCHAR(50) PRIMARY KEY,
+			subject TEXT NOT NULL,
+			body TEXT NOT NULL,
+			description TEXT DEFAULT '',
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		)`,
+		`INSERT INTO _v_email_templates (template_type, subject, body, description)
+		VALUES
+			(
+				'verification',
+				'Verify your {{app_name}} account',
+				'Click here to verify your account: {{action_link}}\n\nToken: {{token}}\n\nThanks,\n{{app_name}}',
+				'Email verification message'
+			),
+			(
+				'password_reset',
+				'Reset your {{app_name}} password',
+				'Click here to reset your password: {{action_link}}\n\nToken: {{token}}\n\nIf you did not request this, you can ignore this email.\n\n{{app_name}}',
+				'Password reset message'
+			),
+			(
+				'workspace_invite',
+				'Invitation to join {{workspace_name}} on {{app_name}}',
+				'{{inviter_email}} invited you to collaborate on {{workspace_name}}.\n\nSign in to {{app_name}} to get started.',
+				'Workspace invitation message'
+			),
+			(
+				'security_alert',
+				'Security alert on {{app_name}}: {{alert_type}}',
+				'A security event was detected.\n\nType: {{alert_type}}\nDetails: {{details}}\n\nPlease review your dashboard immediately.',
+				'Security notification message'
+			)
+		ON CONFLICT (template_type) DO NOTHING`,
+
 		// IP Firewall Rules (Whitelist/Blacklist)
 		`CREATE TABLE IF NOT EXISTS _v_ip_rules (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

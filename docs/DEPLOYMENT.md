@@ -49,6 +49,34 @@ volumes:
   ozy_functions:
 ```
 
+### Deploy on Coolify
+
+For Coolify, prefer the repository `Dockerfile` instead of a custom build pack.
+
+Recommended service setup:
+```text
+Build Pack: Dockerfile
+Port: 8090
+Health Check Path: /api/health
+```
+
+Minimum environment variables:
+```env
+DATABASE_URL=postgres://user:password@db_host:5432/ozybase?sslmode=disable
+JWT_SECRET=generate-a-long-random-secret
+SITE_URL=https://your-ozybase-domain.com
+APP_DOMAIN=your-ozybase-domain.com
+ALLOWED_ORIGINS=https://your-ozybase-domain.com
+DEBUG=false
+PORT=8090
+```
+
+Notes:
+- Use a managed PostgreSQL instance or a private database service inside the same Coolify network.
+- Do not expose PostgreSQL publicly.
+- Persist `/app/data` and `/app/functions` if you use local storage or runtime-generated assets.
+- The image already builds the frontend and embeds it into the Go binary during Docker build.
+
 ## 4. Security Recommendations
 1. **Enable SSL**: Always use HTTPS. Use Let's Encrypt with Nginx.
 2. **Database Hardening**: Do not expose PostgreSQL to the public internet. Use a private network.

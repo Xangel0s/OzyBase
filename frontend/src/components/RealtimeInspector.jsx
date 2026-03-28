@@ -17,11 +17,13 @@ import {
     Layers
 } from 'lucide-react';
 
-const RealtimeInspector = () => {
+const normalizeTab = (value) => (value === 'config' ? 'configuration' : value);
+
+const RealtimeInspector = ({ view = 'inspector' }) => {
     const [events, setEvents] = useState([]);
     const [isListening, setIsListening] = useState(true);
     const [selectedEvent, setSelectedEvent] = useState(null);
-    const [activeTab, setActiveTab] = useState('inspector');
+    const [activeTab, setActiveTab] = useState(normalizeTab(view));
     const [collections, setCollections] = useState([]);
     const [loading, setLoading] = useState(false);
     const [diagnosticStatus, setDiagnosticStatus] = useState(null);
@@ -38,6 +40,10 @@ const RealtimeInspector = () => {
         } catch (e) { console.error(e); }
         setLoading(false);
     }, []);
+
+    useEffect(() => {
+        setActiveTab(normalizeTab(view));
+    }, [view]);
 
     useEffect(() => {
         let eventSource;
@@ -66,7 +72,7 @@ const RealtimeInspector = () => {
     }, [isListening, activeTab, selectedEvent]);
 
     useEffect(() => {
-        if (activeTab === 'configuration') {
+        if (activeTab === 'configuration' || activeTab === 'channels') {
             Promise.resolve().then(() => fetchCollections());
         }
     }, [activeTab, fetchCollections]);
@@ -347,9 +353,51 @@ const RealtimeInspector = () => {
                         </div>
                     </div>
                 ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center opacity-30 gap-4 grayscale text-[#111111]">
-                        <Layers size={64} className="text-zinc-700" />
-                        <span className="text-xs font-black uppercase tracking-[0.4em]">Channels feature coming soon</span>
+                    <div className="flex-1 p-8 bg-[#111111] overflow-y-auto custom-scrollbar">
+                        <div className="max-w-4xl mx-auto space-y-6">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-primary/10 border border-primary/20 rounded-2xl text-primary">
+                                    <Layers size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black text-white italic tracking-tighter">Realtime Channels</h2>
+                                    <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest mt-0.5">Derived from collections with streaming enabled</p>
+                                </div>
+                            </div>
+
+                            {loading ? (
+                                <div className="flex items-center justify-center py-20">
+                                    <RefreshCw size={24} className="text-zinc-600 animate-spin" />
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-4">
+                                    {collections.filter((col) => col.realtime_enabled).length === 0 ? (
+                                        <div className="bg-[#171717] border border-[#2e2e2e] rounded-2xl p-10 text-center text-zinc-500 font-black uppercase tracking-widest text-[10px]">
+                                            No active channels yet. Enable realtime on a table in Configuration.
+                                        </div>
+                                    ) : (
+                                        collections.filter((col) => col.realtime_enabled).map((col) => (
+                                            <div key={col.name} className="bg-[#171717] border border-[#2e2e2e] rounded-2xl p-6 flex items-center justify-between gap-6">
+                                                <div>
+                                                    <p className="text-sm font-black text-white uppercase tracking-tight">{col.name}</p>
+                                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mt-1">
+                                                        channel: realtime:{col.name}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-[9px] font-black uppercase tracking-widest">
+                                                        Broadcasting
+                                                    </span>
+                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                                                        {col.schema?.length || 0} columns
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>

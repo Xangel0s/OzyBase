@@ -60,7 +60,7 @@ const BarChart = ({ data = [], color, suffix = 'requests', maxOverride }) => {
     );
 };
 
-const Overview = () => {
+const Overview = ({ onViewSelect }) => {
     const [projectInfo, setProjectInfo] = useState(null);
     const [healthIssues, setHealthIssues] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -161,7 +161,7 @@ const Overview = () => {
                 <div className="flex items-center gap-12">
                     <div className="flex items-center gap-8">
                         <button
-                            onClick={() => {}}
+                            onClick={() => onViewSelect?.('tables')}
                             className="text-center group transition-all"
                         >
                             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-1 group-hover:text-primary">User Tables</p>
@@ -172,14 +172,14 @@ const Overview = () => {
                             <p className="text-xl font-black text-zinc-500 leading-none">{(projectInfo?.system_table_count !== undefined) ? projectInfo.system_table_count : '...'}</p>
                         </div>
                         <button
-                            onClick={() => {}}
+                            onClick={() => onViewSelect?.('functions')}
                             className="text-center group transition-all"
                         >
                             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-1 group-hover:text-primary">Functions</p>
                             <p className="text-xl font-black text-white leading-none group-hover:scale-110 transition-transform">{projectInfo?.function_count || 0}</p>
                         </button>
                         <button
-                            onClick={() => {}}
+                            onClick={() => onViewSelect?.('visualizer')}
                             className="text-center group transition-all"
                         >
                             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-1 group-hover:text-primary">Schemas</p>
@@ -410,7 +410,9 @@ const Overview = () => {
                             </span>
                         </button>
                         <div className="ml-auto mr-4">
-                            <ExternalLink size={14} className="text-zinc-600 hover:text-zinc-300 cursor-pointer" />
+                            <button onClick={() => onViewSelect?.('advisors')} className="text-zinc-600 hover:text-zinc-300 transition-colors">
+                                <ExternalLink size={14} />
+                            </button>
                         </div>
                     </div>
 
@@ -444,7 +446,9 @@ const Overview = () => {
                 <div className="bg-[#171717] border border-[#2e2e2e] rounded-xl overflow-hidden flex flex-col h-96">
                     <div className="px-6 py-4 border-b border-[#2e2e2e] flex items-center justify-between">
                         <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Slow Queries</h4>
-                        <ExternalLink size={14} className="text-zinc-600 hover:text-zinc-300 cursor-pointer" />
+                        <button onClick={() => onViewSelect?.('sql')} className="text-zinc-600 hover:text-zinc-300 transition-colors">
+                            <ExternalLink size={14} />
+                        </button>
                     </div>
 
                     <div className="flex-1 overflow-hidden flex flex-col">

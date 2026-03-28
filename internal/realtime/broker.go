@@ -1,6 +1,8 @@
 package realtime
 
 import (
+	"context"
+	"fmt"
 	"sync"
 )
 
@@ -20,24 +22,49 @@ type Broker struct {
 	clients        map[chan Event]bool
 	mu             sync.Mutex
 	Dispatcher     *WebhookDispatcher
+	shutdownCtx    context.Context
+	shutdownFunc   context.CancelFunc
+	wg             sync.WaitGroup
 }
 
 // NewBroker creates a new event broker
 func NewBroker() *Broker {
+	ctx, cancel := context.WithCancel(context.Background())
 	broker := &Broker{
 		notifier:       make(chan Event, 1),
 		newClients:     make(chan chan Event),
 		closingClients: make(chan chan Event),
 		clients:        make(map[chan Event]bool),
+		shutdownCtx:    ctx,
+		shutdownFunc:   cancel,
 	}
 
+	broker.wg.Add(1)
 	go broker.listen()
 	return broker
 }
 
+// Shutdown gracefully stops the broker
+func (b *Broker) Shutdown() {
+	fmt.Println("🛑 [Broker] Shutting down...")
+	b.shutdownFunc()
+	b.wg.Wait()
+	fmt.Println("✅ [Broker] Stopped")
+}
+
 func (b *Broker) listen() {
+	defer b.wg.Done()
 	for {
 		select {
+		case <-b.shutdownCtx.Done():
+			// Close all client channels
+			b.mu.Lock()
+			for clientChan := range b.clients {
+				close(clientChan)
+			}
+			b.clients = make(map[chan Event]bool)
+			b.mu.Unlock()
+			return
 		case s := <-b.newClients:
 			b.mu.Lock()
 			b.clients[s] = true
@@ -45,11 +72,16 @@ func (b *Broker) listen() {
 		case s := <-b.closingClients:
 			b.mu.Lock()
 			delete(b.clients, s)
+			close(s)
 			b.mu.Unlock()
 		case event := <-b.notifier:
 			b.mu.Lock()
 			for clientChan := range b.clients {
-				clientChan <- event
+				select {
+				case clientChan <- event:
+				default:
+					// Client is slow, skip to prevent blocking
+				}
 			}
 			b.mu.Unlock()
 		}

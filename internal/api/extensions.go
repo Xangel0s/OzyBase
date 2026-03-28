@@ -28,7 +28,6 @@ func (h *Handler) ListExtensions(c echo.Context) error {
 	rows, err := h.DB.Pool.Query(ctx, `
 		SELECT name, default_version, installed_version, comment
 		FROM pg_available_extensions
-		WHERE name NOT LIKE 'pg_%' OR name = 'pg_stat_statements'
 		ORDER BY name ASC
 	`)
 	if err != nil {

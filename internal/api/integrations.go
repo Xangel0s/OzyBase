@@ -44,6 +44,10 @@ func (h *Handler) ListIntegrations(c echo.Context) error {
 		}
 	}
 
+	if integrations == nil {
+		integrations = []map[string]any{}
+	}
+
 	return c.JSON(http.StatusOK, integrations)
 }
 
