@@ -5,8 +5,8 @@
 *.so
 *.dylib
 bin/
-ozybase
-flowkore
+/ozybase
+/flowkore
 
 # Test binary, built with `go test -c`
 *.test
@@ -59,16 +59,21 @@ yarn-error.log*
 Thumbs.db
 
 # Embedded PostgreSQL Data
+data/
 ozy_data/
 ozy_data_smoke/
 ozy_data_validation*/
-artifacts/disaster-drill/
+artifacts/
+.tmp-sector/
+.tmp-sector2/
+test_import.csv
 
 # Generated smoke migrations
 migrations/*ci_smoke*.sql
 
 # Server Logs
 *.log
+ozybase-local.log
 server_diag.log
 server_new.log
 server.log

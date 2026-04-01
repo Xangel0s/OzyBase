@@ -70,7 +70,9 @@ jobs:
         run: go test -v ./internal/api -run TestSetupSystem_ConcurrentInitialization -count=1
 
       - name: Run tests
-        run: go test -v ./...
+        run: |
+          packages=$(go list ./... | grep -v '/frontend/node_modules/')
+          go test -v $packages
 
       - name: Build binary
         run: go build -v ./cmd/ozybase
@@ -297,4 +299,3 @@ jobs:
     steps:
       - name: Mark gate passed
         run: echo "All enterprise CI gates passed."
-

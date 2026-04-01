@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/labstack/echo/v4"
+	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"golang.org/x/text/language/display"
 )
@@ -1513,6 +1514,9 @@ func canonicalGeoCountryValue(value string) string {
 		if displayName := strings.TrimSpace(display.English.Regions().Name(region)); displayName != "" {
 			return displayName
 		}
+	}
+	if trimmed == strings.ToUpper(trimmed) || trimmed == strings.ToLower(trimmed) {
+		return cases.Title(language.English).String(strings.ToLower(trimmed))
 	}
 	return trimmed
 }

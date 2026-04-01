@@ -56,3 +56,17 @@ func TestNormalizeAllowedCountriesCanonicalizesIsoCodes(t *testing.T) {
 		t.Fatalf("expected second country to normalize to Chile, got %q", allowed[1])
 	}
 }
+
+func TestNormalizeAllowedCountriesCanonicalizesUppercaseNames(t *testing.T) {
+	allowed := normalizeAllowedCountries([]any{"PERU", "chile", "Peru"})
+
+	if len(allowed) != 2 {
+		t.Fatalf("expected 2 canonical countries, got %d: %#v", len(allowed), allowed)
+	}
+	if allowed[0] != "Peru" {
+		t.Fatalf("expected first country to normalize to Peru, got %q", allowed[0])
+	}
+	if allowed[1] != "Chile" {
+		t.Fatalf("expected second country to normalize to Chile, got %q", allowed[1])
+	}
+}

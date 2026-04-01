@@ -68,7 +68,9 @@ jobs:
         run: go mod download
 
       - name: Go tests
-        run: go test ./...
+        run: |
+          packages=$(go list ./... | grep -v '/frontend/node_modules/')
+          go test $packages
 
       - name: Go lint
         uses: golangci/golangci-lint-action@v7

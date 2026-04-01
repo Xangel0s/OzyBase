@@ -70,7 +70,7 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 	req.Mode = strings.TrimSpace(strings.ToLower(req.Mode))
-	req.AllowCountry = strings.TrimSpace(strings.ToUpper(req.AllowCountry))
+	req.AllowCountry = strings.TrimSpace(req.AllowCountry)
 
 	if req.Email == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Email is required"})

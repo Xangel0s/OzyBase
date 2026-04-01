@@ -1,169 +1,415 @@
-﻿# OzyBase Core 🛡️🚀
+# OzyBase Core
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/Xangel0s/OzyBase/main/docs/banner.jpg" alt="OzyBase Banner" width="100%" />
   <br/>
-  <b>The high-performance, open-source Backend-as-a-Service (BaaS) for the next generation of apps.</b>
+  <b>Open-source BaaS with a single Go runtime, embedded dashboard, PostgreSQL data plane, AI tooling, and self-host-first deployment paths.</b>
   <br/><br/>
   <p>
     <a href="https://goreportcard.com/report/github.com/Xangel0s/OzyBase"><img src="https://img.shields.io/badge/Go%20Report-A%2B-brightgreen.svg" alt="Go Report Card"></a>
     <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License MIT"></a>
-    <a href="#"><img src="https://img.shields.io/badge/Single-Binary-blueviolet.svg" alt="Single Binary"></a>
-    <a href="https://github.com/Xangel0s/OzyBase/releases/tag/v1.1.0-Enterprise"><img src="https://img.shields.io/badge/Latest%20Tag-v1.1.0--Enterprise-blue.svg" alt="Latest Tag"></a>
-    <a href="./docs/DEPLOYMENT.md"><img src="https://img.shields.io/badge/Production%20Smoke-Validated-success.svg" alt="Production Smoke Validated"></a>
+    <a href="./docs/DEPLOYMENT.md"><img src="https://img.shields.io/badge/Deployment-Runbook-blue.svg" alt="Deployment Runbook"></a>
+    <a href="./docs/MCP_VSCODE.md"><img src="https://img.shields.io/badge/MCP-VS%20Code-purple.svg" alt="MCP VS Code"></a>
   </p>
 </div>
 
 ---
 
-## ⚡ PocketBase Simplicity, Supabase Power
+## What OzyBase Is
 
-OzyBase is a high-performance, single-binary BaaS for authentication, dynamic collections, realtime subscriptions, and file storage with zero-friction deployment.
+OzyBase is a PostgreSQL-backed Backend-as-a-Service that ships as:
 
-## ✅ Production Hardening Status (2026-02-24)
+- a Go API server
+- an embedded React dashboard
+- a dynamic collections/data API
+- authentication and API key management
+- storage, realtime, webhooks, cron, vault, and edge functions
+- security hardening, observability, integrations, and admin audit tooling
+- AI-facing runtime endpoints for MCP, NLQ, and pgvector workflows
 
-- JWT subject validated against `_v_users` on authenticated requests.
-- Role/email sourced from DB (not only JWT claims).
-- Tokens signed with non-existent user are rejected (`401`).
-- URL query token sanitization active in frontend flows.
-- Security headers and CSRF secure cookie enabled.
-- Docker compose requires critical env vars and includes health checks.
-- Rate limiter tuning exposed via env (`RATE_LIMIT_RPS`, `RATE_LIMIT_BURST`).
-- Enterprise smoke gate validated in production (`health + system status/setup + CSP + login + API key rotate`).
-- Native-only local validation suite validated (`scripts/validate_enterprise.ps1`: backend tests + frontend lint/typecheck/build/bundle + embedded Postgres smoke API + smoke E2E).
-- Frontend fully migrated to TypeScript strict (`@ts-nocheck=0`, `npm run typecheck=PASS`, `npm run build=PASS`, `npm run lint=PASS`).
-- Native pgvector foundation validated for production flow (`/api/project/vector/status|setup|upsert|search`, smoke with graceful skip when extension is unavailable).
-- Native NLQ + MCP layer validated (`/api/project/nlq/translate|query`, `/api/project/mcp/tools|invoke`) with deterministic SQL planning and smoke coverage.
-- WASM edge functions validated (`runtime=wasm`, WASI execution, timeout controls, smoke invoke path).
-- Extensions marketplace validated (`/api/extensions/marketplace`, sync/install/uninstall lifecycle).
-- Global SSE scaling validated (Redis PubSub bridge, node-aware deduplication, `/api/project/realtime/status`).
-- Enterprise gates implemented for SLO thresholds, alert routing/on-call, and RLS closeout evidence.
+The repo is designed for self-hosting first: local binary, Docker, install-to-play, and Coolify-style managed Postgres deployments are all supported.
 
-## AI Editor Ready (MCP + NLQ)
+## What Ships Today
 
-Current runtime is ready to integrate with AI editors/agents through native MCP endpoints.
-MCP in OzyBase is implemented as a native HTTP runtime inside the API service (shared auth, audit, and DB pool), not as a separate stdio daemon process.
+### 1. Setup and Bootstrap
 
-- Standard MCP JSON-RPC endpoint: `POST /api/project/mcp`
-- MCP tools catalog: `GET /api/project/mcp/tools`
-- MCP tool invoke: `POST /api/project/mcp/invoke`
-- MCP collection creation tool: `collections.create` (via `/api/project/mcp/invoke`)
-- Direct NLQ translate: `POST /api/project/nlq/translate`
-- Direct NLQ query: `POST /api/project/nlq/query`
-- Vector runtime status: `GET /api/project/vector/status`
+OzyBase includes a first-run wizard with three real paths:
 
-Requirements:
-- Admin auth token (Bearer) for project endpoints.
-- Production smoke gate in green (`scripts/validate_enterprise.ps1`).
+- `Do it myself`: creates the first admin and leaves policies/manual hardening for later
+- `Secure Fortress`: creates the first admin, seeds geo-fencing from the detected country, and writes a secure bootstrap audit event
+- `Migration Studio`: translates supported inputs into PostgreSQL during setup and can import the initial dataset
 
-Enterprise release gate:
+`Migration Studio` currently supports:
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate_enterprise.ps1
-```
+- `CSV`
+- `Mongo-like JSON`
+- `MySQL SQL`
+- `SQLite SQL`
+- `SQL Server SQL`
+- `Postgres SQL`
 
-VS Code setup:
-- Open `Settings > API Keys > MCP Gateway` in OzyBase and reveal the active secret key.
-- Copy the generated `.vscode/mcp.json` snippet or see `docs/MCP_VSCODE.md`.
-- Use the secret key in the `apikey` header.
+Setup-time migration preview endpoint:
 
-Quick verification:
+- `POST /api/system/setup/migration/preview`
 
-```bash
-# 1) Login (replace values)
-curl -sS -X POST "https://YOUR_DOMAIN/api/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@YOUR_DOMAIN","password":"YOUR_PASSWORD"}'
+## 2. Authentication and Identity
 
-# 2) MCP tools
-curl -sS "https://YOUR_DOMAIN/api/project/mcp/tools" \
-  -H "Authorization: Bearer YOUR_TOKEN"
+Implemented auth features include:
 
-# 3) Invoke NLQ via MCP
-curl -sS -X POST "https://YOUR_DOMAIN/api/project/mcp/invoke" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"tool":"nlq.translate","arguments":{"query":"count rows in users","table":"users"}}'
-```
+- email/password login
+- admin-managed user creation
+- password reset request/confirm flow
+- email verification
+- session listing, single-session revoke, and revoke-all
+- TOTP-based 2FA
+- OAuth entry points and callbacks
+- auth provider config, auth templates, and auth settings views
+- role-based user management
+- CSRF token endpoint and security-header middleware
 
-## Roadmap Snapshot (2026-02-24)
+Core auth routes:
 
-- Enterprise core (through `L`): completed.
-- XL native progress: `pgvector + NLQ + MCP + WASM edge/functions + extensions marketplace + global SSE scaling` completed.
-- Public JS/TS SDK package publication: `in progress` (repo/docs work exists, npm release is still pending).
-- Runtime roadmap closure status: completed for the backend/runtime milestones tracked in `docs/ROADMAP_EXECUTION_STATUS_2026-02-23.md`.
-- Source of truth: `docs/ROADMAP.md`, `docs/PROJECT_STATUS_MASTER.md`, and `docs/ROADMAP_EXECUTION_STATUS_2026-02-23.md`.
+- `POST /api/auth/login`
+- `POST /api/auth/signup`
+- `POST /api/auth/reset-password/request`
+- `POST /api/auth/reset-password/confirm`
+- `GET|POST /api/auth/verify-email`
+- `GET /api/auth/users`
+- `PATCH /api/auth/users/:id/role`
+- `GET /api/auth/sessions`
+- `DELETE /api/auth/sessions/:id`
+- `POST /api/auth/sessions/revoke-all`
+- `POST /api/auth/2fa/setup`
+- `POST /api/auth/2fa/enable`
+- `POST /api/auth/2fa/disable`
+- `GET /api/auth/2fa/status`
+- `POST /api/auth/2fa/verify`
 
-## Pending Work (Current)
+## 3. Database, Collections, and Admin Data Plane
 
-- Roadmap phases tracked in `docs/ROADMAP.md`: `1` public distribution item still pending (`JS/TS SDK npm publication`).
-- Operational recommendation (optional, non-blocking): keep running `scripts/validate_enterprise.ps1` as release gate.
+The database layer includes:
 
-## 🚀 Quick Start
+- dynamic collection creation and deletion
+- schema inspection and schema visualizer
+- CRUD for collection records
+- table-style CRUD aliases for dashboard flows
+- CSV import from the dashboard/API
+- bulk row actions
+- column creation and deletion
+- saved table views
+- realtime toggles per collection
+- SQL editor execution and system sync endpoint
+- GraphQL endpoint
+- wrappers/extensions management for advanced PostgreSQL capabilities
 
-### Install (latest release)
-```bash
-curl -fsSL https://raw.githubusercontent.com/Xangel0s/OzyBase/main/scripts/install.sh | bash
-```
+Key routes:
 
-```powershell
-irm https://raw.githubusercontent.com/Xangel0s/OzyBase/main/scripts/install.ps1 | iex
-```
+- `POST /api/collections`
+- `GET /api/collections`
+- `DELETE /api/collections/:name`
+- `GET /api/collections/schemas`
+- `GET /api/collections/visualize`
+- `PATCH /api/collections/rules`
+- `PATCH /api/collections/realtime`
+- `GET /api/collections/:name/records`
+- `POST /api/collections/:name/records`
+- `PATCH /api/collections/:name/records/:id`
+- `DELETE /api/collections/:name/records/:id`
+- `POST /api/tables/:name/import`
+- `POST /api/sql`
+- `POST /api/sql/sync`
+- `POST /api/graphql/v1`
 
-### Local
+## 4. Workspaces
+
+Workspace support is implemented for:
+
+- workspace create/list/update/delete
+- member listing
+- role assignment/removal
+- active workspace routing through `X-Workspace-Id`
+- workspace-aware dashboard context
+
+Current workspace scope is honest and explicit:
+
+- memberships
+- collection metadata
+- API keys
+- saved views
+- dashboard context
+
+Physical PostgreSQL tables, buckets, and deployment topology are still explicit and not auto-provisioned per workspace.
+
+## 5. Storage
+
+Storage features implemented today:
+
+- bucket create/list/update/delete
+- local filesystem storage
+- S3-compatible storage
+- signed upload sessions
+- multipart upload sessions and part upload flow
+- bucket max file size enforcement
+- bucket total quota enforcement
+- lifecycle deletion windows and sweep endpoint
+- bucket policy inspection from the dashboard
+
+Runtime-guaranteed ACL profiles today are:
+
+- visibility/public-read
+- owner only
+- admin only
+- deny all
+
+Custom legacy expressions can still exist, but the runtime only guarantees the built-in profiles above when ACLs are edited.
+
+Core storage routes:
+
+- `GET /api/files/buckets`
+- `POST /api/files/buckets`
+- `PATCH /api/files/buckets/:name`
+- `DELETE /api/files/buckets/:name`
+- `POST /api/files/uploads/session`
+- `POST /api/files/uploads/multipart/session`
+- `PUT /api/files/uploads/multipart/:id/parts/:part`
+- `POST /api/files/uploads/multipart/:id/complete`
+- `DELETE /api/files/uploads/multipart/:id`
+- `GET /api/files`
+- `GET /api/files/:bucket/*`
+- `DELETE /api/files/:bucket/*`
+
+## 6. Functions, Automation, and Runtime Utilities
+
+OzyBase includes:
+
+- edge functions
+- JavaScript runtime via `goja`
+- WASM runtime via `wazero`
+- webhook endpoints and webhook management
+- cron management
+- vault/secret storage
+- PostgreSQL wrappers/extensions controls
+
+Function runtimes supported today:
+
+- `js`
+- `wasm`
+
+Core routes:
+
+- `GET /api/functions`
+- `POST /api/functions`
+- `POST /api/functions/:name/invoke`
+- `DELETE /api/functions/:name`
+- `GET /api/webhooks`
+- `POST /api/webhooks`
+- `DELETE /api/webhooks/:id`
+- `GET /api/cron`
+- `POST /api/cron`
+- `POST /api/cron/enable`
+- `DELETE /api/cron/:id`
+- `GET /api/vault`
+- `POST /api/vault`
+- `DELETE /api/vault/:id`
+- `GET /api/wrappers`
+- `POST /api/wrappers`
+- `DELETE /api/wrappers/:name`
+
+## 7. Realtime, Observability, and Operations
+
+Operational/runtime features implemented:
+
+- SSE realtime stream
+- local broker plus Redis pub/sub bridge for multi-node fan-out
+- realtime status endpoint
+- project stats/info/connection metadata
+- project health checks and guided fix/review actions
+- logs and log export
+- traffic and geo analytics endpoints
+- Prometheus metrics endpoint
+- performance advisor and advisor history
+- update status endpoint
+- SLO status endpoint
+- storage observability endpoint
+- alert routing/on-call config
+
+Core routes:
+
+- `GET /api/project/stats`
+- `GET /api/project/info`
+- `GET /api/project/connection`
+- `GET /api/project/update-status`
+- `GET /api/realtime`
+- `GET /api/project/realtime/status`
+- `GET /api/project/health`
+- `POST /api/project/health/fix`
+- `POST /api/project/health/review`
+- `GET /api/analytics/traffic`
+- `GET /api/analytics/geo`
+- `GET /api/project/logs`
+- `GET /api/project/logs/export`
+- `GET /api/project/metrics`
+- `GET /api/project/performance/advisor`
+- `GET /api/project/performance/advisor/history`
+- `GET /api/project/observability/slo`
+- `GET /api/project/observability/storage`
+- `GET /api/project/security/alert-routing`
+- `POST /api/project/security/alert-routing`
+
+## 8. Security
+
+Security capabilities in the current codebase include:
+
+- geo-fencing security policy
+- security policy CRUD
+- health-derived security alerts
+- notification recipients
+- firewall/IP rules
+- admin audit trail
+- RLS coverage inspection
+- RLS mass enforcement
+- RLS closeout flow
+- API key creation/rotation/toggle/delete
+- essential key vault with reveal/rotate/verify endpoints
+
+Core routes:
+
+- `GET /api/project/security/policies`
+- `POST /api/project/security/policies`
+- `GET /api/project/security/stats`
+- `GET /api/project/security/alerts`
+- `GET /api/project/security/notifications`
+- `POST /api/project/security/notifications`
+- `DELETE /api/project/security/notifications/:id`
+- `GET /api/project/security/rls/coverage`
+- `GET /api/project/security/rls/coverage/history`
+- `POST /api/project/security/rls/enforce`
+- `POST /api/project/security/rls/closeout`
+- `GET /api/project/security/admin-audit`
+- `GET /api/security/firewall`
+- `POST /api/security/firewall`
+- `DELETE /api/security/firewall/:id`
+- `GET /api/project/keys`
+- `GET /api/project/keys/essential`
+- `POST /api/project/keys/essential/verify`
+- `POST /api/project/keys/essential/:role/reveal`
+- `POST /api/project/keys/essential/:role/rotate`
+
+## 9. Integrations and Extensions
+
+Implemented integration capabilities:
+
+- project integrations list/create/delete/test
+- delivery metrics
+- DLQ inspection and retry
+- security/integration delivery workers
+- extension marketplace sync/install/uninstall
+
+Core routes:
+
+- `GET /api/project/integrations`
+- `POST /api/project/integrations`
+- `DELETE /api/project/integrations/:id`
+- `POST /api/project/integrations/:id/test`
+- `GET /api/project/integrations/metrics`
+- `GET /api/project/integrations/dlq`
+- `POST /api/project/integrations/dlq/:id/retry`
+- `GET /api/extensions`
+- `POST /api/extensions/:name`
+- `GET /api/extensions/marketplace`
+- `POST /api/extensions/marketplace/sync`
+- `POST /api/extensions/marketplace/:slug/install`
+- `DELETE /api/extensions/marketplace/:slug/install`
+
+## 10. AI Runtime: MCP, NLQ, and pgvector
+
+OzyBase exposes an AI-facing admin runtime directly over HTTP.
+
+Implemented today:
+
+- pgvector status/setup/upsert/search
+- natural language to SQL translate/query
+- MCP JSON-RPC endpoint
+- MCP helper endpoints for tools listing and invoke
+- VS Code remote MCP configuration support
+
+Core routes:
+
+- `GET /api/project/vector/status`
+- `POST /api/project/vector/setup`
+- `POST /api/project/vector/upsert`
+- `POST /api/project/vector/search`
+- `POST /api/project/nlq/translate`
+- `POST /api/project/nlq/query`
+- `POST /api/project/mcp`
+- `GET /api/project/mcp/tools`
+- `POST /api/project/mcp/invoke`
+
+Current built-in MCP tools include:
+
+- `system.health`
+- `collections.list`
+- `collections.create`
+- `vector.status`
+- `nlq.translate`
+- `nlq.query`
+
+See [docs/MCP_VSCODE.md](./docs/MCP_VSCODE.md) for editor setup.
+
+## Current Product Boundaries
+
+The README should reflect the product honestly, so these constraints are explicit:
+
+- `Migration Studio` currently works from pasted/uploaded input during setup. It is not yet a live remote connector for MySQL, SQL Server, or Mongo deployments.
+- workspace scope is real for membership and dashboard metadata, but it does not auto-create isolated physical infrastructure
+- the public npm JS/TS SDK package is still pending; the supported path today is direct HTTP plus generated types
+- storage ACL composition is intentionally narrower than a full arbitrary-policy builder at edit time
+
+## Quick Start
+
+### Local binary
+
 ```bash
 git clone https://github.com/Xangel0s/OzyBase.git
-cd OzyBase-Core
+cd OzyBase
 go run ./cmd/ozybase
 ```
 
 ### Docker
+
 ```bash
 docker compose up -d --build
 ```
 
-### Install-to-play (Postgres incluido)
+### Install-to-play bundle
+
 Use `docker-compose.install.yml`.
-Required vars only:
+
+Required environment values:
+
 - `SITE_URL`
 - `APP_DOMAIN`
 - `DB_PASSWORD`
-Visible DB vars in Coolify:
-- `DB_USER` (default `ozybase`)
-- `DB_NAME` (default `ozybase`)
-- `DB_SSLMODE` (default `disable`)
 
-### Coolify (managed Postgres)
+Common visible DB values:
+
+- `DB_USER` default `ozybase`
+- `DB_NAME` default `ozybase`
+- `DB_SSLMODE` default `disable`
+
+### Coolify / managed Postgres
+
 Use `docker-compose.coolify.yml`.
-Only required in Coolify:
+
+Required:
+
 - `DATABASE_URL`
 - `SITE_URL`
 - `APP_DOMAIN`
 
-Install-to-play defaults:
-- If `JWT_SECRET` is missing, OzyBase auto-generates it into `.ozy_secret`.
-- If `ALLOWED_ORIGINS` is missing, OzyBase derives safe defaults from `SITE_URL` and `APP_DOMAIN`.
-- Set `OZY_STRICT_SECURITY=true` in production to fail fast on insecure config.
-- `OZY_SKIP_MIGRATIONS_SEED=true` disables seeding `/app/migrations` from the image (advanced).
-- `ozybase init` generates strong random secrets for `JWT_SECRET` and `DB_PASSWORD`.
-- `ozybase init` auto-adjusts DB TLS mode:
-  - local DB host (`db`/`localhost`) -> `sslmode=disable`
-  - external DB host -> `sslmode=require`
+## Production Configuration Notes
 
-First admin login:
-- `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` can be provided as env vars.
-- If `INITIAL_ADMIN_EMAIL` is empty, default is `admin@<APP_DOMAIN>` (or `system@ozybase.local` on localhost).
-- If `INITIAL_ADMIN_PASSWORD` is empty, OzyBase generates one and prints it in startup logs once.
-
-### CLI utility commands
-```bash
-ozybase init
-ozybase version
-ozybase upgrade
-ozybase functions init hello
-```
-
-## 🔐 Required Environment Variables
+At minimum for a serious deployment, set:
 
 ```env
 PORT=8090
@@ -171,30 +417,79 @@ SITE_URL=https://api.example.com
 APP_DOMAIN=example.com
 ALLOWED_ORIGINS=https://app.example.com,https://api.example.com
 JWT_SECRET=<64-byte-random-secret>
-DB_USER=ozyuser
-DB_PASSWORD=<strong-password>
-DB_NAME=Ozydb
-DB_SSLMODE=verify-full
+DATABASE_URL=postgres://user:pass@db.example.com:5432/ozybase?sslmode=require
+DB_POOLER_URL=postgres://user:pass@pool.example.com:6543/ozybase?sslmode=require
 RATE_LIMIT_RPS=20
 RATE_LIMIT_BURST=20
-OZY_REALTIME_BROKER=redis
-REDIS_ADDR=127.0.0.1:6379
-REDIS_PASSWORD=
-REDIS_DB=0
-OZY_REALTIME_CHANNEL=ozy_events_cluster
-OZY_REALTIME_NODE_ID=node-a
 DEBUG=false
 ```
 
-## 📚 Documentation
+Useful optional settings:
 
-- Deployment Runbook: `docs/DEPLOYMENT.md`
-- Deployment Profiles: `docs/DEPLOYMENT_PROFILES.md`
-- Performance Benchmarks: `docs/PERFORMANCE_BENCHMARKS.md`
-- Security Suite: `docs/SECURITY_SUITE.md`
-- Security Notifications: `docs/SECURITY_NOTIFICATIONS.md`
-- Project Status: `docs/PROJECT_STATUS_MASTER.md`
-- Roadmap: `docs/ROADMAP.md`
-- Changelog: `CHANGELOG.md`
+- `OZY_STORAGE_PROVIDER=local|s3`
+- `OZY_STORAGE_PATH`
+- `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_USE_SSL`
+- `OZY_REALTIME_BROKER=local|redis`
+- `REDIS_ADDR`, `REDIS_PASSWORD`, `REDIS_DB`
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`
+- `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD`
+- `OZY_STRICT_SECURITY=true`
+
+Detailed deployment runbook: [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
+
+## CLI
+
+The public CLI utilities available in this repo include:
+
+```bash
+ozybase init
+ozybase version
+ozybase upgrade
+ozybase functions init hello
+```
+
+There are also helper binaries in `cmd/` for benchmarking and password/admin maintenance.
+
+## Validation and QA Gates
+
+The repo includes backend, frontend, smoke, and deployment validation paths. Common release checks:
+
+```bash
+go test ./...
+```
+
+```bash
+cd frontend
+npm run lint
+npm run typecheck
+npm run build
+```
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/validate_enterprise.ps1 -SkipE2E
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_frontend_qa.ps1
+```
+
+Additional operational validations live in:
+
+- `scripts/validate_external_stack.ps1`
+- `scripts/validate_multinode_stack.ps1`
+- `scripts/validate_https_smtp_stack.ps1`
+- `scripts/smoke_api.sh`
+- `scripts/smoke_post_deploy.sh`
+- `scripts/deploy_canary.sh`
+- `scripts/disaster_drill.sh`
+
+## Documentation
+
+- [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
+- [docs/DEPLOYMENT_PROFILES.md](./docs/DEPLOYMENT_PROFILES.md)
+- [docs/MCP_VSCODE.md](./docs/MCP_VSCODE.md)
+- [docs/PERFORMANCE_BENCHMARKS.md](./docs/PERFORMANCE_BENCHMARKS.md)
+- [docs/SECURITY_SUITE.md](./docs/SECURITY_SUITE.md)
+- [docs/SECURITY_NOTIFICATIONS.md](./docs/SECURITY_NOTIFICATIONS.md)
+- [docs/PROJECT_STATUS_MASTER.md](./docs/PROJECT_STATUS_MASTER.md)
+- [docs/ROADMAP.md](./docs/ROADMAP.md)
+- [CHANGELOG.md](./CHANGELOG.md)
 
 Developed by **Xangel0s**.
