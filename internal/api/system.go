@@ -1,19 +1,37 @@
 package api
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/mail"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type setupAction struct {
+	Key    string `json:"key"`
+	Label  string `json:"label"`
+	Detail string `json:"detail"`
+}
+
+type setupSystemResponse struct {
+	Status              string        `json:"status"`
+	Token               string        `json:"token"`
+	Mode                string        `json:"mode"`
+	Summary             string        `json:"summary"`
+	AppliedActions      []setupAction `json:"applied_actions"`
+	PreservedTableCount int           `json:"preserved_table_count,omitempty"`
+}
 
 // GetSystemStatus checks if the system is initialized (has an admin user)
 func (h *Handler) GetSystemStatus(c echo.Context) error {
@@ -116,11 +134,13 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 	}
 
 	// 3. Apply configuration based on mode
+	allowedCountries := []string{}
+	preservedTableCount := 0
 	switch req.Mode {
 	case "secure":
 		// A. Enable Geo-Fencing for the provided country
 		if req.AllowCountry != "" {
-			allowedCountries := normalizeAllowedCountries([]string{req.AllowCountry})
+			allowedCountries = normalizeAllowedCountries([]string{req.AllowCountry})
 			config := map[string]any{
 				"enabled":           true,
 				"allowed_countries": allowedCountries,
@@ -149,6 +169,11 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to initialize audit logs"})
 		}
 	case "migrate":
+		preservedTableCount, err = countPreservedUserTables(c.Request().Context(), tx)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to inspect existing user tables"})
+		}
+
 		_, err = tx.Exec(c.Request().Context(), `
 			INSERT INTO _v_audit_logs (method, path, status, country)
 			VALUES ('SYSTEM', 'SETUP_MIGRATE', 200, 'SYSTEM')
@@ -179,8 +204,89 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to commit setup"})
 	}
 
-	return c.JSON(http.StatusOK, map[string]string{
-		"status": "initialized",
-		"token":  token,
-	})
+	return c.JSON(http.StatusOK, buildSetupResponse(req.Mode, token, allowedCountries, preservedTableCount))
+}
+
+func countPreservedUserTables(ctx context.Context, tx pgx.Tx) (int, error) {
+	var count int
+	err := tx.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM information_schema.tables
+		WHERE table_schema = 'public'
+		  AND table_type = 'BASE TABLE'
+		  AND table_name NOT LIKE '\_v\_%' ESCAPE '\'
+	`).Scan(&count)
+	return count, err
+}
+
+func buildSetupResponse(mode, token string, allowedCountries []string, preservedTableCount int) setupSystemResponse {
+	actions := []setupAction{
+		{
+			Key:    "admin_account",
+			Label:  "Admin account created",
+			Detail: "The first administrator user was created for this workspace bootstrap.",
+		},
+		{
+			Key:    "admin_session",
+			Label:  "Admin session initialized",
+			Detail: "A signed bootstrap session was created so the first login can continue immediately.",
+		},
+	}
+
+	summary := "Admin bootstrap completed without extra presets."
+
+	switch mode {
+	case "secure":
+		geoDetail := "Geo-fencing audit mode was recorded, but no country was detected for the initial allowlist."
+		summary = "Admin bootstrap completed with the secure preset."
+		if len(allowedCountries) > 0 {
+			geoDetail = fmt.Sprintf("Geo-fencing was enabled with %s as the initial allowed country.", allowedCountries[0])
+			summary = fmt.Sprintf("Admin bootstrap completed with geo-fencing seeded for %s.", allowedCountries[0])
+		}
+		actions = append(actions,
+			setupAction{
+				Key:    "geo_fencing",
+				Label:  "Geo-fencing preset applied",
+				Detail: geoDetail,
+			},
+			setupAction{
+				Key:    "secure_audit_log",
+				Label:  "Secure bootstrap audit logged",
+				Detail: "The secure initialization event was written to the audit log.",
+			},
+		)
+	case "migrate":
+		tableLabel := "tables"
+		if preservedTableCount == 1 {
+			tableLabel = "table"
+		}
+		summary = fmt.Sprintf("Admin bootstrap completed while preserving %d existing user %s.", preservedTableCount, tableLabel)
+		actions = append(actions,
+			setupAction{
+				Key:    "preserve_existing_tables",
+				Label:  "Existing user tables preserved",
+				Detail: fmt.Sprintf("%d existing user %s were left untouched during bootstrap.", preservedTableCount, tableLabel),
+			},
+			setupAction{
+				Key:    "migration_audit_log",
+				Label:  "Migration bootstrap audit logged",
+				Detail: "A migration-mode setup marker was written for traceability.",
+			},
+		)
+	default:
+		actions = append(actions, setupAction{
+			Key:    "manual_baseline",
+			Label:  "Manual baseline preserved",
+			Detail: "No extra security presets or data migration steps were applied during bootstrap.",
+		})
+	}
+
+	return setupSystemResponse{
+		Status:              "initialized",
+		Token:               token,
+		Mode:                mode,
+		Summary:             summary,
+		AppliedActions:      actions,
+		PreservedTableCount: preservedTableCount,
+	}
 }

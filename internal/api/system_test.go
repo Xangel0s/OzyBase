@@ -155,6 +155,144 @@ func TestSetupSystem_ConcurrentInitialization(t *testing.T) {
 	assert.Equal(t, 1, adminCount, "database must contain exactly one admin")
 }
 
+func TestSetupSystem_SecureModeReportsAppliedPreset(t *testing.T) {
+	db := setupSystemTestDB(t)
+	h := &Handler{
+		DB:   db,
+		Auth: core.NewAuthService(db, "test-jwt-secret", nil),
+	}
+
+	resp, rec := performSetupRequest(t, h, map[string]string{
+		"email":         "secure-admin@example.com",
+		"password":      "StrongPass123!",
+		"mode":          "secure",
+		"allow_country": "Peru",
+	})
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "secure", resp.Mode)
+	assert.NotEmpty(t, resp.Token)
+	assert.Contains(t, resp.Summary, "Peru")
+	assert.True(t, hasSetupAction(resp.AppliedActions, "geo_fencing"))
+	assert.True(t, hasSetupAction(resp.AppliedActions, "secure_audit_log"))
+
+	var rawConfig []byte
+	err := db.Pool.QueryRow(context.Background(), "SELECT config FROM _v_security_policies WHERE type = 'geo_fencing'").Scan(&rawConfig)
+	require.NoError(t, err)
+	assert.Contains(t, string(rawConfig), "Peru")
+
+	var auditCount int
+	err = db.Pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM _v_audit_logs WHERE path = 'SETUP_SECURE'").Scan(&auditCount)
+	require.NoError(t, err)
+	assert.Equal(t, 1, auditCount)
+}
+
+func TestSetupSystem_MigrateModePreservesExistingUserTablesAndReportsSummary(t *testing.T) {
+	db := setupSystemTestDB(t)
+	h := &Handler{
+		DB:   db,
+		Auth: core.NewAuthService(db, "test-jwt-secret", nil),
+	}
+
+	ctx := context.Background()
+	tableName := fmt.Sprintf("migrate_fixture_%d", time.Now().UnixNano())
+
+	_, err := db.Pool.Exec(ctx, fmt.Sprintf(`
+		CREATE TABLE %s (
+			id BIGSERIAL PRIMARY KEY,
+			name TEXT NOT NULL
+		)
+	`, tableName))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = db.Pool.Exec(context.Background(), fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName))
+	})
+
+	_, err = db.Pool.Exec(ctx, fmt.Sprintf("INSERT INTO %s (name) VALUES ('kept row')", tableName))
+	require.NoError(t, err)
+
+	expectedTableCount := countUserTablesForSetupTest(t, db)
+
+	resp, rec := performSetupRequest(t, h, map[string]string{
+		"email":    "migrate-admin@example.com",
+		"password": "StrongPass123!",
+		"mode":     "migrate",
+	})
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "migrate", resp.Mode)
+	assert.Equal(t, expectedTableCount, resp.PreservedTableCount)
+	assert.True(t, hasSetupAction(resp.AppliedActions, "preserve_existing_tables"))
+	assert.True(t, hasSetupAction(resp.AppliedActions, "migration_audit_log"))
+
+	var rowCount int
+	err = db.Pool.QueryRow(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)).Scan(&rowCount)
+	require.NoError(t, err)
+	assert.Equal(t, 1, rowCount)
+
+	var auditCount int
+	err = db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_audit_logs WHERE path = 'SETUP_MIGRATE'").Scan(&auditCount)
+	require.NoError(t, err)
+	assert.Equal(t, 1, auditCount)
+}
+
+type setupResponseBody struct {
+	Status              string        `json:"status"`
+	Token               string        `json:"token"`
+	Mode                string        `json:"mode"`
+	Summary             string        `json:"summary"`
+	AppliedActions      []setupAction `json:"applied_actions"`
+	PreservedTableCount int           `json:"preserved_table_count"`
+}
+
+func performSetupRequest(t *testing.T, h *Handler, payload map[string]string) (setupResponseBody, *httptest.ResponseRecorder) {
+	t.Helper()
+
+	raw, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/api/system/setup", bytes.NewReader(raw))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err = h.SetupSystem(c)
+	require.NoError(t, err)
+
+	var body setupResponseBody
+	if rec.Body.Len() > 0 {
+		err = json.Unmarshal(rec.Body.Bytes(), &body)
+		require.NoError(t, err)
+	}
+
+	return body, rec
+}
+
+func hasSetupAction(actions []setupAction, key string) bool {
+	for _, action := range actions {
+		if action.Key == key {
+			return true
+		}
+	}
+	return false
+}
+
+func countUserTablesForSetupTest(t *testing.T, db *data.DB) int {
+	t.Helper()
+
+	var count int
+	err := db.Pool.QueryRow(context.Background(), `
+		SELECT COUNT(*)
+		FROM information_schema.tables
+		WHERE table_schema = 'public'
+		  AND table_type = 'BASE TABLE'
+		  AND table_name NOT LIKE '\_v\_%' ESCAPE '\'
+	`).Scan(&count)
+	require.NoError(t, err)
+	return count
+}
+
 func setupSystemTestDB(t *testing.T) *data.DB {
 	t.Helper()
 
