@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Save } from 'lucide-react';
+import OzySelect from './OzySelect';
 
 interface ColumnSchema {
     name: string;
@@ -50,16 +51,17 @@ const BulkEditModal = ({ isOpen, onClose, schema = [], onSubmit }: BulkEditModal
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Column</label>
-                        <select
+                        <OzySelect
                             value={column}
                             onChange={(e: any) => setColumn(e.target.value)}
-                            className="w-full bg-[#111111] border border-[#2e2e2e] rounded-lg px-4 py-2 text-sm text-zinc-200 focus:outline-none focus:border-primary/50"
+                            wrapperClassName="rounded-xl shadow-none"
+                            selectClassName="text-[10px]"
                         >
                             <option value="">Select column</option>
                             {editableColumns.map((col: any) => (
                                 <option key={col.name} value={col.name}>{col.name}</option>
                             ))}
-                        </select>
+                        </OzySelect>
                     </div>
 
                     <div className="space-y-2">

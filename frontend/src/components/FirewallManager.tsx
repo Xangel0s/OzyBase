@@ -3,6 +3,7 @@ import { AlertTriangle, Plus, Search, ShieldBan, ShieldCheck, Trash2 } from 'luc
 import { fetchWithAuth } from '../utils/api';
 import ConfirmModal from './ConfirmModal';
 import { BrandedToast } from './OverlayPrimitives';
+import OzySelect from './OzySelect';
 
 interface FirewallRule {
     id: string;
@@ -178,14 +179,15 @@ const FirewallManager = () => {
                             <div className="row flex gap-4">
                                 <div className="space-y-2 flex-1">
                                     <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Action</label>
-                                    <select
-                                        className="w-full bg-[#0c0c0c] border border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-300 focus:outline-none focus:border-white/20"
+                                    <OzySelect
                                         value={newRule.rule_type}
                                         onChange={(e: any) => setNewRule({ ...newRule, rule_type: e.target.value as NewFirewallRule['rule_type'] })}
+                                        wrapperClassName="shadow-none border-zinc-800 bg-[#0c0c0c]"
+                                        selectClassName="text-[10px]"
                                     >
                                         <option value="BLOCK">BLOCK (Blacklist)</option>
                                         <option value="ALLOW">ALLOW (Whitelist)</option>
-                                    </select>
+                                    </OzySelect>
                                 </div>
                                 <div className="space-y-2 flex-1">
                                     <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Duration (Hours)</label>

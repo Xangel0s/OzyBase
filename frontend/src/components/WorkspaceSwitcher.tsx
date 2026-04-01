@@ -174,7 +174,7 @@ const WorkspaceSwitcher = ({ onWorkspaceChange, onViewSelect, isExpanded = false
                 {isExpanded && (
                     <div className="flex-1 min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
                         <h3 className="text-[10px] font-black text-white uppercase tracking-[0.2em] leading-none mb-1.5 flex items-center gap-2">
-                            {isOpen ? 'Searching...' : 'Select Project'}
+                            {isOpen ? 'Browse Projects' : activeWorkspace ? 'Active Project' : 'Choose Project'}
                         </h3>
                         <div className="flex items-center gap-2 text-zinc-500 group-hover:text-zinc-300 transition-colors">
                             <Globe size={12} className="text-primary/50" />
@@ -274,7 +274,7 @@ const WorkspaceSwitcher = ({ onWorkspaceChange, onViewSelect, isExpanded = false
                             className="w-full flex items-center gap-3 px-3 py-2.5 text-[10px] font-black text-zinc-500 hover:text-white hover:bg-zinc-900/50 rounded-xl transition-all uppercase tracking-widest group"
                         >
                             <LayoutGrid size={14} className="group-hover:scale-110 transition-transform" />
-                            All Projects
+                            Project Directory
                         </button>
                     </div>
                 </div>

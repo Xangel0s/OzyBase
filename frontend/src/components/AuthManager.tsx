@@ -15,6 +15,7 @@ import {
 import { fetchWithAuth } from '../utils/api';
 import ConfirmModal from './ConfirmModal';
 import { BrandedToast } from './OverlayPrimitives';
+import OzySelect from './OzySelect';
 
 interface AuthUser {
     id: string;
@@ -41,6 +42,8 @@ const EMPTY_USER_FORM = {
     password: '',
     role: 'user',
 };
+
+const MIN_RUNTIME_PASSWORD_LENGTH = 8;
 
 const AuthManager: React.FC<AuthManagerProps> = ({ view = 'users', onViewSelect }) => {
     const [users, setUsers] = useState<AuthUser[]>([]);
@@ -304,16 +307,17 @@ const AuthManager: React.FC<AuthManagerProps> = ({ view = 'users', onViewSelect 
                                                 </span>
                                             </td>
                                             <td className="px-8 py-5">
-                                                <select
+                                                <OzySelect
                                                     value={user.role}
                                                     onChange={(event) => void handleRoleChange(user.id, event.target.value)}
-                                                    className="bg-zinc-900 border border-zinc-800 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg text-zinc-400 focus:outline-none focus:border-primary/50 transition-colors"
+                                                    wrapperClassName="min-w-[126px] rounded-xl border-zinc-800 bg-[#111111] shadow-none"
+                                                    selectClassName="h-9 px-3 text-[9px] tracking-[0.16em]"
                                                 >
                                                     <option value="user">User</option>
                                                     <option value="admin">Admin</option>
                                                     <option value="manager">Manager</option>
                                                     <option value="editor">Editor</option>
-                                                </select>
+                                                </OzySelect>
                                             </td>
                                             <td className="px-8 py-5 text-xs font-black text-zinc-600 uppercase tracking-tight">
                                                 {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}
@@ -438,25 +442,30 @@ const AuthManager: React.FC<AuthManagerProps> = ({ view = 'users', onViewSelect 
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Temporary Password</label>
                                 <input
                                     required
-                                    minLength={8}
+                                    minLength={MIN_RUNTIME_PASSWORD_LENGTH}
                                     type="password"
                                     value={newUser.password}
                                     onChange={(event) => setNewUser((current) => ({ ...current, password: event.target.value }))}
+                                    placeholder={`Use at least ${MIN_RUNTIME_PASSWORD_LENGTH} characters`}
                                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50"
                                 />
+                                <p className="text-[10px] text-zinc-600">
+                                    Runtime auth currently enforces {MIN_RUNTIME_PASSWORD_LENGTH}+ characters. The 12-character rule only applies to first-run bootstrap setup.
+                                </p>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Role</label>
-                                <select
+                                <OzySelect
                                     value={newUser.role}
                                     onChange={(event) => setNewUser((current) => ({ ...current, role: event.target.value }))}
-                                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50"
+                                    wrapperClassName="shadow-none"
+                                    selectClassName="text-[10px]"
                                 >
                                     <option value="user">User</option>
                                     <option value="admin">Admin</option>
                                     <option value="manager">Manager</option>
                                     <option value="editor">Editor</option>
-                                </select>
+                                </OzySelect>
                             </div>
                         </div>
                         <div className="px-8 py-5 border-t border-[#2e2e2e] bg-[#171717] flex justify-end gap-3">

@@ -14,6 +14,7 @@ import {
 import ConfirmModal from './ConfirmModal';
 import { BrandedToast } from './OverlayPrimitives';
 import { fetchWithAuth } from '../utils/api';
+import OzySelect from './OzySelect';
 
 interface WebhookRecord {
     id: string;
@@ -182,16 +183,17 @@ const WebhooksManager = () => {
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Event Trigger</label>
-                                <select
+                                <OzySelect
                                     value={newWebhook.events}
                                     onChange={(e: any) => setNewWebhook({ ...newWebhook, events: e.target.value })}
-                                    className="w-full bg-[#0c0c0c] border border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-200 focus:outline-none focus:border-primary/50 appearance-none"
+                                    wrapperClassName="shadow-none border-zinc-800 bg-[#0c0c0c]"
+                                    selectClassName="text-[10px]"
                                 >
                                     <option value="*">All Events (*)</option>
                                     <option value="records:create">Record Created</option>
                                     <option value="records:update">Record Updated</option>
                                     <option value="records:delete">Record Deleted</option>
-                                </select>
+                                </OzySelect>
                             </div>
                             <button
                                 onClick={createWebhook}

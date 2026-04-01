@@ -87,6 +87,12 @@ interface CoreUpdateStatus {
     message?: string;
 }
 
+interface ActiveWorkspaceMeta {
+    id: string;
+    name: string;
+    slug?: string;
+}
+
 const resetScrollPosition = (viewport: HTMLElement | null) => {
     if (!viewport) {
         return;
@@ -143,6 +149,7 @@ const Layout: React.FC<LayoutProps> = ({
     const [explorerSearchTerm, setExplorerSearchTerm] = useState('');
     const [docsFilter, setDocsFilter] = useState('all');
     const [isSystemTablesExpanded, setIsSystemTablesExpanded] = useState(false);
+    const [activeWorkspaceMeta, setActiveWorkspaceMeta] = useState<ActiveWorkspaceMeta | null>(null);
 
     const notificationRef = useRef<HTMLDivElement | null>(null);
     const userDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -275,6 +282,45 @@ const Layout: React.FC<LayoutProps> = ({
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [isNotificationOpen, isUserDropdownOpen]);
+
+    useEffect(() => {
+        const normalizedWorkspaceId = String(workspaceId || '').trim();
+        if (!normalizedWorkspaceId) {
+            setActiveWorkspaceMeta(null);
+            return;
+        }
+
+        let cancelled = false;
+
+        fetchWithAuth('/api/workspaces')
+            .then((res: any) => res.ok ? res.json() : [])
+            .then((data: any) => {
+                if (cancelled) {
+                    return;
+                }
+                const workspaces = Array.isArray(data) ? data : [];
+                const activeWorkspace = workspaces.find((workspace: any) => String(workspace?.id || '').trim() === normalizedWorkspaceId);
+                if (!activeWorkspace) {
+                    setActiveWorkspaceMeta(null);
+                    return;
+                }
+                setActiveWorkspaceMeta({
+                    id: String(activeWorkspace.id),
+                    name: String(activeWorkspace.name || 'Project'),
+                    slug: String(activeWorkspace.slug || '').trim() || undefined,
+                });
+            })
+            .catch((err: any) => {
+                console.error('Failed to load active workspace summary', err);
+                if (!cancelled) {
+                    setActiveWorkspaceMeta(null);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [workspaceId]);
 
     useEffect(() => {
         const viewport = contentViewportRef.current;
@@ -809,15 +855,37 @@ const Layout: React.FC<LayoutProps> = ({
 
             {/* Main Content Area */}
             <div ref={contentViewportRef} data-testid="module-shell" className={`flex-1 flex flex-col min-w-0 bg-[#0c0c0c] ${!shouldShowExplorer(selectedView) ? 'animate-in fade-in slide-in-from-left-2 duration-300' : ''}`}>
-                <header className="h-14 border-b border-[#2e2e2e] bg-[#111111] flex items-center justify-between px-6 flex-shrink-0">
-                    <div className="flex items-center gap-2 text-[11px] font-bold tracking-tight">
-                        <span className="text-zinc-600 hover:text-zinc-400 cursor-pointer transition-colors uppercase tracking-[0.1em]">OzyBase</span>
-                        <span className="text-zinc-800 text-lg font-thin">/</span>
-                        <span className="text-[11px] font-black text-white uppercase tracking-wider">PROJECT</span>
-                        <span className="text-zinc-800 text-lg font-thin">/</span>
-                        <span className="bg-zinc-900 text-primary border border-primary/20 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest shadow-[0_0_10px_rgba(254,254,0,0.05)]">
-                            {selectedTable || getViewLabel(selectedView)}
-                        </span>
+                <header className="min-h-[76px] border-b border-[#2e2e2e] bg-[#111111] flex items-center justify-between gap-4 px-6 py-3 flex-shrink-0">
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold tracking-tight">
+                            <span className="text-zinc-600 hover:text-zinc-400 cursor-pointer transition-colors uppercase tracking-[0.1em]">OzyBase</span>
+                            <span className="text-zinc-800 text-lg font-thin">/</span>
+                            <span className="text-[11px] font-black text-white uppercase tracking-wider">PROJECT</span>
+                            <span className="text-zinc-800 text-lg font-thin">/</span>
+                            <span className="bg-zinc-900 text-primary border border-primary/20 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest shadow-[0_0_10px_rgba(254,254,0,0.05)]">
+                                {selectedTable || getViewLabel(selectedView)}
+                            </span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[9px] font-black uppercase tracking-[0.18em]">
+                            <span className="text-zinc-600">Active Project</span>
+                            <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${activeWorkspaceMeta
+                                ? 'border-primary/20 bg-primary/10 text-primary'
+                                : 'border-[#2e2e2e] bg-[#161616] text-zinc-400'
+                                }`}>
+                                <Briefcase size={11} />
+                                <span>{activeWorkspaceMeta?.name || 'Global Context'}</span>
+                            </span>
+                            {activeWorkspaceMeta?.slug ? (
+                                <span className="text-zinc-700 font-mono tracking-[0.14em]">
+                                    {activeWorkspaceMeta.slug}
+                                </span>
+                            ) : null}
+                            {!activeWorkspaceMeta ? (
+                                <span className="text-zinc-700">
+                                    Select a project to keep writes and settings scoped.
+                                </span>
+                            ) : null}
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-4">
