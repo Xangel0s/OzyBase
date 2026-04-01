@@ -115,21 +115,21 @@ func normalizeSetupMigrationRequest(req *setupMigrationRequest) {
 
 func validateSetupMigrationRequest(req setupMigrationRequest) error {
 	if req.SourceKind == "" {
-		return fmt.Errorf("Migration source is required")
+		return fmt.Errorf("migration source is required")
 	}
 
 	switch req.SourceKind {
 	case "csv", "mongo_json", "mysql_sql", "sqlite_sql", "sqlserver_sql", "postgres_sql":
 	default:
-		return fmt.Errorf("Unsupported migration source. Allowed: csv, mongo_json, mysql_sql, sqlite_sql, sqlserver_sql, postgres_sql")
+		return fmt.Errorf("unsupported migration source. allowed: csv, mongo_json, mysql_sql, sqlite_sql, sqlserver_sql, postgres_sql")
 	}
 
 	if req.RawInput == "" {
-		return fmt.Errorf("Migration input is required")
+		return fmt.Errorf("migration input is required")
 	}
 
 	if (req.SourceKind == "csv" || req.SourceKind == "mongo_json") && req.TableName == "" {
-		return fmt.Errorf("Table name is required for %s imports", req.SourceKind)
+		return fmt.Errorf("table name is required for %s imports", req.SourceKind)
 	}
 
 	return nil
@@ -160,12 +160,12 @@ func buildCSVMigrationPlan(req setupMigrationRequest) (setupMigrationPlan, error
 		return setupMigrationPlan{}, fmt.Errorf("failed to parse CSV: %w", err)
 	}
 	if len(rows) == 0 {
-		return setupMigrationPlan{}, fmt.Errorf("CSV input is empty")
+		return setupMigrationPlan{}, fmt.Errorf("csv input is empty")
 	}
 
 	headers := uniqueSanitizedIdentifiers(rows[0], "column")
 	if len(headers) == 0 {
-		return setupMigrationPlan{}, fmt.Errorf("CSV header row is empty")
+		return setupMigrationPlan{}, fmt.Errorf("csv header row is empty")
 	}
 
 	columnSamples := make([][]string, len(headers))
@@ -231,7 +231,7 @@ func buildMongoJSONMigrationPlan(req setupMigrationRequest) (setupMigrationPlan,
 		return setupMigrationPlan{}, err
 	}
 	if len(documents) == 0 {
-		return setupMigrationPlan{}, fmt.Errorf("Mongo-like JSON payload does not contain documents")
+		return setupMigrationPlan{}, fmt.Errorf("mongo-like JSON payload does not contain documents")
 	}
 
 	normalizedRecords := make([]map[string]any, 0, len(documents))
@@ -328,14 +328,14 @@ func collectExistingMigrationWarnings(ctx context.Context, db *data.DB, tables [
 
 func finalizeSetupMigrationTable(table *setupMigrationTablePlan) error {
 	if table == nil {
-		return fmt.Errorf("Migration table cannot be nil")
+		return fmt.Errorf("migration table cannot be nil")
 	}
 	table.Name = sanitizeSetupIdentifier(table.Name, "imported_table")
 	if table.DisplayName == "" {
 		table.DisplayName = buildSetupDisplayName(table.Name)
 	}
 	if len(table.Schema) == 0 {
-		return fmt.Errorf("Migration table %s does not define any columns", table.Name)
+		return fmt.Errorf("migration table %s does not define any columns", table.Name)
 	}
 
 	normalizedSchema := make([]data.FieldSchema, 0, len(table.Schema))
@@ -368,7 +368,7 @@ func buildSQLMigrationPlan(req setupMigrationRequest) (setupMigrationPlan, error
 	normalized := stripSQLComments(req.RawInput)
 	statements := splitSetupMigrationStatements(normalized)
 	if len(statements) == 0 {
-		return setupMigrationPlan{}, fmt.Errorf("No SQL statements were detected in the migration input")
+		return setupMigrationPlan{}, fmt.Errorf("no SQL statements were detected in the migration input")
 	}
 
 	tablePlans := make(map[string]*setupMigrationTablePlan)
@@ -391,9 +391,7 @@ func buildSQLMigrationPlan(req setupMigrationRequest) (setupMigrationPlan, error
 			if _, exists := tablePlans[table.Name]; !exists {
 				order = append(order, table.Name)
 			}
-			for _, warning := range tableWarnings {
-				table.Warnings = append(table.Warnings, warning)
-			}
+			table.Warnings = append(table.Warnings, tableWarnings...)
 			tablePlans[table.Name] = &table
 		case req.ImportRows && strings.HasPrefix(upper, "INSERT INTO"):
 			parsed, err := parseSQLInsertStatement(trimmed)
@@ -429,7 +427,7 @@ func buildSQLMigrationPlan(req setupMigrationRequest) (setupMigrationPlan, error
 		}
 		if len(table.Schema) == 0 {
 			if len(table.Rows) == 0 {
-				return setupMigrationPlan{}, fmt.Errorf("Could not build a schema for %s. Provide a CREATE TABLE statement or named INSERT columns", name)
+				return setupMigrationPlan{}, fmt.Errorf("could not build a schema for %s. provide a CREATE TABLE statement or named INSERT columns", name)
 			}
 			table.Schema = inferSchemaFromRecords(table.Rows)
 			table.Warnings = append(table.Warnings, "Schema was inferred from INSERT statements because no CREATE TABLE statement was provided.")
@@ -738,7 +736,7 @@ func parseMongoDocuments(raw string) ([]map[string]any, []string, error) {
 		for _, item := range value {
 			document, ok := item.(map[string]any)
 			if !ok {
-				return nil, nil, fmt.Errorf("Mongo-like JSON arrays must contain objects only")
+				return nil, nil, fmt.Errorf("mongo-like JSON arrays must contain objects only")
 			}
 			documents = append(documents, document)
 		}
@@ -749,7 +747,7 @@ func parseMongoDocuments(raw string) ([]map[string]any, []string, error) {
 			for _, item := range documentsRaw {
 				document, valid := item.(map[string]any)
 				if !valid {
-					return nil, nil, fmt.Errorf("The documents field must contain objects only")
+					return nil, nil, fmt.Errorf("the documents field must contain objects only")
 				}
 				documents = append(documents, document)
 			}
@@ -757,7 +755,7 @@ func parseMongoDocuments(raw string) ([]map[string]any, []string, error) {
 		}
 		return []map[string]any{value}, []string{"Detected a single JSON object and treated it as one document row."}, nil
 	default:
-		return nil, nil, fmt.Errorf("Mongo-like JSON must be a document object, a documents wrapper, or an array of documents")
+		return nil, nil, fmt.Errorf("mongo-like JSON must be a document object, a documents wrapper, or an array of documents")
 	}
 }
 
@@ -799,7 +797,7 @@ func parseSQLCreateTable(sourceKind, statement string) (setupMigrationTablePlan,
 	}
 
 	if len(schema) == 0 {
-		return setupMigrationTablePlan{}, nil, fmt.Errorf("CREATE TABLE %s does not define any usable columns", name)
+		return setupMigrationTablePlan{}, nil, fmt.Errorf("create table %s does not define any usable columns", name)
 	}
 
 	for index := range schema {
@@ -831,7 +829,7 @@ func extractCreateTableParts(statement string) (string, string, error) {
 
 	openIndex := indexOfRuneOutsideQuoted(rest, '(')
 	if openIndex == -1 {
-		return "", "", fmt.Errorf("CREATE TABLE statement is missing an opening parenthesis")
+		return "", "", fmt.Errorf("create table statement is missing an opening parenthesis")
 	}
 
 	namePart := strings.TrimSpace(rest[:openIndex])
@@ -866,7 +864,7 @@ func parseSQLColumnDefinition(sourceKind, definition string) (data.FieldSchema, 
 		return data.FieldSchema{}, nil, fmt.Errorf("missing column type")
 	}
 
-	typeWarnings := make([]string, 0)
+	var typeWarnings []string
 	field.Type, typeWarnings = mapExternalTypeToOzy(sourceKind, strings.Join(typeTokens, " "))
 
 	remainder := strings.ToUpper(strings.Join(tokens[index:], " "))
@@ -894,13 +892,13 @@ func parseSQLInsertStatement(statement string) (setupParsedInsert, error) {
 	rest := strings.TrimSpace(trimmed[len("INSERT INTO"):])
 	valuesIndex := indexKeywordOutsideStructured(rest, "VALUES")
 	if valuesIndex == -1 {
-		return setupParsedInsert{}, fmt.Errorf("INSERT statement is missing VALUES")
+		return setupParsedInsert{}, fmt.Errorf("insert statement is missing VALUES")
 	}
 
 	head := strings.TrimSpace(rest[:valuesIndex])
 	valuesRaw := strings.TrimSpace(rest[valuesIndex+len("VALUES"):])
 	if valuesRaw == "" {
-		return setupParsedInsert{}, fmt.Errorf("INSERT statement does not include any row values")
+		return setupParsedInsert{}, fmt.Errorf("insert statement does not include any row values")
 	}
 
 	tablePart := head
@@ -908,13 +906,13 @@ func parseSQLInsertStatement(statement string) (setupParsedInsert, error) {
 	if openIndex := indexOfRuneOutsideQuoted(head, '('); openIndex != -1 {
 		closeIndex := strings.LastIndex(head, ")")
 		if closeIndex == -1 || closeIndex <= openIndex {
-			return setupParsedInsert{}, fmt.Errorf("INSERT column list is malformed")
+			return setupParsedInsert{}, fmt.Errorf("insert column list is malformed")
 		}
 		tablePart = strings.TrimSpace(head[:openIndex])
 		columns = uniqueSanitizedIdentifiers(splitCommaAware(head[openIndex+1:closeIndex]), "column")
 	}
 	if len(columns) == 0 {
-		return setupParsedInsert{}, fmt.Errorf("INSERT statements without named columns are not supported in setup migration")
+		return setupParsedInsert{}, fmt.Errorf("insert statements without named columns are not supported in setup migration")
 	}
 
 	tuples, err := parseSQLValueTuples(valuesRaw)
@@ -926,7 +924,7 @@ func parseSQLInsertStatement(statement string) (setupParsedInsert, error) {
 	for _, tuple := range tuples {
 		values := splitCommaAware(tuple)
 		if len(values) != len(columns) {
-			return setupParsedInsert{}, fmt.Errorf("INSERT value count does not match its column count for table %s", tablePart)
+			return setupParsedInsert{}, fmt.Errorf("insert value count does not match its column count for table %s", tablePart)
 		}
 		record := make(map[string]any, len(columns))
 		for index, token := range values {
@@ -995,7 +993,7 @@ func parseSQLValueTuples(raw string) ([]string, error) {
 		case ')':
 			depth--
 			if depth < 0 {
-				return nil, fmt.Errorf("INSERT values contain unbalanced parentheses")
+				return nil, fmt.Errorf("insert values contain unbalanced parentheses")
 			}
 			if depth == 0 {
 				tuples = append(tuples, current.String())
@@ -1013,7 +1011,7 @@ func parseSQLValueTuples(raw string) ([]string, error) {
 	}
 
 	if depth != 0 {
-		return nil, fmt.Errorf("INSERT values contain incomplete tuples")
+		return nil, fmt.Errorf("insert values contain incomplete tuples")
 	}
 
 	return tuples, nil

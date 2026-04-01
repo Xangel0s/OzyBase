@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -12,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
@@ -226,18 +224,6 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, buildSetupResponse(req.Mode, token, allowedCountries, preservedTableCount, migrationResult))
-}
-
-func countPreservedUserTables(ctx context.Context, tx pgx.Tx) (int, error) {
-	var count int
-	err := tx.QueryRow(ctx, `
-		SELECT COUNT(*)
-		FROM information_schema.tables
-		WHERE table_schema = 'public'
-		  AND table_type = 'BASE TABLE'
-		  AND table_name NOT LIKE '\_v\_%' ESCAPE '\'
-	`).Scan(&count)
-	return count, err
 }
 
 func buildSetupResponse(mode, token string, allowedCountries []string, preservedTableCount int, migrationResult setupMigrationApplyResult) setupSystemResponse {
