@@ -138,10 +138,30 @@ func BuildCreateTableSQL(tableName string, schema []FieldSchema) (string, error)
 		columns = append(columns, col)
 	}
 
-	// Always add timestamps
-	columns = append(columns, "created_at TIMESTAMPTZ DEFAULT NOW()")
-	columns = append(columns, "updated_at TIMESTAMPTZ DEFAULT NOW()")
-	columns = append(columns, "deleted_at TIMESTAMPTZ")
+	// Add standard timestamps when the schema does not already define them.
+	hasCreatedAt := false
+	hasUpdatedAt := false
+	hasDeletedAt := false
+	for _, field := range schema {
+		switch strings.ToLower(strings.TrimSpace(field.Name)) {
+		case "created_at":
+			hasCreatedAt = true
+		case "updated_at":
+			hasUpdatedAt = true
+		case "deleted_at":
+			hasDeletedAt = true
+		}
+	}
+
+	if !hasCreatedAt {
+		columns = append(columns, "created_at TIMESTAMPTZ DEFAULT NOW()")
+	}
+	if !hasUpdatedAt {
+		columns = append(columns, "updated_at TIMESTAMPTZ DEFAULT NOW()")
+	}
+	if !hasDeletedAt {
+		columns = append(columns, "deleted_at TIMESTAMPTZ")
+	}
 
 	// #nosec G201
 	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n\t%s\n)",

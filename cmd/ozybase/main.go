@@ -428,7 +428,7 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 			}
 			// Skip CSRF for login endpoint
 			path := c.Request().URL.Path
-			if path == "/api/auth/login" || path == "/api/auth/signup" || path == "/api/system/status" || path == "/api/system/setup" || path == "/api/project/metrics" {
+			if path == "/api/auth/login" || path == "/api/auth/signup" || path == "/api/system/status" || path == "/api/system/setup" || path == "/api/system/setup/migration/preview" || path == "/api/project/metrics" {
 				return true
 			}
 			return false
@@ -532,6 +532,7 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 		// System Setup (Public, but protected by logic inside)
 		apiGroup.GET("/system/status", h.GetSystemStatus)
 		apiGroup.POST("/system/setup", h.SetupSystem)
+		apiGroup.POST("/system/setup/migration/preview", h.PreviewSetupMigration)
 
 		// Two-Factor Authentication
 		authGroup.POST("/2fa/setup", twoFactorHandler.Setup2FA, authRequired)

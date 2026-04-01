@@ -60,6 +60,12 @@ func TestSetupSystem_Validation(t *testing.T) {
 			wantStatus:  http.StatusBadRequest,
 			wantContain: "Invalid mode. Allowed: clean, secure, migrate",
 		},
+		{
+			name:        "migrate mode requires payload",
+			rawBody:     `{"email":"admin@example.com","password":"StrongPass123!","mode":"migrate"}`,
+			wantStatus:  http.StatusBadRequest,
+			wantContain: "Migration payload is required",
+		},
 	}
 
 	for _, tc := range tests {
@@ -162,7 +168,7 @@ func TestSetupSystem_SecureModeReportsAppliedPreset(t *testing.T) {
 		Auth: core.NewAuthService(db, "test-jwt-secret", nil),
 	}
 
-	resp, rec := performSetupRequest(t, h, map[string]string{
+	resp, rec := performSetupRequest(t, h, map[string]any{
 		"email":         "secure-admin@example.com",
 		"password":      "StrongPass123!",
 		"mode":          "secure",
@@ -187,7 +193,44 @@ func TestSetupSystem_SecureModeReportsAppliedPreset(t *testing.T) {
 	assert.Equal(t, 1, auditCount)
 }
 
-func TestSetupSystem_MigrateModePreservesExistingUserTablesAndReportsSummary(t *testing.T) {
+func TestPreviewSetupMigration_CSVReturnsTranslatedPlan(t *testing.T) {
+	e := echo.New()
+	h := &Handler{}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/system/setup/migration/preview", bytes.NewBufferString(`{
+		"source_kind":"csv",
+		"table_name":"legacy_users",
+		"raw_input":"id,name,email\n1,Ana,ana@example.com\n2,Luis,luis@example.com",
+		"import_rows":true
+	}`))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := h.PreviewSetupMigration(c)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var payload struct {
+		TableCount int `json:"table_count"`
+		RowCount   int `json:"row_count"`
+		Tables     []struct {
+			Name          string `json:"name"`
+			DetectedRows  int    `json:"detected_rows"`
+			TranslatedSQL string `json:"translated_sql"`
+		} `json:"tables"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	require.Equal(t, 1, payload.TableCount)
+	require.Equal(t, 2, payload.RowCount)
+	require.Len(t, payload.Tables, 1)
+	assert.Equal(t, "legacy_users", payload.Tables[0].Name)
+	assert.Equal(t, 2, payload.Tables[0].DetectedRows)
+	assert.Contains(t, payload.Tables[0].TranslatedSQL, "CREATE TABLE IF NOT EXISTS legacy_users")
+	assert.Contains(t, payload.Tables[0].TranslatedSQL, "email TEXT")
+}
+
+func TestSetupSystem_MigrateModeAppliesCSVMigrationPlan(t *testing.T) {
 	db := setupSystemTestDB(t)
 	h := &Handler{
 		DB:   db,
@@ -196,39 +239,44 @@ func TestSetupSystem_MigrateModePreservesExistingUserTablesAndReportsSummary(t *
 
 	ctx := context.Background()
 	tableName := fmt.Sprintf("migrate_fixture_%d", time.Now().UnixNano())
-
-	_, err := db.Pool.Exec(ctx, fmt.Sprintf(`
-		CREATE TABLE %s (
-			id BIGSERIAL PRIMARY KEY,
-			name TEXT NOT NULL
-		)
-	`, tableName))
-	require.NoError(t, err)
 	t.Cleanup(func() {
 		_, _ = db.Pool.Exec(context.Background(), fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName))
 	})
 
-	_, err = db.Pool.Exec(ctx, fmt.Sprintf("INSERT INTO %s (name) VALUES ('kept row')", tableName))
-	require.NoError(t, err)
-
-	expectedTableCount := countUserTablesForSetupTest(t, db)
-
-	resp, rec := performSetupRequest(t, h, map[string]string{
+	resp, rec := performSetupRequest(t, h, map[string]any{
 		"email":    "migrate-admin@example.com",
 		"password": "StrongPass123!",
 		"mode":     "migrate",
+		"migration": map[string]any{
+			"source_kind": "csv",
+			"table_name":  tableName,
+			"raw_input":   "id,name,active\n1,Ana,true\n2,Luis,false",
+			"import_rows": true,
+		},
 	})
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "migrate", resp.Mode)
-	assert.Equal(t, expectedTableCount, resp.PreservedTableCount)
-	assert.True(t, hasSetupAction(resp.AppliedActions, "preserve_existing_tables"))
+	assert.Equal(t, 1, resp.MigratedTableCount)
+	assert.Equal(t, 2, resp.ImportedRowCount)
+	assert.True(t, hasSetupAction(resp.AppliedActions, "migration_plan_applied"))
+	assert.True(t, hasSetupAction(resp.AppliedActions, "migration_rows_imported"))
 	assert.True(t, hasSetupAction(resp.AppliedActions, "migration_audit_log"))
 
 	var rowCount int
-	err = db.Pool.QueryRow(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)).Scan(&rowCount)
+	err := db.Pool.QueryRow(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)).Scan(&rowCount)
 	require.NoError(t, err)
-	assert.Equal(t, 1, rowCount)
+	assert.Equal(t, 2, rowCount)
+
+	var activeCount int
+	err = db.Pool.QueryRow(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE active = TRUE", tableName)).Scan(&activeCount)
+	require.NoError(t, err)
+	assert.Equal(t, 1, activeCount)
+
+	var metadataCount int
+	err = db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_collections WHERE name = $1", tableName).Scan(&metadataCount)
+	require.NoError(t, err)
+	assert.Equal(t, 1, metadataCount)
 
 	var auditCount int
 	err = db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_audit_logs WHERE path = 'SETUP_MIGRATE'").Scan(&auditCount)
@@ -243,9 +291,12 @@ type setupResponseBody struct {
 	Summary             string        `json:"summary"`
 	AppliedActions      []setupAction `json:"applied_actions"`
 	PreservedTableCount int           `json:"preserved_table_count"`
+	MigratedTableCount  int           `json:"migrated_table_count"`
+	ImportedRowCount    int           `json:"imported_row_count"`
+	MigrationWarnings   []string      `json:"migration_warnings"`
 }
 
-func performSetupRequest(t *testing.T, h *Handler, payload map[string]string) (setupResponseBody, *httptest.ResponseRecorder) {
+func performSetupRequest(t *testing.T, h *Handler, payload map[string]any) (setupResponseBody, *httptest.ResponseRecorder) {
 	t.Helper()
 
 	raw, err := json.Marshal(payload)
@@ -276,21 +327,6 @@ func hasSetupAction(actions []setupAction, key string) bool {
 		}
 	}
 	return false
-}
-
-func countUserTablesForSetupTest(t *testing.T, db *data.DB) int {
-	t.Helper()
-
-	var count int
-	err := db.Pool.QueryRow(context.Background(), `
-		SELECT COUNT(*)
-		FROM information_schema.tables
-		WHERE table_schema = 'public'
-		  AND table_type = 'BASE TABLE'
-		  AND table_name NOT LIKE '\_v\_%' ESCAPE '\'
-	`).Scan(&count)
-	require.NoError(t, err)
-	return count
 }
 
 func setupSystemTestDB(t *testing.T) *data.DB {

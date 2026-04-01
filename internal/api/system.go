@@ -31,6 +31,9 @@ type setupSystemResponse struct {
 	Summary             string        `json:"summary"`
 	AppliedActions      []setupAction `json:"applied_actions"`
 	PreservedTableCount int           `json:"preserved_table_count,omitempty"`
+	MigratedTableCount  int           `json:"migrated_table_count,omitempty"`
+	ImportedRowCount    int           `json:"imported_row_count,omitempty"`
+	MigrationWarnings   []string      `json:"migration_warnings,omitempty"`
 }
 
 // GetSystemStatus checks if the system is initialized (has an admin user)
@@ -54,10 +57,11 @@ func (h *Handler) GetSystemStatus(c echo.Context) error {
 // SetupSystem handles the initial setup (First Time Run)
 func (h *Handler) SetupSystem(c echo.Context) error {
 	var req struct {
-		Email        string `json:"email"`
-		Password     string `json:"password"`
-		Mode         string `json:"mode"`          // "clean", "secure", or "migrate"
-		AllowCountry string `json:"allow_country"` // Current country to allow if secure mode
+		Email        string                 `json:"email"`
+		Password     string                 `json:"password"`
+		Mode         string                 `json:"mode"`          // "clean", "secure", or "migrate"
+		AllowCountry string                 `json:"allow_country"` // Current country to allow if secure mode
+		Migration    *setupMigrationRequest `json:"migration,omitempty"`
 	}
 
 	if err := c.Bind(&req); err != nil {
@@ -82,6 +86,22 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 	}
 	if req.Mode != "clean" && req.Mode != "secure" && req.Mode != "migrate" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid mode. Allowed: clean, secure, migrate"})
+	}
+
+	var migrationPlan setupMigrationPlan
+	if req.Mode == "migrate" {
+		if req.Migration == nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Migration payload is required for migrate mode"})
+		}
+		normalizeSetupMigrationRequest(req.Migration)
+		if err := validateSetupMigrationRequest(*req.Migration); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+		}
+		plan, err := buildSetupMigrationPlan(*req.Migration)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+		}
+		migrationPlan = plan
 	}
 	if h == nil || h.DB == nil || h.DB.Pool == nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "System service unavailable"})
@@ -136,6 +156,7 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 	// 3. Apply configuration based on mode
 	allowedCountries := []string{}
 	preservedTableCount := 0
+	migrationResult := setupMigrationApplyResult{}
 	switch req.Mode {
 	case "secure":
 		// A. Enable Geo-Fencing for the provided country
@@ -169,9 +190,9 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to initialize audit logs"})
 		}
 	case "migrate":
-		preservedTableCount, err = countPreservedUserTables(c.Request().Context(), tx)
+		migrationResult, err = applySetupMigration(c.Request().Context(), tx, migrationPlan)
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to inspect existing user tables"})
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 		}
 
 		_, err = tx.Exec(c.Request().Context(), `
@@ -204,7 +225,7 @@ func (h *Handler) SetupSystem(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to commit setup"})
 	}
 
-	return c.JSON(http.StatusOK, buildSetupResponse(req.Mode, token, allowedCountries, preservedTableCount))
+	return c.JSON(http.StatusOK, buildSetupResponse(req.Mode, token, allowedCountries, preservedTableCount, migrationResult))
 }
 
 func countPreservedUserTables(ctx context.Context, tx pgx.Tx) (int, error) {
@@ -219,7 +240,7 @@ func countPreservedUserTables(ctx context.Context, tx pgx.Tx) (int, error) {
 	return count, err
 }
 
-func buildSetupResponse(mode, token string, allowedCountries []string, preservedTableCount int) setupSystemResponse {
+func buildSetupResponse(mode, token string, allowedCountries []string, preservedTableCount int, migrationResult setupMigrationApplyResult) setupSystemResponse {
 	actions := []setupAction{
 		{
 			Key:    "admin_account",
@@ -257,15 +278,24 @@ func buildSetupResponse(mode, token string, allowedCountries []string, preserved
 		)
 	case "migrate":
 		tableLabel := "tables"
-		if preservedTableCount == 1 {
+		rowLabel := "rows"
+		if migrationResult.MigratedTableCount == 1 {
 			tableLabel = "table"
 		}
-		summary = fmt.Sprintf("Admin bootstrap completed while preserving %d existing user %s.", preservedTableCount, tableLabel)
+		if migrationResult.ImportedRowCount == 1 {
+			rowLabel = "row"
+		}
+		summary = fmt.Sprintf("Admin bootstrap completed with %d migrated %s and %d imported %s.", migrationResult.MigratedTableCount, tableLabel, migrationResult.ImportedRowCount, rowLabel)
 		actions = append(actions,
 			setupAction{
-				Key:    "preserve_existing_tables",
-				Label:  "Existing user tables preserved",
-				Detail: fmt.Sprintf("%d existing user %s were left untouched during bootstrap.", preservedTableCount, tableLabel),
+				Key:    "migration_plan_applied",
+				Label:  "Migration plan applied",
+				Detail: fmt.Sprintf("%d migrated %s were prepared during bootstrap.", migrationResult.MigratedTableCount, tableLabel),
+			},
+			setupAction{
+				Key:    "migration_rows_imported",
+				Label:  "Initial dataset imported",
+				Detail: fmt.Sprintf("%d %s were inserted into the migrated tables.", migrationResult.ImportedRowCount, rowLabel),
 			},
 			setupAction{
 				Key:    "migration_audit_log",
@@ -273,6 +303,13 @@ func buildSetupResponse(mode, token string, allowedCountries []string, preserved
 				Detail: "A migration-mode setup marker was written for traceability.",
 			},
 		)
+		for _, warning := range migrationResult.Warnings {
+			actions = append(actions, setupAction{
+				Key:    "migration_warning",
+				Label:  "Migration warning",
+				Detail: warning,
+			})
+		}
 	default:
 		actions = append(actions, setupAction{
 			Key:    "manual_baseline",
@@ -288,5 +325,8 @@ func buildSetupResponse(mode, token string, allowedCountries []string, preserved
 		Summary:             summary,
 		AppliedActions:      actions,
 		PreservedTableCount: preservedTableCount,
+		MigratedTableCount:  migrationResult.MigratedTableCount,
+		ImportedRowCount:    migrationResult.ImportedRowCount,
+		MigrationWarnings:   uniqueStrings(migrationResult.Warnings),
 	}
 }
