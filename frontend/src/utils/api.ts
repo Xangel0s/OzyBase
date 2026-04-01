@@ -86,7 +86,7 @@ const fetchWithAuthInternal = async (url: string, options: AuthFetchOptions = {}
     }
 
     const authenticatedRequest = headers.has('Authorization') || headers.has('apikey') || headers.has('X-Ozy-Key');
-    const needsCSRF = sameOrigin && !SAFE_METHODS.has(method) && !authenticatedRequest && !headers.has('X-CSRF-Token');
+    const needsCSRF = sameOrigin && !SAFE_METHODS.has(method) && !headers.has('X-CSRF-Token');
     if (needsCSRF) {
         const csrfToken = await resolveCSRFToken(retryingCSRF);
         if (csrfToken) {
@@ -117,3 +117,39 @@ const fetchWithAuthInternal = async (url: string, options: AuthFetchOptions = {}
 export const fetchWithAuth = async (url: string, options: AuthFetchOptions = {}): Promise<Response> => (
     fetchWithAuthInternal(url, options)
 );
+
+export const readJsonIfOk = async <T>(res: Response): Promise<T | null> => {
+    if (!res.ok) {
+        return null;
+    }
+
+    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+    if (!contentType.includes('json')) {
+        return null;
+    }
+
+    return res.json().catch(() => null) as Promise<T | null>;
+};
+
+export const isAbortLikeError = (error: unknown): boolean => {
+    if (!error) {
+        return false;
+    }
+
+    if (error instanceof DOMException && error.name === 'AbortError') {
+        return true;
+    }
+
+    const name = typeof error === 'object' && error && 'name' in error
+        ? String((error as { name?: unknown }).name ?? '')
+        : '';
+    if (name === 'AbortError') {
+        return true;
+    }
+
+    const message = typeof error === 'object' && error && 'message' in error
+        ? String((error as { message?: unknown }).message ?? '')
+        : String(error);
+
+    return message.toLowerCase().includes('aborted');
+};

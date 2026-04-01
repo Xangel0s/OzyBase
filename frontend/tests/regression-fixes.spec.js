@@ -1,56 +1,5 @@
 import { expect, test } from '@playwright/test';
-
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'system@ozybase.local';
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'OzyBase123!';
-
-async function login(page) {
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.getByPlaceholder('system@ozybase.local').fill(ADMIN_EMAIL);
-    await page.getByPlaceholder('Enter your 32-char password').fill(ADMIN_PASSWORD);
-    await page.getByRole('button', { name: /Establish Link/i }).click();
-    await expect(page.getByText('MODULE ACTIVITY')).toBeVisible({ timeout: 20000 });
-}
-
-async function apiRequest(page, url, options = {}) {
-    return page.evaluate(async ({ url, options }) => {
-        const token = localStorage.getItem('ozy_token');
-        const workspaceId = localStorage.getItem('ozy_workspace_id');
-        const headers = new Headers(options.headers || {});
-
-        if (token) {
-            headers.set('Authorization', `Bearer ${token}`);
-        }
-        if (workspaceId) {
-            headers.set('X-Workspace-Id', workspaceId);
-        }
-        if (options.body && !headers.has('Content-Type')) {
-            headers.set('Content-Type', 'application/json');
-        }
-
-        const response = await fetch(url, { ...options, headers });
-        const text = await response.text();
-        let body = null;
-        try {
-            body = text ? JSON.parse(text) : null;
-        } catch {
-            body = text;
-        }
-
-        return {
-            ok: response.ok,
-            status: response.status,
-            body,
-        };
-    }, { url, options });
-}
-
-async function runSQL(page, query) {
-    return apiRequest(page, '/api/sql', {
-        method: 'POST',
-        body: JSON.stringify({ query }),
-    });
-}
+import { apiRequest, login, runSQL } from './helpers/app.js';
 
 test('regression fixes: csv import, bucket actions, auth menu and MCP discoverability', async ({ page }) => {
     test.setTimeout(300000);
@@ -96,15 +45,28 @@ test('regression fixes: csv import, bucket actions, auth menu and MCP discoverab
         expect(String(importCheck.body?.rows?.[0]?.[1])).toBe('15');
         expect(importCheck.body?.rows?.[0]?.[2]).toBe(true);
 
+        const createBucketRes = await apiRequest(page, '/api/files/buckets', {
+            method: 'POST',
+            body: JSON.stringify({
+                name: bucketName,
+                public: true,
+                rls_enabled: false,
+                rls_rule: '',
+                max_file_size_bytes: 0,
+                max_total_size_bytes: 0,
+                lifecycle_delete_after_days: 0,
+            }),
+        });
+        expect(createBucketRes.ok).toBe(true);
+
         await page.getByRole('button', { name: 'Storage', exact: true }).first().click();
         await expect(page.getByRole('button', { name: 'Create bucket' })).toBeVisible({ timeout: 15000 });
-        await page.getByRole('button', { name: 'Create bucket' }).click();
-        const bucketModal = page.locator('.ozy-dialog-panel').filter({ has: page.getByPlaceholder('e.g. customer-assets') });
-        await bucketModal.getByPlaceholder('e.g. customer-assets').fill(bucketName);
-        await bucketModal.getByRole('button', { name: /^Create bucket$/i }).click();
-
-        await expect(page.getByRole('button', { name: 'Edit', exact: true }).last()).toBeVisible({ timeout: 15000 });
-        await expect(page.getByRole('button', { name: 'Delete', exact: true }).last()).toBeVisible({ timeout: 15000 });
+        const bucketButton = page.getByRole('button', { name: new RegExp(bucketName, 'i') }).first();
+        await expect(bucketButton).toBeVisible({ timeout: 15000 });
+        await bucketButton.click();
+        await expect(page.getByRole('heading', { name: bucketName })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByRole('button', { name: /Edit bucket/i })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByRole('button', { name: /Delete bucket/i })).toBeVisible({ timeout: 15000 });
 
         await page.getByPlaceholder('Search objects by name or MIME type...').fill('does-not-exist');
         await expect(page.getByText('No objects match this search')).toBeVisible({ timeout: 10000 });

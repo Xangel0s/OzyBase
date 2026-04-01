@@ -4,6 +4,7 @@ import {
     Filter, ArrowRight, Clock, Globe, RefreshCw, Zap, Shield, Bell, X
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
+import OzySelect from './OzySelect';
 
 const LogsAnalytics = ({ view = 'explorer' }: any) => {
     const [trafficStats, setTrafficStats] = useState<any[]>([]);
@@ -192,15 +193,16 @@ const LogsAnalytics = ({ view = 'explorer' }: any) => {
                     )}
                     <div className="flex bg-zinc-900 border border-[#2e2e2e] rounded-xl p-1 gap-1">
                         {/* Status Filter for Live Stream */}
-                        <select 
+                        <OzySelect
                             value={statusFilter}
                             onChange={(e: any) => setStatusFilter(e.target.value)}
-                            className="bg-black border border-[#2e2e2e] text-[9px] font-black text-zinc-400 uppercase tracking-tighter px-2 py-1 rounded-lg outline-none focus:border-indigo-500/50 transition-all cursor-pointer"
+                            wrapperClassName="min-w-[84px] rounded-xl border-[#2e2e2e] bg-black shadow-none"
+                            selectClassName="h-8 px-3 text-[9px] tracking-[0.14em]"
                         >
                             <option value="all">ANY</option>
                             <option value="success">OK</option>
                             <option value="error">ERR</option>
-                        </select>
+                        </OzySelect>
                         <div className="w-[1px] h-4 bg-[#2e2e2e] my-auto mx-1" />
                         {[5000, 10000, 30000, 60000].map((int: any) => (
                             <button
@@ -510,27 +512,29 @@ const LogsAnalytics = ({ view = 'explorer' }: any) => {
                     </div>
 
                     {/* Status Filter */}
-                    <select 
+                    <OzySelect
                         value={statusFilter}
                         onChange={(e: any) => setStatusFilter(e.target.value)}
-                        className="bg-[#0c0c0c] border border-[#2e2e2e] text-[10px] font-black text-zinc-400 uppercase tracking-widest px-3 py-1.5 rounded-xl outline-none focus:border-indigo-500/50 transition-all cursor-pointer"
+                        wrapperClassName="min-w-[146px] rounded-xl border-[#2e2e2e] bg-[#0c0c0c] shadow-none"
+                        selectClassName="h-9 px-3 text-[10px] tracking-[0.14em]"
                     >
                         <option value="all">All Status</option>
                         <option value="success">Success (2xx)</option>
                         <option value="error">Errors (4xx+)</option>
-                    </select>
+                    </OzySelect>
 
                     {/* Log Limit */}
-                    <select 
+                    <OzySelect
                         value={logLimit}
                         onChange={(e: any) => setLogLimit(Number(e.target.value))}
-                        className="bg-[#0c0c0c] border border-[#2e2e2e] text-[10px] font-black text-zinc-400 uppercase tracking-widest px-3 py-1.5 rounded-xl outline-none focus:border-indigo-500/50 transition-all cursor-pointer"
+                        wrapperClassName="min-w-[116px] rounded-xl border-[#2e2e2e] bg-[#0c0c0c] shadow-none"
+                        selectClassName="h-9 px-3 text-[10px] tracking-[0.14em]"
                     >
                         <option value={10}>10 Logs</option>
                         <option value={50}>50 Logs</option>
                         <option value={100}>100 Logs</option>
                         <option value={500}>500 Logs</option>
-                    </select>
+                    </OzySelect>
 
                     <div className="w-[1px] h-6 bg-[#2e2e2e] mx-1" />
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, Code2, Download } from 'lucide-react';
+import OzySelect from '../OzySelect';
 
 interface TableEditorFooterProps {
     totalRecords: number;
@@ -101,17 +102,18 @@ const TableEditorFooter: React.FC<TableEditorFooterProps> = ({
         <div className="flex flex-wrap items-center gap-3 text-zinc-600">
             <label className="flex items-center gap-2 rounded-full border border-[#2e2e2e] bg-[#161616] px-3 py-1.5">
                 <span>Rows</span>
-                <select
+                <OzySelect
                     value={pageSize}
                     onChange={(event) => setPageSize(Number(event.target.value))}
-                    className="bg-transparent text-zinc-200 outline-none"
+                    wrapperClassName="min-w-[90px] rounded-full border-[#2e2e2e] bg-[#0f0f0f] shadow-none"
+                    selectClassName="h-8 px-3 text-[9px] tracking-[0.14em]"
                 >
                     {pageSizeOptions.map((size) => (
-                        <option key={size} value={size} className="bg-[#111111] text-zinc-200">
+                        <option key={size} value={size}>
                             {size}
                         </option>
                     ))}
-                </select>
+                </OzySelect>
             </label>
             <div className="flex items-center gap-2 rounded-full border border-[#2e2e2e] bg-[#161616] px-2 py-1">
                 <button

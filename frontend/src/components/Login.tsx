@@ -8,6 +8,9 @@ interface LoginProps {
     onLoginSuccess: () => void;
 }
 
+const MIN_RUNTIME_PASSWORD_LENGTH = 8;
+const MIN_SETUP_PASSWORD_LENGTH = 12;
+
 const Login = ({ onLoginSuccess }: LoginProps) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -85,11 +88,14 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
                 const data = await res.json() as Record<string, unknown>;
                 if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Request failed');
 
-                setMessage('Reset token generated (Check console/terminal for OzyBase labs)');
-                setFlow('confirm');
                 if (typeof data.token === 'string') {
+                    setToken(data.token);
+                    setMessage('Recovery token prepared for this local environment. It is already loaded below.');
                     console.log('OZYBASE_LABS_TOKEN:', data.token);
+                } else {
+                    setMessage('Recovery initiated. Use the token from your delivery channel to finish the reset.');
                 }
+                setFlow('confirm');
             } else if (flow === 'confirm') {
                 const res = await fetchWithAuth('/api/auth/reset-password/confirm', {
                     method: 'POST',
@@ -99,7 +105,7 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
                 const data = await res.json() as Record<string, unknown>;
                 if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Reset failed');
 
-                setMessage('Password reset successful! Please login.');
+                setMessage('Password reset successful. Sign in with the new password.');
                 setFlow('login');
             }
         } catch (err: unknown) {
@@ -176,13 +182,13 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
 
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center ml-1">
-                                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Access Key</label>
+                                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Admin Password</label>
                                         <button
                                             type="button"
                                             onClick={() => setFlow('request')}
                                             className="text-[9px] font-black text-zinc-600 hover:text-primary transition-colors uppercase"
                                         >
-                                            Forgot key?
+                                            Forgot password?
                                         </button>
                                     </div>
                                     <div className="relative group">
@@ -192,10 +198,13 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
                                             required
                                             value={password}
                                             onChange={(e: any) => setPassword(e.target.value)}
-                                            placeholder="Enter your 32-char password"
+                                            placeholder="Enter your admin password"
                                             className="w-full bg-[#111111] border border-[#2e2e2e] rounded-xl pl-12 pr-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
                                         />
                                     </div>
+                                    <p className="ml-1 text-[10px] text-zinc-600">
+                                        Runtime accounts use {MIN_RUNTIME_PASSWORD_LENGTH}+ characters. The first-run bootstrap remains stricter at {MIN_SETUP_PASSWORD_LENGTH}+ characters.
+                                    </p>
                                 </div>
                             </>
                         )}
@@ -214,6 +223,9 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
                                         className="w-full bg-[#111111] border border-[#2e2e2e] rounded-xl pl-12 pr-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
                                     />
                                 </div>
+                                <p className="ml-1 text-[10px] text-zinc-600">
+                                    Local labs print the recovery token in server logs. Production should deliver it through your configured recovery channel.
+                                </p>
                                 <button
                                     type="button"
                                     onClick={() => setFlow('login')}
@@ -238,16 +250,20 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] ml-1">New Access Key</label>
+                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] ml-1">New Password</label>
                                     <input
                                         type="password"
                                         required
                                         value={newPassword}
                                         onChange={(e: any) => setNewPassword(e.target.value)}
-                                        placeholder="Minimum 8 characters"
+                                        minLength={MIN_RUNTIME_PASSWORD_LENGTH}
+                                        placeholder={`Use ${MIN_RUNTIME_PASSWORD_LENGTH}+ characters`}
                                         className="w-full bg-[#111111] border border-[#2e2e2e] rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all"
                                     />
                                 </div>
+                                <p className="ml-1 text-[10px] text-zinc-600">
+                                    Everyday authentication currently enforces {MIN_RUNTIME_PASSWORD_LENGTH}+ characters after setup is completed.
+                                </p>
                                 <button
                                     type="button"
                                     onClick={() => setFlow('login')}

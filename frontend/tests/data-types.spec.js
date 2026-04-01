@@ -1,69 +1,69 @@
 import { test, expect } from '@playwright/test';
-
-// Configuration - Token generated with 'super-secret-key-change-it'
-// Payload: {"user_id":"f7e86b60-4877-4639-a37a-eaf7a2978677","role":"admin","exp":1893456000,"iat":1707584400}
-const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE4OTM0NTYwMDAsImlhdCI6MTcwNzU4NDQwMCwicm9sZSI6ImFkbWluIiwidXNlcl9pZCI6ImY3ZTg2YjYwLTQ4NzctNDYzOS1hMzdhLWVhZjdhMjk3ODY3NyJ9.QEB5fD7aKEtWgg8BhmbZ1_Kxwcxu8z7DW2tutiX5tpY';
-const USER_DATA = { email: 'system@ozybase.local', role: 'admin' };
+import { login, runSQL, waitForOverview } from './helpers/app.js';
 
 test.beforeEach(async ({ page }) => {
-    // 1. Inject Authentication before navigation
-    await page.addInitScript(({ token, user }) => {
-        window.localStorage.setItem('ozy_token', token);
-        window.localStorage.setItem('ozy_user', JSON.stringify(user));
-    }, { token: AUTH_TOKEN, user: USER_DATA });
-
-    // 2. Navigate
-    await page.goto('/', { waitUntil: 'load' });
-
-    // 3. Sequential Sync (Loading states)
-    await page.getByText('Loading OzyBase...').waitFor({ state: 'detached', timeout: 30000 }).catch(() => { });
-    await page.getByText('Loading Module...', { exact: true }).waitFor({ state: 'detached', timeout: 90000 }).catch(() => { });
-
-    // 4. Final Dashboard check
-    await expect(page.getByRole('button', { name: 'Project Status' })).toBeVisible({ timeout: 60000 });
+    await login(page);
+    await waitForOverview(page);
 });
 
 test('should create a table with all data types', async ({ page }) => {
-    await page.getByRole('button', { name: 'Table Editor' }).click({ force: true });
-    await expect(page.getByRole('heading', { name: /User Tables/ })).toBeVisible({ timeout: 60000 });
-
-    // Click the "New table" button in the sidebar
-    const newTableBtn = page.getByRole('button', { name: 'New table' });
-    await newTableBtn.waitFor({ state: 'visible', timeout: 30000 });
-    await newTableBtn.click({ force: true });
-
-    // Wait for the Create Table Modal to appear (slide-in from right)
-    await expect(page.getByText('Create a new table under')).toBeVisible({ timeout: 30000 });
-
+    test.setTimeout(240000);
     const tableName = `test_types_${Date.now()}`;
-    await page.getByPlaceholder('vlaber_table').fill(tableName);
 
-    const dataTypes = ['text', 'int4', 'bool', 'jsonb', 'uuid', 'date'];
-    let i = 0;
-    for (const type of dataTypes) {
-        await page.getByRole('button', { name: 'Add column' }).click();
+    try {
+        await page.getByRole('button', { name: 'Table Editor' }).click({ force: true });
+        await expect(page.getByRole('heading', { name: /User Tables/ })).toBeVisible({ timeout: 60000 });
 
-        // Initial rows = 3 (id, user_id, created_at)
-        // New row index = 3 + i
-        const rowIndex = 3 + i;
-        const row = page.locator('.grid.grid-cols-12.items-center').nth(rowIndex);
+        const newTableBtn = page.getByRole('button', { name: 'New table' });
+        await newTableBtn.waitFor({ state: 'visible', timeout: 30000 });
+        await newTableBtn.click({ force: true });
 
-        await expect(row).toBeVisible({ timeout: 5000 });
-        await row.locator('input[type="text"]').first().fill(`col_${type}`);
-        await row.locator('select').selectOption(type);
-        i++;
+        await expect(page.getByText('Create a new table under')).toBeVisible({ timeout: 30000 });
+        await page.getByPlaceholder('e.g. invoices').fill(tableName);
+
+        const dataTypes = ['text', 'int4', 'bool', 'jsonb', 'uuid', 'date'];
+        let i = 0;
+        for (const type of dataTypes) {
+            await page.getByRole('button', { name: 'Add column' }).click();
+
+            const rowIndex = 3 + i;
+            const row = page.locator('.grid.grid-cols-12.items-center').nth(rowIndex);
+
+            await expect(row).toBeVisible({ timeout: 5000 });
+            await row.locator('input[type="text"]').first().fill(`col_${type}`);
+            await row.locator('select').selectOption(type);
+            i++;
+        }
+
+        await page.getByRole('button', { name: 'Save', exact: true }).click();
+        await expect(page.getByText(tableName)).toBeVisible({ timeout: 60000 });
+
+        await expect
+            .poll(async () => {
+                const schemaRes = await runSQL(page, `
+                    SELECT column_name, data_type
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = '${tableName}'
+                    ORDER BY ordinal_position
+                `);
+                if (!schemaRes.ok || !Array.isArray(schemaRes.body?.rows)) {
+                    return [];
+                }
+                return schemaRes.body.rows.map((row) => [String(row[0]), String(row[1])]);
+            }, { timeout: 20000, intervals: [500, 1000, 2000] })
+            .toEqual(
+                expect.arrayContaining([
+                    ['col_text', 'text'],
+                    ['col_int4', 'integer'],
+                    ['col_bool', 'boolean'],
+                    ['col_jsonb', 'jsonb'],
+                    ['col_uuid', 'uuid'],
+                    ['col_date', 'date'],
+                ]),
+            );
+    } finally {
+        await runSQL(page, `DROP TABLE IF EXISTS ${tableName}`).catch(() => { });
     }
-
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.getByText(tableName)).toBeVisible({ timeout: 60000 });
-
-    const tableItem = page.locator('button').filter({ hasText: tableName, exact: true });
-    await tableItem.hover();
-    await tableItem.locator('svg.lucide-trash2').click({ force: true });
-    await page.getByRole('button', { name: 'Burn Table' }).click();
-    
-    // Use specific locator to avoid matching the success toast
-    await expect(page.getByRole('button', { name: tableName })).not.toBeVisible({ timeout: 30000 });
 });
 
 test('should open project status dropdown', async ({ page }) => {

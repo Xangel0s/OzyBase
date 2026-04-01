@@ -12,7 +12,7 @@ import {
     FolderOpen,
     MousePointer2
 } from 'lucide-react';
-import { fetchWithAuth } from '../utils/api';
+import { fetchWithAuth, isAbortLikeError, readJsonIfOk } from '../utils/api';
 
 interface OverviewProps {
     onTableSelect?: (tableName: string | null) => void;
@@ -286,25 +286,33 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
     const [showTimeMenu, setShowTimeMenu] = useState(false);
     const [showStatusMenu, setShowStatusMenu] = useState(false);
 
-    const loadData = useCallback(async () => {
+    const loadData = useCallback(async (
+        isActive: () => boolean = () => true,
+        signal?: AbortSignal,
+    ) => {
         try {
-            // Fetch project info and health issues in parallel
-            const [infoRes, healthRes] = await Promise.all([
-                fetchWithAuth('/api/project/info'),
-                fetchWithAuth('/api/project/health')
+            const [infoResult, healthResult] = await Promise.allSettled([
+                fetchWithAuth('/api/project/info', { signal }),
+                fetchWithAuth('/api/project/health', { signal })
             ]);
 
-            if (infoRes.ok) {
-                const info = await infoRes.json();
-                setProjectInfo(info);
+            if (infoResult.status === 'fulfilled') {
+                const info = await readJsonIfOk<any>(infoResult.value);
+                if (info && isActive()) {
+                    setProjectInfo(info);
+                }
             }
 
-            if (healthRes.ok) {
-                const health = await healthRes.json();
-                setHealthIssues(Array.isArray(health) ? health : []);
+            if (healthResult.status === 'fulfilled') {
+                const health = await readJsonIfOk<any>(healthResult.value);
+                if (isActive()) {
+                    setHealthIssues(Array.isArray(health) ? health : []);
+                }
             }
         } catch (err) {
-            console.error('Failed to load overview data:', err);
+            if (isActive() && !isAbortLikeError(err)) {
+                setHealthIssues((current) => current);
+            }
         }
     }, []);
 
@@ -321,11 +329,18 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
     }, [showTimeMenu, showStatusMenu]);
 
     useEffect(() => {
+        let active = true;
+        const abortController = new AbortController();
+        const isActive = () => active;
         const boot = setTimeout(() => {
-            loadData();
+            void loadData(isActive, abortController.signal);
         }, 0);
-        const interval = setInterval(loadData, 5000);
+        const interval = setInterval(() => {
+            void loadData(isActive, abortController.signal);
+        }, 5000);
         return () => {
+            active = false;
+            abortController.abort();
             clearTimeout(boot);
             clearInterval(interval);
         };

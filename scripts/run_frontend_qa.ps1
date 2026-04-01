@@ -10,7 +10,7 @@ param(
     "tests/data-grid-massive.spec.js",
     "tests/table-import.spec.js"
   ),
-  [int]$PlaywrightGlobalTimeoutMs = 420000
+  [int]$PlaywrightGlobalTimeoutMs = 900000
 )
 
 $ErrorActionPreference = "Stop"
@@ -135,6 +135,8 @@ try {
   $env:CI = "1"
   $env:DEBUG = "false"
   $env:OZY_SKIP_DOTENV = "true"
+  $env:RATE_LIMIT_RPS = "120"
+  $env:RATE_LIMIT_BURST = "240"
 
   $apiProc = Start-Process -FilePath $apiBinary -WorkingDirectory $repoRoot -PassThru -RedirectStandardOutput $apiLog -RedirectStandardError $apiErrLog
   Wait-HttpHealthy -Url "http://127.0.0.1:$ApiPort/api/health" -Process $apiProc

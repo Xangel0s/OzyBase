@@ -1,21 +1,5 @@
 import { test, expect } from "@playwright/test";
-
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || "system@ozybase.local";
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || "OzyBase123!";
-
-async function login(page) {
-  await page.goto("/");
-  await page.waitForLoadState("networkidle");
-
-  await page.getByPlaceholder("system@ozybase.local").fill(ADMIN_EMAIL);
-  await page
-    .getByPlaceholder("Enter your 32-char password")
-    .fill(ADMIN_PASSWORD);
-  await page.getByRole("button", { name: /Establish Link/i }).click();
-  await expect(page.getByText("MODULE ACTIVITY")).toBeVisible({
-    timeout: 20000,
-  });
-}
+import { login } from "./helpers/app.js";
 
 test("ux audit: core surfaces explain themselves clearly", async ({ page }) => {
   test.setTimeout(240000);
@@ -27,24 +11,22 @@ test("ux audit: core surfaces explain themselves clearly", async ({ page }) => {
   await login(page);
 
   await page.getByRole("button", { name: "Home" }).hover();
-  await expect(page.getByText("Select Project")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Open project switcher/i })).toBeVisible();
 
   await page.getByRole("button", { name: /^Settings$/ }).click();
   await expect(page.getByText("General Settings")).toBeVisible({
     timeout: 15000,
   });
-  await expect(
-    page.getByText(
-      /Review safe project metadata and readiness signals before exposing this instance to real traffic/i,
-    ),
-  ).toBeVisible();
   await expect(page.getByText("Project ID").first()).toBeVisible();
+  await expect(page.getByText("Production Readiness")).toBeVisible({
+    timeout: 15000,
+  });
 
-  await page.getByText("Select Project").click();
+  await page.getByRole("button", { name: /Open project switcher/i }).click();
   await expect(page.getByText("Project Settings")).toBeVisible();
-  await expect(page.getByText("All Projects")).toBeVisible();
-  await page.getByText("All Projects").click();
-  await expect(page.getByText("Create isolated project spaces for apps, teams, and environments")).toBeVisible({
+  await expect(page.getByText("Project Directory")).toBeVisible();
+  await page.getByText("Project Directory").click();
+  await expect(page.getByRole("button", { name: /New Project/i })).toBeVisible({
     timeout: 15000,
   });
 
@@ -73,15 +55,15 @@ test("ux audit: core surfaces explain themselves clearly", async ({ page }) => {
   });
 
   await page.getByRole("button", { name: "Storage" }).click();
-  await expect(
-    page.getByText(
-      /Choose a bucket, upload files, and control access with public visibility plus optional RLS/i,
-    ),
-  ).toBeVisible({ timeout: 15000 });
-  await expect(page.getByRole("button", { name: /Upload file/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Create bucket/i })).toBeVisible({
+    timeout: 15000,
+  });
 
   await page.getByRole("button", { name: "Authentication" }).click();
-  await expect(page.getByRole("button", { name: "Permissions" })).toBeVisible({
+  await expect(page.getByRole("button", { name: "RBAC Console" })).toBeVisible({
+    timeout: 15000,
+  });
+  await expect(page.getByTestId("explorer-submenu-policies")).toBeVisible({
     timeout: 15000,
   });
 

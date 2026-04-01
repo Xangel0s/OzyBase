@@ -9,7 +9,7 @@ import {
     Cpu,
     BellRing
 } from 'lucide-react';
-import { fetchWithAuth } from '../utils/api';
+import { fetchWithAuth, isAbortLikeError, readJsonIfOk } from '../utils/api';
 
 const Observability = ({ onViewSelect }: any) => {
     const [info, setInfo] = useState<any>(null);
@@ -38,24 +38,21 @@ const Observability = ({ onViewSelect }: any) => {
                 fetchWithAuth('/api/project/observability/storage'),
             ]);
 
-            if (infoRes.ok) {
-                const data = await infoRes.json();
-                setInfo(data);
-            }
-            if (sloRes.ok) {
-                const data = await sloRes.json();
-                setSloStatus(data);
-            }
-            if (routingRes.ok) {
-                const data = await routingRes.json();
-                setAlertRouting(data);
-            }
-            if (storageRes.ok) {
-                const data = await storageRes.json();
-                setStorageStatus(data);
-            }
+            const [infoData, sloData, routingData, storageData] = await Promise.all([
+                readJsonIfOk<any>(infoRes),
+                readJsonIfOk<any>(sloRes),
+                readJsonIfOk<any>(routingRes),
+                readJsonIfOk<any>(storageRes),
+            ]);
+
+            if (infoData) setInfo(infoData);
+            if (sloData) setSloStatus(sloData);
+            if (routingData) setAlertRouting(routingData);
+            if (storageData) setStorageStatus(storageData);
         } catch (error) {
-            console.error('Failed to fetch info:', error);
+            if (!isAbortLikeError(error)) {
+                console.error('Failed to fetch info:', error);
+            }
         } finally {
             setLoading(false);
         }
@@ -64,14 +61,18 @@ const Observability = ({ onViewSelect }: any) => {
     const fetchLogs = async () => {
         try {
             const res = await fetchWithAuth('/api/project/logs');
-            const data = await res.json();
+            const data = await readJsonIfOk<any>(res);
             if (Array.isArray(data)) {
                 setLogs(data.slice(0, 4));
             } else if (Array.isArray(data?.logs)) {
                 setLogs(data.logs.slice(0, 4));
+            } else {
+                setLogs([]);
             }
         } catch (error) {
-            console.error('Failed to fetch logs:', error);
+            if (!isAbortLikeError(error)) {
+                console.error('Failed to fetch logs:', error);
+            }
         }
     };
 

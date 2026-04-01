@@ -1,31 +1,42 @@
 import { expect, test } from "@playwright/test";
-
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || "system@ozybase.local";
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || "OzyBase123!";
-
-async function login(page) {
-  await page.goto("/");
-  await page.waitForLoadState("networkidle");
-  await page.getByPlaceholder("system@ozybase.local").fill(ADMIN_EMAIL);
-  await page
-    .getByPlaceholder("Enter your 32-char password")
-    .fill(ADMIN_PASSWORD);
-  await page.getByRole("button", { name: /Establish Link/i }).click();
-  await expect(page.getByText("MODULE ACTIVITY")).toBeVisible({
-    timeout: 20000,
-  });
-}
+import { ADMIN_PASSWORD, login } from "./helpers/app.js";
 
 async function apiKeyRequest(page, key, url, options = {}) {
   return page.evaluate(
     async ({ key, url, options }) => {
       const headers = new Headers(options.headers || {});
       headers.set("apikey", key);
+      const method = String(options.method || "GET").toUpperCase();
       if (options.body && !headers.has("Content-Type")) {
         headers.set("Content-Type", "application/json");
       }
+      if (!["GET", "HEAD", "OPTIONS"].includes(method) && !headers.has("X-CSRF-Token")) {
+        try {
+          const csrfResponse = await fetch("/api/auth/csrf", {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            credentials: "same-origin",
+          });
+          if (csrfResponse.ok) {
+            const csrfPayload = await csrfResponse.json();
+            const csrfToken =
+              typeof csrfPayload?.csrf_token === "string"
+                ? csrfPayload.csrf_token.trim()
+                : "";
+            if (csrfToken) {
+              headers.set("X-CSRF-Token", csrfToken);
+            }
+          }
+        } catch {
+          // Let the API response expose the underlying failure.
+        }
+      }
 
-      const response = await fetch(url, { ...options, headers });
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        credentials: "same-origin",
+      });
       const text = await response.text();
       let body = null;
       try {

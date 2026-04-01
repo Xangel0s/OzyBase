@@ -10,7 +10,7 @@ import {
   Server,
   Settings as SettingsIcon,
 } from "lucide-react";
-import { fetchWithAuth } from "../utils/api";
+import { fetchWithAuth, readJsonIfOk } from "../utils/api";
 import EssentialApiKeysPanel from "./EssentialApiKeysPanel";
 import ModulePageHero from "./ModulePageHero";
 
@@ -133,9 +133,13 @@ const Settings: React.FC<SettingsProps> = ({
         fetchWithAuth("/api/project/connection"),
         fetchWithAuth("/api/project/update-status"),
       ]);
-      const info = await infoRes.json();
-      const connection = await connectionRes.json();
-      const update = await updateRes.json();
+
+      const [info, connection, update] = await Promise.all([
+        readJsonIfOk<ProjectInfo>(infoRes),
+        readJsonIfOk<any>(connectionRes),
+        readJsonIfOk<UpdateStatus>(updateRes),
+      ]);
+
       setProjectInfo(info);
       setConnectionInfo(connection);
       setUpdateStatus(update);

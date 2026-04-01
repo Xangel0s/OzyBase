@@ -1,96 +1,5 @@
 import { expect, test } from '@playwright/test';
-
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'system@ozybase.local';
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'OzyBase123!';
-
-async function ensureSystemInitialized(page) {
-    const statusResponse = await page.request.get('/api/system/status');
-    expect(statusResponse.ok()).toBe(true);
-
-    const statusBody = await statusResponse.json();
-    if (statusBody?.initialized) {
-        return;
-    }
-
-    const setupResponse = await page.request.post('/api/system/setup', {
-        data: {
-            email: ADMIN_EMAIL,
-            password: ADMIN_PASSWORD,
-            mode: 'clean',
-        },
-    });
-    expect(setupResponse.ok()).toBe(true);
-}
-
-async function login(page) {
-    await ensureSystemInitialized(page);
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.getByPlaceholder('system@ozybase.local').fill(ADMIN_EMAIL);
-    await page.getByPlaceholder('Enter your 32-char password').fill(ADMIN_PASSWORD);
-    await page.getByRole('button', { name: /Establish Link/i }).click();
-    await expect(page.getByRole('button', { name: 'Project Status' })).toBeVisible({ timeout: 30000 });
-}
-
-async function getAuthHeaders(page) {
-    return page.evaluate(() => {
-        const headers = {};
-        const token = localStorage.getItem('ozy_token');
-        const workspaceId = localStorage.getItem('ozy_workspace_id');
-
-        if (token) {
-            headers.Authorization = `Bearer ${token}`;
-        }
-        if (workspaceId) {
-            headers['X-Workspace-Id'] = workspaceId;
-        }
-
-        return headers;
-    });
-}
-
-async function apiRequest(page, authHeaders, url, options = {}) {
-    const headers = {
-        ...(options.headers || {}),
-        ...authHeaders,
-    };
-    if (options.body && !headers['Content-Type']) {
-        headers['Content-Type'] = 'application/json';
-    }
-
-    const requestOptions = {
-        method: options.method,
-        headers,
-    };
-    if (options.body) {
-        requestOptions.data =
-            typeof options.body === 'string' && headers['Content-Type'] === 'application/json'
-                ? JSON.parse(options.body)
-                : options.body;
-    }
-
-    const response = await page.request.fetch(url, requestOptions);
-    const text = await response.text();
-    let body = null;
-    try {
-        body = text ? JSON.parse(text) : null;
-    } catch {
-        body = text;
-    }
-
-    return {
-        ok: response.ok(),
-        status: response.status(),
-        body,
-    };
-}
-
-async function runSQL(page, authHeaders, query) {
-    return apiRequest(page, authHeaders, '/api/sql', {
-        method: 'POST',
-        body: JSON.stringify({ query }),
-    });
-}
+import { login, runSQL, waitForOverview } from './helpers/app.js';
 
 test('massive table workflows stay usable in table editor and sql editor', async ({ page }) => {
     test.setTimeout(300000);
@@ -98,14 +7,13 @@ test('massive table workflows stay usable in table editor and sql editor', async
     const suffix = Date.now().toString().slice(-8);
     const tableName = `qa_massive_${suffix}`;
     const rowCount = 1200;
-    let authHeaders = {};
     let resizedTitleWidth = 0;
 
     try {
         await login(page);
-        authHeaders = await getAuthHeaders(page);
+        await waitForOverview(page);
 
-        const createTableRes = await runSQL(page, authHeaders, `
+        const createTableRes = await runSQL(page, `
             CREATE TABLE ${tableName} (
                 id bigserial PRIMARY KEY,
                 title text NOT NULL,
@@ -116,7 +24,7 @@ test('massive table workflows stay usable in table editor and sql editor', async
         `);
         expect(createTableRes.ok).toBe(true);
 
-        const insertRowsRes = await runSQL(page, authHeaders, `
+        const insertRowsRes = await runSQL(page, `
             INSERT INTO ${tableName} (title, amount, status)
             SELECT
                 'item-' || gs::text,
@@ -191,7 +99,7 @@ test('massive table workflows stay usable in table editor and sql editor', async
         const pageJump = page.locator('label').filter({ hasText: /^Page$/i }).locator('input');
         await pageJump.fill('10');
         await pageJump.press('Enter');
-        await expect(page.getByText('page 10 / 12')).toBeVisible({ timeout: 10000 });
+        await expect(page.getByRole('textbox', { name: 'Page' })).toHaveValue('10', { timeout: 10000 });
         await expect(page.getByText('901-1000')).toBeVisible({ timeout: 10000 });
 
         await page.reload({ waitUntil: 'networkidle' });
@@ -224,7 +132,7 @@ test('massive table workflows stay usable in table editor and sql editor', async
         await page.getByRole('button', { name: /^SQL$/i }).click();
         await expect(page.getByRole('button', { name: /Run Query/i })).toBeVisible({ timeout: 15000 });
 
-        const cappedPreviewRes = await runSQL(page, authHeaders, `SELECT * FROM ${tableName} ORDER BY id ASC;`);
+        const cappedPreviewRes = await runSQL(page, `SELECT * FROM ${tableName} ORDER BY id ASC;`);
         expect(cappedPreviewRes.ok).toBe(true);
         expect(cappedPreviewRes.body?.resultLimit).toBe(1000);
         expect(cappedPreviewRes.body?.truncated).toBe(true);
@@ -238,8 +146,6 @@ test('massive table workflows stay usable in table editor and sql editor', async
         await expect(page.getByText('1/50 preview rows')).toBeVisible({ timeout: 15000 });
         await expect(page.getByText('item-49')).toBeVisible({ timeout: 15000 });
     } finally {
-        if (authHeaders.Authorization) {
-            await runSQL(page, authHeaders, `DROP TABLE IF EXISTS ${tableName}`).catch(() => {});
-        }
+        await runSQL(page, `DROP TABLE IF EXISTS ${tableName}`).catch(() => {});
     }
 });

@@ -1,15 +1,5 @@
 import { test, expect } from '@playwright/test';
-
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'system@ozybase.local';
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'OzyBase123!';
-
-async function login(page) {
-    await page.goto('/');
-    await page.getByPlaceholder('system@ozybase.local').fill(ADMIN_EMAIL);
-    await page.getByPlaceholder('Enter your 32-char password').fill(ADMIN_PASSWORD);
-    await page.getByRole('button', { name: /Establish Link/i }).click();
-    await expect(page.getByRole('button', { name: 'Authentication' })).toBeVisible({ timeout: 20000 });
-}
+import { login } from './helpers/app.js';
 
 async function openAuthSubmodule(page, name) {
     await page.getByRole('button', { name: 'Authentication' }).click();
@@ -61,6 +51,7 @@ test('auth module scroll audit', async ({ page }) => {
 
     await page.setViewportSize({ width: 1366, height: 768 });
     await login(page);
+    await expect(page.getByRole('button', { name: 'Authentication' })).toBeVisible({ timeout: 20000 });
 
     const results = {};
 

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { X, FileText, ArrowRightLeft, AlertTriangle, CheckCircle2, Wand2 } from 'lucide-react';
+import OzySelect from './OzySelect';
 
 interface CSVHeader {
     index: number;
@@ -176,17 +177,18 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
                     <div className="flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.16em] font-black text-zinc-500">
                         <div className="flex items-center gap-2">
                             <span>Delimiter</span>
-                            <select
+                            <OzySelect
                                 value={delimiter === 'auto' ? 'auto' : (delimiter || detectedDelimiter || ',')}
                                 onChange={(e: any) => onDelimiterChange?.(e.target.value)}
-                                className="bg-black border border-[#2e2e2e] text-[10px] text-zinc-300 rounded-lg px-2 py-1.5 min-w-[160px]"
+                                wrapperClassName="min-w-[160px] rounded-xl border-[#2e2e2e] bg-black shadow-none"
+                                selectClassName="h-9 px-3 text-[10px] tracking-[0.14em]"
                             >
                                 <option value="auto">Auto ({delimiterLabel(detectedDelimiter || ',')})</option>
                                 <option value=",">Comma (,)</option>
                                 <option value=";">Semicolon (;)</option>
                                 <option value="\t">Tab</option>
                                 <option value="|">Pipe (|)</option>
-                            </select>
+                            </OzySelect>
                         </div>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -223,16 +225,17 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
                                             </div>
                                         </div>
                                         <ArrowRightLeft size={13} className="text-zinc-600 hidden md:block shrink-0" />
-                                        <select
+                                        <OzySelect
                                             value={mapping[header.index] || ''}
                                             onChange={(e: any) => setMapping((prev: any) => ({ ...prev, [header.index]: e.target.value }))}
-                                            className="bg-black border border-[#2e2e2e] text-[11px] text-zinc-300 rounded-lg px-3 py-2 w-full md:w-[220px] shrink-0"
+                                            wrapperClassName="w-full md:w-[220px] shrink-0 rounded-xl border-[#2e2e2e] bg-black shadow-none"
+                                            selectClassName="h-10 px-3 text-[10px] tracking-[0.14em]"
                                         >
                                             <option value="">Skip column</option>
                                             {columnOptions.map((col: any) => (
                                                 <option key={col} value={col}>{col}</option>
                                             ))}
-                                        </select>
+                                        </OzySelect>
                                     </div>
                                 ))}
                                 </div>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Code, Copy, LayoutGrid, Loader2, Plus, RefreshCw } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
 import ConfirmModal from './ConfirmModal';
+import OzySelect from './OzySelect';
 
 const WRAPPERS = [
     ['postgres_fdw', 'Postgres FDW'],
@@ -264,9 +265,14 @@ const Integrations: React.FC<IntegrationsProps> = ({ page = 'wrappers' }) => {
                         <div className="px-8 py-6 border-b border-[#2e2e2e] bg-[#171717]"><h3 className="text-xl font-black text-white uppercase tracking-tight">{modal === 'wrapper' ? 'Configure Wrapper' : modal === 'webhook' ? 'Create Webhook' : modal === 'cron' ? 'New Cron Job' : 'Add Secret'}</h3></div>
                         <div className="p-8 space-y-4">
                             {modal === 'wrapper' && (
-                                <select value={form.name} onChange={(event) => setForm({ name: event.target.value })} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white">
+                                <OzySelect
+                                    value={form.name}
+                                    onChange={(event) => setForm({ name: event.target.value })}
+                                    wrapperClassName="shadow-none"
+                                    selectClassName="text-[10px]"
+                                >
                                     {WRAPPERS.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-                                </select>
+                                </OzySelect>
                             )}
                             {modal === 'webhook' && (
                                 <>

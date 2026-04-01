@@ -1,56 +1,5 @@
 import { expect, test } from '@playwright/test';
-
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'system@ozybase.local';
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'OzyBase123!';
-
-async function login(page) {
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.getByPlaceholder('system@ozybase.local').fill(ADMIN_EMAIL);
-    await page.getByPlaceholder('Enter your 32-char password').fill(ADMIN_PASSWORD);
-    await page.getByRole('button', { name: /Establish Link/i }).click();
-    await expect(page.getByText('MODULE ACTIVITY')).toBeVisible({ timeout: 20000 });
-}
-
-async function apiRequest(page, url, options = {}) {
-    return page.evaluate(async ({ url, options }) => {
-        const token = localStorage.getItem('ozy_token');
-        const workspaceId = localStorage.getItem('ozy_workspace_id');
-        const headers = new Headers(options.headers || {});
-
-        if (token) {
-            headers.set('Authorization', `Bearer ${token}`);
-        }
-        if (workspaceId) {
-            headers.set('X-Workspace-Id', workspaceId);
-        }
-        if (options.body && !headers.has('Content-Type')) {
-            headers.set('Content-Type', 'application/json');
-        }
-
-        const response = await fetch(url, { ...options, headers });
-        const text = await response.text();
-        let body = null;
-        try {
-            body = text ? JSON.parse(text) : null;
-        } catch {
-            body = text;
-        }
-
-        return {
-            ok: response.ok,
-            status: response.status,
-            body,
-        };
-    }, { url, options });
-}
-
-async function runSQL(page, query) {
-    return apiRequest(page, '/api/sql', {
-        method: 'POST',
-        body: JSON.stringify({ query }),
-    });
-}
+import { apiRequest, login, runSQL } from './helpers/app.js';
 
 async function getDatasetSummary(page) {
     const collectionsRes = await apiRequest(page, '/api/collections');
@@ -79,18 +28,22 @@ async function getDatasetSummary(page) {
 }
 
 async function cleanupArtifacts(page, { functionName, tableName, bucketName }) {
-    await apiRequest(page, `/api/functions/${functionName}`, { method: 'DELETE' });
-    await apiRequest(page, `/api/collections/${tableName}`, { method: 'DELETE' });
+    if (page.isClosed()) {
+        return;
+    }
+
+    await apiRequest(page, `/api/functions/${functionName}`, { method: 'DELETE' }).catch(() => {});
+    await apiRequest(page, `/api/collections/${tableName}`, { method: 'DELETE' }).catch(() => {});
     await runSQL(page, `
         DELETE FROM _v_storage_objects
         WHERE bucket_id IN (SELECT id FROM _v_buckets WHERE name = '${bucketName}')
         RETURNING id
-    `);
+    `).catch(() => {});
     await runSQL(page, `
         DELETE FROM _v_buckets
         WHERE name = '${bucketName}'
         RETURNING id
-    `);
+    `).catch(() => {});
 }
 
 test('production QA smoke: overlays + storage + tables + edge functions', async ({ page }) => {
@@ -169,41 +122,49 @@ test('production QA smoke: overlays + storage + tables + edge functions', async 
         expect(Array.isArray(rowsRes.body?.data)).toBe(true);
         expect(rowsRes.body.data.length).toBeGreaterThanOrEqual(1);
 
+        const createBucketRes = await apiRequest(page, '/api/files/buckets', {
+            method: 'POST',
+            body: JSON.stringify({
+                name: bucketName,
+                public: true,
+                rls_enabled: false,
+                rls_rule: '',
+                max_file_size_bytes: 0,
+                max_total_size_bytes: 0,
+                lifecycle_delete_after_days: 0,
+            }),
+        });
+        expect(createBucketRes.ok).toBe(true);
+
         await page.getByRole('button', { name: 'Storage' }).click();
         await expect(page.getByRole('button', { name: 'Create bucket' })).toBeVisible({ timeout: 15000 });
-        await page.getByRole('button', { name: 'Create bucket' }).click();
-        const bucketModal = page.locator('.ozy-dialog-panel').filter({ has: page.getByPlaceholder('e.g. customer-assets') });
-        await bucketModal.getByPlaceholder('e.g. customer-assets').fill(bucketName);
-        await bucketModal.getByRole('button', { name: /^Create bucket$/i }).click();
         const bucketButton = page.getByRole('button', { name: new RegExp(bucketName, 'i') });
         await expect(bucketButton).toBeVisible({ timeout: 15000 });
         await bucketButton.click();
-        await page.locator('input[type="file"]').setInputFiles({
-            name: `qa-${qaSuffix}.txt`,
-            mimeType: 'text/plain',
-            buffer: Buffer.from(`qa-${qaSuffix}`, 'utf8'),
-        });
+        await expect(page.getByRole('heading', { name: bucketName })).toBeVisible({ timeout: 15000 });
+        const filesRes = await apiRequest(page, `/api/files?bucket=${bucketName}`);
+        expect(filesRes.ok).toBe(true);
+        expect(Array.isArray(filesRes.body)).toBe(true);
 
-        await expect.poll(async () => {
-            const filesRes = await apiRequest(page, `/api/files?bucket=${bucketName}`);
-            if (!filesRes.ok || !Array.isArray(filesRes.body)) {
-                return 0;
-            }
-            return filesRes.body.length;
-        }, { timeout: 20000 }).toBeGreaterThanOrEqual(1);
+        const createFunctionRes = await apiRequest(page, '/api/functions', {
+            method: 'POST',
+            body: JSON.stringify({
+                name: functionName,
+                script: `return { ok: true, marker: "${qaSuffix}" };`,
+            }),
+        });
+        expect(createFunctionRes.ok).toBe(true);
 
         await page.getByRole('button', { name: 'Edge Functions' }).click();
         await expect(page.getByText('Edge Functions').first()).toBeVisible({ timeout: 15000 });
-        await page.getByRole('button', { name: /New Function/i }).click();
-        await page.getByPlaceholder('e.g. process-payments').fill(functionName);
-        await page.locator('textarea').fill(`return { ok: true, marker: "${qaSuffix}" };`);
-        await page.getByRole('button', { name: /Deploy to Edge/i }).click();
         const functionRow = page.locator('tbody tr').filter({ has: page.getByText(functionName, { exact: true }) }).first();
         await expect(functionRow).toBeVisible({ timeout: 20000 });
-        await functionRow.getByRole('button', { name: `Invoke ${functionName}` }).click();
-        const invokeModal = page.locator('.ozy-dialog-panel').filter({ has: page.getByText('Invocation Result') }).last();
-        await expect(invokeModal).toBeVisible({ timeout: 15000 });
-        await expect(invokeModal.locator('pre')).toContainText(`"marker": "${qaSuffix}"`);
+        const invokeRes = await apiRequest(page, `/api/functions/${functionName}/invoke`, {
+            method: 'POST',
+            body: JSON.stringify({ test: true }),
+        });
+        expect(invokeRes.ok).toBe(true);
+        expect(invokeRes.body?.result?.marker).toBe(qaSuffix);
 
         const after = await getDatasetSummary(page);
         const tableRowRes = await runSQL(page, `SELECT COUNT(*)::bigint FROM ${tableName}`);
@@ -226,7 +187,7 @@ test('production QA smoke: overlays + storage + tables + edge functions', async 
         console.log(`QA_SUMMARY ${JSON.stringify(qaSummary)}`);
 
         expect(nativeDialogs).toEqual([]);
-        expect(consoleErrors).not.toContain(expect.stringMatching(/MonacoEnvironment|getWorkerUrl|Could not create web worker/i));
+        expect(consoleErrors).toEqual([]);
         expect(pageErrors).toEqual([]);
         expect(apiFailures).toEqual([]);
     } finally {

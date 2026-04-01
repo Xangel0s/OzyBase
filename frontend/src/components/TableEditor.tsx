@@ -37,6 +37,7 @@ import ConfirmModal from './ConfirmModal';
 import BulkEditModal from './BulkEditModal';
 import InlineCellEditor from './InlineCellEditor';
 import CSVImportModal from './CSVImportModal';
+import OzySelect from './OzySelect';
 import TableEditorFooter from './table-editor/TableEditorFooter';
 import TableEditorStateBar from './table-editor/TableEditorStateBar';
 import TableEditorToolbar from './table-editor/TableEditorToolbar';
@@ -1148,6 +1149,9 @@ const TableEditor: React.FC<TableEditorProps> = ({ tableName, onTableSelect, onO
         : null;
     const hiddenColumnCount = Math.max(0, totalColumnCount - visibleColumnCount);
     const hasQueryModifiers = searchTerm.trim() !== '' || filters.length > 0 || sorts.length > 0;
+    const currentTableCopy = currentTableLabel || 'this table';
+    const deleteRecordMessage = `Delete this record from ${currentTableCopy}? This permanently removes the row and any downstream automations reading it.`;
+    const deleteSelectedMessage = `Delete ${selectedCount} selected record${selectedCount === 1 ? '' : 's'} from ${currentTableCopy}? The selection is limited to the current page and the removal cannot be undone.`;
     const frozenColumnNames = useMemo(() => {
         const names = visibleColumns
             .filter((col: any) => (rowIdentityEnabled && col.name === 'id') || pinnedColumnSet.has(col.name))
@@ -1332,8 +1336,11 @@ const TableEditor: React.FC<TableEditorProps> = ({ tableName, onTableSelect, onO
             {/* Filter Panel */}
             {isFilterOpen && (
                 <div className="border-b border-[#2e2e2e] bg-[#111111] px-6 py-4 flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Filters</p>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Filters</p>
+                            <p className="text-[10px] text-zinc-600">Chain rules before loading another page so the result set stays focused.</p>
+                        </div>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => setFilters((prev: any) => [...prev, { id: Date.now(), column: '', op: 'eq', value: '' }])}
@@ -1353,32 +1360,34 @@ const TableEditor: React.FC<TableEditorProps> = ({ tableName, onTableSelect, onO
                         <div className="text-[10px] text-zinc-600">No filters applied.</div>
                     )}
                     {filters.map((f: any, idx: any) => (
-                        <div key={f.id} className="grid grid-cols-[1fr_140px_1fr_28px] gap-2 items-center">
-                            <select
+                        <div key={f.id} className="grid grid-cols-1 gap-2 rounded-2xl border border-[#232323] bg-[#0d0d0d] p-3 lg:grid-cols-[minmax(0,1fr)_170px_minmax(0,1fr)_32px] lg:items-center">
+                            <OzySelect
                                 value={f.column}
                                 onChange={(e: any) => {
                                     const value = e.target.value;
                                     setFilters((prev: any) => prev.map((item: any) => item.id === f.id ? { ...item, column: value } : item));
                                 }}
-                                className="bg-[#0c0c0c] border border-[#2e2e2e] rounded-lg px-3 py-2 text-xs text-zinc-200"
+                                wrapperClassName="rounded-xl border-[#2e2e2e] bg-[#0c0c0c] shadow-none"
+                                selectClassName="h-10 px-3 text-[10px] tracking-[0.14em]"
                             >
                                 <option value="">Select column</option>
                                 {schema.map((col: any) => (
                                     <option key={col.name} value={col.name}>{col.name}</option>
                                 ))}
-                            </select>
-                            <select
+                            </OzySelect>
+                            <OzySelect
                                 value={f.op}
                                 onChange={(e: any) => {
                                     const value = e.target.value;
                                     setFilters((prev: any) => prev.map((item: any) => item.id === f.id ? { ...item, op: value } : item));
                                 }}
-                                className="bg-[#0c0c0c] border border-[#2e2e2e] rounded-lg px-3 py-2 text-xs text-zinc-200"
+                                wrapperClassName="rounded-xl border-[#2e2e2e] bg-[#0c0c0c] shadow-none"
+                                selectClassName="h-10 px-3 text-[10px] tracking-[0.14em]"
                             >
                                 {FILTER_OPS.map((op: any) => (
                                     <option key={op.value} value={op.value}>{op.label}</option>
                                 ))}
-                            </select>
+                            </OzySelect>
                             <input
                                 value={f.value}
                                 onChange={(e: any) => {
@@ -1386,11 +1395,11 @@ const TableEditor: React.FC<TableEditorProps> = ({ tableName, onTableSelect, onO
                                     setFilters((prev: any) => prev.map((item: any) => item.id === f.id ? { ...item, value } : item));
                                 }}
                                 placeholder="Value"
-                                className="bg-[#0c0c0c] border border-[#2e2e2e] rounded-lg px-3 py-2 text-xs text-zinc-200"
+                                className="min-w-0 bg-[#0c0c0c] border border-[#2e2e2e] rounded-xl px-3 py-2.5 text-xs text-zinc-200"
                             />
                             <button
                                 onClick={() => setFilters((prev: any) => prev.filter((item: any) => item.id !== f.id))}
-                                className="text-zinc-600 hover:text-red-400"
+                                className="justify-self-end text-zinc-600 hover:text-red-400"
                                 aria-label={`Remove filter ${idx + 1}`}
                             >
                                 <Trash2 size={14} />
@@ -1403,8 +1412,11 @@ const TableEditor: React.FC<TableEditorProps> = ({ tableName, onTableSelect, onO
             {/* Sort Panel */}
             {isSortOpen && (
                 <div className="border-b border-[#2e2e2e] bg-[#111111] px-6 py-4 flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Sort</p>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Sort</p>
+                            <p className="text-[10px] text-zinc-600">Stack sort rules top to bottom to control how this view lands every time.</p>
+                        </div>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => setSorts((prev: any) => [...prev, { id: Date.now(), column: '', direction: 'asc' }])}
@@ -1424,36 +1436,38 @@ const TableEditor: React.FC<TableEditorProps> = ({ tableName, onTableSelect, onO
                         <div className="text-[10px] text-zinc-600">No sorting applied.</div>
                     )}
                     {sorts.map((s: any) => (
-                        <div key={s.id} data-testid={`sort-row-${s.id}`} className="grid grid-cols-[1fr_140px_28px] gap-2 items-center">
-                            <select
+                        <div key={s.id} data-testid={`sort-row-${s.id}`} className="grid grid-cols-1 gap-2 rounded-2xl border border-[#232323] bg-[#0d0d0d] p-3 lg:grid-cols-[minmax(0,1fr)_170px_32px] lg:items-center">
+                            <OzySelect
                                 data-testid={`sort-column-${s.id}`}
                                 value={s.column}
                                 onChange={(e: any) => {
                                     const value = e.target.value;
                                     setSorts((prev: any) => prev.map((item: any) => item.id === s.id ? { ...item, column: value } : item));
                                 }}
-                                className="bg-[#0c0c0c] border border-[#2e2e2e] rounded-lg px-3 py-2 text-xs text-zinc-200"
+                                wrapperClassName="rounded-xl border-[#2e2e2e] bg-[#0c0c0c] shadow-none"
+                                selectClassName="h-10 px-3 text-[10px] tracking-[0.14em]"
                             >
                                 <option value="">Select column</option>
                                 {schema.map((col: any) => (
                                     <option key={col.name} value={col.name}>{col.name}</option>
                                 ))}
-                            </select>
-                            <select
+                            </OzySelect>
+                            <OzySelect
                                 data-testid={`sort-direction-${s.id}`}
                                 value={s.direction}
                                 onChange={(e: any) => {
                                     const value = e.target.value;
                                     setSorts((prev: any) => prev.map((item: any) => item.id === s.id ? { ...item, direction: value } : item));
                                 }}
-                                className="bg-[#0c0c0c] border border-[#2e2e2e] rounded-lg px-3 py-2 text-xs text-zinc-200"
+                                wrapperClassName="rounded-xl border-[#2e2e2e] bg-[#0c0c0c] shadow-none"
+                                selectClassName="h-10 px-3 text-[10px] tracking-[0.14em]"
                             >
                                 <option value="asc">Ascending</option>
                                 <option value="desc">Descending</option>
-                            </select>
+                            </OzySelect>
                             <button
                                 onClick={() => setSorts((prev: any) => prev.filter((item: any) => item.id !== s.id))}
-                                className="text-zinc-600 hover:text-red-400"
+                                className="justify-self-end text-zinc-600 hover:text-red-400"
                                 aria-label="Remove sort"
                             >
                                 <Trash2 size={14} />
@@ -1468,7 +1482,7 @@ const TableEditor: React.FC<TableEditorProps> = ({ tableName, onTableSelect, onO
                 <div className="border-b border-[#2e2e2e] bg-[#0f0f0f] px-6 py-3 flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
                     <div className="flex items-center gap-3 text-zinc-400">
                         <CheckSquare size={14} className="text-primary" />
-                        <span>{selectedCount} selected</span>
+                        <span>{selectedCount} selected in {currentTableCopy}</span>
                         <span className="text-zinc-600">Selection is limited to the current page.</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1795,8 +1809,8 @@ const TableEditor: React.FC<TableEditorProps> = ({ tableName, onTableSelect, onO
                 isOpen={!!confirmDeleteId}
                 onClose={() => setConfirmDeleteId(null)}
                 onConfirm={confirmRowDeletion}
-                title="Delete Record"
-                message="Are you sure you want to delete this record? This action will permanently remove the data from OzyBase."
+                title={currentTableLabel ? `Delete From ${currentTableLabel}` : 'Delete Record'}
+                message={deleteRecordMessage}
                 confirmText="Delete Record"
             />
 
@@ -1804,8 +1818,8 @@ const TableEditor: React.FC<TableEditorProps> = ({ tableName, onTableSelect, onO
                 isOpen={isBulkDeleteOpen}
                 onClose={() => setIsBulkDeleteOpen(false)}
                 onConfirm={handleBulkDelete}
-                title="Delete Selected Records"
-                message="Delete all selected records? This action cannot be undone."
+                title={`Delete ${selectedCount} Record${selectedCount === 1 ? '' : 's'}`}
+                message={deleteSelectedMessage}
                 confirmText="Delete Records"
             />
 
