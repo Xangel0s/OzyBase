@@ -230,6 +230,125 @@ func TestPreviewSetupMigration_CSVReturnsTranslatedPlan(t *testing.T) {
 	assert.Contains(t, payload.Tables[0].TranslatedSQL, "email TEXT")
 }
 
+func TestPreviewSetupMigration_MySQLDumpSupportsPositionalInsertPreview(t *testing.T) {
+	e := echo.New()
+	h := &Handler{}
+
+	mysqlDump := strings.TrimSpace(`
+DROP TABLE IF EXISTS ` + "`location`" + `;
+CREATE TABLE ` + "`location`" + ` (
+  ` + "`location_id`" + ` int(11) NOT NULL,
+  ` + "`name`" + ` varchar(255) DEFAULT NULL,
+  ` + "`active`" + ` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (` + "`location_id`" + `),
+  KEY ` + "`idx_location_name`" + ` (` + "`name`" + `)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+ALTER TABLE ` + "`location`" + `
+  MODIFY ` + "`location_id`" + ` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1875;
+INSERT INTO ` + "`location`" + ` VALUES
+  (1,'Lima',1),
+  (2,'Cusco',0);
+`)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/system/setup/migration/preview", bytes.NewBufferString(fmt.Sprintf(`{
+		"source_kind":"mysql_sql",
+		"raw_input":%q,
+		"import_rows":true
+	}`, mysqlDump)))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := h.PreviewSetupMigration(c)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var payload struct {
+		TableCount int      `json:"table_count"`
+		RowCount   int      `json:"row_count"`
+		Warnings   []string `json:"warnings"`
+		Tables     []struct {
+			Name         string `json:"name"`
+			ColumnCount  int    `json:"column_count"`
+			DetectedRows int    `json:"detected_rows"`
+			Columns      []struct {
+				Name string `json:"name"`
+				Type string `json:"type"`
+			} `json:"columns"`
+			TranslatedSQL string   `json:"translated_sql"`
+			Warnings      []string `json:"warnings"`
+		} `json:"tables"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	require.Equal(t, 1, payload.TableCount)
+	require.Equal(t, 2, payload.RowCount)
+	require.Len(t, payload.Tables, 1)
+	assert.Equal(t, "location", payload.Tables[0].Name)
+	assert.Equal(t, 3, payload.Tables[0].ColumnCount)
+	assert.Equal(t, 2, payload.Tables[0].DetectedRows)
+	assert.Contains(t, payload.Tables[0].TranslatedSQL, "CREATE TABLE IF NOT EXISTS location")
+	assert.Contains(t, payload.Tables[0].TranslatedSQL, "location_id INT4")
+	assert.Contains(t, payload.Tables[0].TranslatedSQL, "active BOOLEAN")
+	assert.True(t, hasPreviewColumn(payload.Tables[0].Columns, "location_id"))
+	assert.True(t, hasPreviewColumn(payload.Tables[0].Columns, "name"))
+	assert.True(t, hasPreviewColumn(payload.Tables[0].Columns, "active"))
+	assert.False(t, hasPreviewColumn(payload.Tables[0].Columns, "key"))
+	assert.True(t, containsSubstring(payload.Warnings, "Ignored unsupported setup statement: ALTER TABLE"))
+	assert.True(t, containsSubstring(payload.Tables[0].Warnings, "Mapped positional INSERT values"))
+}
+
+func TestPreviewSetupMigration_MySQLDumpKeepsRowsWhenInsertAppearsBeforeCreate(t *testing.T) {
+	e := echo.New()
+	h := &Handler{}
+
+	mysqlDump := strings.TrimSpace(`
+INSERT INTO ` + "`menu`" + ` VALUES
+  (10,'Dashboard'),
+  (11,'Users');
+CREATE TABLE ` + "`menu`" + ` (
+  ` + "`id`" + ` int(11) NOT NULL,
+  ` + "`label`" + ` varchar(120) NOT NULL,
+  PRIMARY KEY (` + "`id`" + `)
+);
+`)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/system/setup/migration/preview", bytes.NewBufferString(fmt.Sprintf(`{
+		"source_kind":"mysql_sql",
+		"raw_input":%q,
+		"import_rows":true
+	}`, mysqlDump)))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := h.PreviewSetupMigration(c)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var payload struct {
+		TableCount int `json:"table_count"`
+		RowCount   int `json:"row_count"`
+		Tables     []struct {
+			Name         string `json:"name"`
+			ColumnCount  int    `json:"column_count"`
+			DetectedRows int    `json:"detected_rows"`
+			Columns      []struct {
+				Name string `json:"name"`
+				Type string `json:"type"`
+			} `json:"columns"`
+		} `json:"tables"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	require.Equal(t, 1, payload.TableCount)
+	require.Equal(t, 2, payload.RowCount)
+	require.Len(t, payload.Tables, 1)
+	assert.Equal(t, "menu", payload.Tables[0].Name)
+	assert.Equal(t, 2, payload.Tables[0].ColumnCount)
+	assert.Equal(t, 2, payload.Tables[0].DetectedRows)
+	assert.True(t, hasPreviewColumn(payload.Tables[0].Columns, "id"))
+	assert.True(t, hasPreviewColumn(payload.Tables[0].Columns, "label"))
+}
+
 func TestSetupSystem_MigrateModeAppliesCSVMigrationPlan(t *testing.T) {
 	db := setupSystemTestDB(t)
 	h := &Handler{
@@ -282,6 +401,27 @@ func TestSetupSystem_MigrateModeAppliesCSVMigrationPlan(t *testing.T) {
 	err = db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_audit_logs WHERE path = 'SETUP_MIGRATE'").Scan(&auditCount)
 	require.NoError(t, err)
 	assert.Equal(t, 1, auditCount)
+}
+
+func hasPreviewColumn(columns []struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}, target string) bool {
+	for _, column := range columns {
+		if column.Name == target {
+			return true
+		}
+	}
+	return false
+}
+
+func containsSubstring(values []string, target string) bool {
+	for _, value := range values {
+		if strings.Contains(value, target) {
+			return true
+		}
+	}
+	return false
 }
 
 type setupResponseBody struct {

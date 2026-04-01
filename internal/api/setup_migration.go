@@ -388,13 +388,33 @@ func buildSQLMigrationPlan(req setupMigrationRequest) (setupMigrationPlan, error
 			if err != nil {
 				return setupMigrationPlan{}, err
 			}
-			if _, exists := tablePlans[table.Name]; !exists {
+			existing, exists := tablePlans[table.Name]
+			if !exists {
 				order = append(order, table.Name)
+			} else {
+				if remappedRows, ok := remapPositionalRowsToSchema(existing.Rows, existing.Schema, table.Schema); ok {
+					table.Rows = remappedRows
+					table.Warnings = append(table.Warnings, fmt.Sprintf("Aligned positional INSERT rows for %s with the translated CREATE TABLE column order.", table.Name))
+				} else {
+					table.Rows = append(table.Rows, existing.Rows...)
+				}
+				table.DetectedRows = existing.DetectedRows
+				table.Warnings = append(table.Warnings, existing.Warnings...)
 			}
 			table.Warnings = append(table.Warnings, tableWarnings...)
 			tablePlans[table.Name] = &table
 		case req.ImportRows && strings.HasPrefix(upper, "INSERT INTO"):
-			parsed, err := parseSQLInsertStatement(trimmed)
+			tableName, err := extractSQLInsertTableName(trimmed)
+			if err != nil {
+				return setupMigrationPlan{}, err
+			}
+
+			var fallbackColumns []string
+			if existing, exists := tablePlans[tableName]; exists {
+				fallbackColumns = schemaColumnNames(existing.Schema)
+			}
+
+			parsed, err := parseSQLInsertStatement(trimmed, fallbackColumns)
 			if err != nil {
 				return setupMigrationPlan{}, err
 			}
@@ -413,6 +433,9 @@ func buildSQLMigrationPlan(req setupMigrationRequest) (setupMigrationPlan, error
 			}
 			table.Rows = append(table.Rows, parsed.Rows...)
 			table.DetectedRows += len(parsed.Rows)
+			if len(table.Schema) == 0 && len(parsed.Columns) > 0 {
+				table.Schema = inferSchemaFromInsertColumns(parsed.Columns, table.Rows)
+			}
 			table.Warnings = append(table.Warnings, parsed.Warnings...)
 		default:
 			warnings = append(warnings, fmt.Sprintf("Ignored unsupported setup statement: %s", summarizeSQLStatement(trimmed)))
@@ -783,6 +806,9 @@ func parseSQLCreateTable(sourceKind, statement string) (setupMigrationTablePlan,
 				tablePrimaryKeys[column] = struct{}{}
 			}
 			continue
+		case strings.HasPrefix(upper, "KEY "), strings.HasPrefix(upper, "INDEX "), strings.HasPrefix(upper, "FULLTEXT "), strings.HasPrefix(upper, "SPATIAL "):
+			warnings = append(warnings, fmt.Sprintf("Ignored index definition in %s: %s", name, summarizeSQLStatement(trimmed)))
+			continue
 		case strings.HasPrefix(upper, "UNIQUE"), strings.HasPrefix(upper, "FOREIGN KEY"), strings.HasPrefix(upper, "CHECK"):
 			warnings = append(warnings, fmt.Sprintf("Ignored table-level constraint in %s: %s", name, summarizeSQLStatement(trimmed)))
 			continue
@@ -882,7 +908,29 @@ func parseSQLColumnDefinition(sourceKind, definition string) (data.FieldSchema, 
 	return field, typeWarnings, nil
 }
 
-func parseSQLInsertStatement(statement string) (setupParsedInsert, error) {
+func extractSQLInsertTableName(statement string) (string, error) {
+	trimmed := strings.TrimSpace(strings.TrimSuffix(statement, ";"))
+	upper := strings.ToUpper(trimmed)
+	if !strings.HasPrefix(upper, "INSERT INTO") {
+		return "", fmt.Errorf("statement is not an INSERT INTO")
+	}
+
+	rest := strings.TrimSpace(trimmed[len("INSERT INTO"):])
+	valuesIndex := indexKeywordOutsideStructured(rest, "VALUES")
+	if valuesIndex == -1 {
+		return "", fmt.Errorf("insert statement is missing VALUES")
+	}
+
+	head := strings.TrimSpace(rest[:valuesIndex])
+	tablePart := head
+	if openIndex := indexOfRuneOutsideQuoted(head, '('); openIndex != -1 {
+		tablePart = strings.TrimSpace(head[:openIndex])
+	}
+
+	return normalizeQualifiedIdentifier(tablePart, "imported_table"), nil
+}
+
+func parseSQLInsertStatement(statement string, fallbackColumns []string) (setupParsedInsert, error) {
 	trimmed := strings.TrimSpace(strings.TrimSuffix(statement, ";"))
 	upper := strings.ToUpper(trimmed)
 	if !strings.HasPrefix(upper, "INSERT INTO") {
@@ -911,13 +959,40 @@ func parseSQLInsertStatement(statement string) (setupParsedInsert, error) {
 		tablePart = strings.TrimSpace(head[:openIndex])
 		columns = uniqueSanitizedIdentifiers(splitCommaAware(head[openIndex+1:closeIndex]), "column")
 	}
-	if len(columns) == 0 {
-		return setupParsedInsert{}, fmt.Errorf("insert statements without named columns are not supported in setup migration")
-	}
 
 	tuples, err := parseSQLValueTuples(valuesRaw)
 	if err != nil {
 		return setupParsedInsert{}, err
+	}
+	if len(columns) == 0 {
+		if len(fallbackColumns) > 0 {
+			columns = append(columns, fallbackColumns...)
+		} else {
+			maxValueCount := 0
+			for _, tuple := range tuples {
+				valueCount := len(splitCommaAware(tuple))
+				if valueCount > maxValueCount {
+					maxValueCount = valueCount
+				}
+			}
+			if maxValueCount == 0 {
+				return setupParsedInsert{}, fmt.Errorf("insert statement does not include usable row values")
+			}
+			generatedColumns := make([]string, 0, maxValueCount)
+			for index := 0; index < maxValueCount; index++ {
+				generatedColumns = append(generatedColumns, fmt.Sprintf("column_%d", index+1))
+			}
+			columns = generatedColumns
+		}
+	}
+
+	warnings := make([]string, 0)
+	if indexOfRuneOutsideQuoted(head, '(') == -1 {
+		if len(fallbackColumns) > 0 {
+			warnings = append(warnings, fmt.Sprintf("Mapped positional INSERT values for %s using the CREATE TABLE column order because the dump omitted column names.", normalizeQualifiedIdentifier(tablePart, "imported_table")))
+		} else {
+			warnings = append(warnings, fmt.Sprintf("Inferred placeholder column names for positional INSERT values in %s because the dump omitted column names.", normalizeQualifiedIdentifier(tablePart, "imported_table")))
+		}
 	}
 
 	rows := make([]map[string]any, 0, len(tuples))
@@ -943,7 +1018,57 @@ func parseSQLInsertStatement(statement string) (setupParsedInsert, error) {
 		TableName: normalizeQualifiedIdentifier(tablePart, "imported_table"),
 		Columns:   columns,
 		Rows:      rows,
+		Warnings:  warnings,
 	}, nil
+}
+
+func schemaColumnNames(schema []data.FieldSchema) []string {
+	if len(schema) == 0 {
+		return nil
+	}
+
+	names := make([]string, 0, len(schema))
+	for _, field := range schema {
+		name := sanitizeSetupIdentifier(field.Name, "")
+		if name == "" {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names
+}
+
+func remapPositionalRowsToSchema(rows []map[string]any, existingSchema, targetSchema []data.FieldSchema) ([]map[string]any, bool) {
+	if len(rows) == 0 || len(existingSchema) == 0 || len(existingSchema) != len(targetSchema) {
+		return nil, false
+	}
+
+	placeholderColumns := schemaColumnNames(existingSchema)
+	targetColumns := schemaColumnNames(targetSchema)
+	if len(placeholderColumns) != len(targetColumns) {
+		return nil, false
+	}
+
+	for index, column := range placeholderColumns {
+		if column != fmt.Sprintf("column_%d", index+1) {
+			return nil, false
+		}
+	}
+
+	remapped := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		mapped := make(map[string]any, len(targetColumns))
+		for index, oldColumn := range placeholderColumns {
+			value, ok := row[oldColumn]
+			if !ok {
+				continue
+			}
+			mapped[targetColumns[index]] = value
+		}
+		remapped = append(remapped, mapped)
+	}
+
+	return remapped, true
 }
 
 func parseSQLValueTuples(raw string) ([]string, error) {
@@ -1080,6 +1205,38 @@ func inferSchemaFromRecords(records []map[string]any) []data.FieldSchema {
 			Name:     sanitizeSetupIdentifier(key, "field"),
 			Type:     inferFieldTypeFromAnySamples(samples[key]),
 			Required: requiredCounts[key] == len(records),
+		})
+	}
+
+	return schema
+}
+
+func inferSchemaFromInsertColumns(columns []string, rows []map[string]any) []data.FieldSchema {
+	if len(columns) == 0 {
+		return nil
+	}
+
+	requiredCounts := make(map[string]int, len(columns))
+	samples := make(map[string][]any, len(columns))
+	for _, row := range rows {
+		for _, column := range columns {
+			value, ok := row[column]
+			if !ok || value == nil || fmt.Sprint(value) == "" {
+				continue
+			}
+			requiredCounts[column]++
+			if len(samples[column]) < 32 {
+				samples[column] = append(samples[column], value)
+			}
+		}
+	}
+
+	schema := make([]data.FieldSchema, 0, len(columns))
+	for _, column := range columns {
+		schema = append(schema, data.FieldSchema{
+			Name:     sanitizeSetupIdentifier(column, "column"),
+			Type:     inferFieldTypeFromAnySamples(samples[column]),
+			Required: len(rows) > 0 && requiredCounts[column] == len(rows),
 		})
 	}
 

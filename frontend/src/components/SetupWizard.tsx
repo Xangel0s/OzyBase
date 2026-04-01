@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
     ShieldCheck,
@@ -13,6 +13,10 @@ import {
     ScanSearch,
     Sparkles,
     Shield,
+    FileSpreadsheet,
+    FileJson,
+    MousePointerClick,
+    TableProperties,
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
 
@@ -88,6 +92,8 @@ interface MigrationSourceDescriptor {
     hint: string;
     accept: string;
     requiresTableName: boolean;
+    icon: LucideIcon;
+    accentClass: string;
 }
 
 interface ModeDescriptor {
@@ -212,6 +218,8 @@ const migrationSourceOptions: MigrationSourceDescriptor[] = [
         hint: 'Infer one PostgreSQL table from headers and sampled rows.',
         accept: '.csv,.txt',
         requiresTableName: true,
+        icon: FileSpreadsheet,
+        accentClass: 'border-emerald-500/20 bg-emerald-500/6 hover:border-emerald-400/40 hover:bg-emerald-500/10',
     },
     {
         id: 'mongo_json',
@@ -220,6 +228,8 @@ const migrationSourceOptions: MigrationSourceDescriptor[] = [
         hint: 'Map document arrays or { documents: [] } payloads into a relational table.',
         accept: '.json,.txt',
         requiresTableName: true,
+        icon: FileJson,
+        accentClass: 'border-cyan-500/20 bg-cyan-500/6 hover:border-cyan-400/40 hover:bg-cyan-500/10',
     },
     {
         id: 'mysql_sql',
@@ -228,6 +238,8 @@ const migrationSourceOptions: MigrationSourceDescriptor[] = [
         hint: 'Translate CREATE TABLE and INSERT statements from MySQL.',
         accept: '.sql,.txt',
         requiresTableName: false,
+        icon: Database,
+        accentClass: 'border-sky-500/20 bg-sky-500/6 hover:border-sky-400/40 hover:bg-sky-500/10',
     },
     {
         id: 'sqlite_sql',
@@ -236,6 +248,8 @@ const migrationSourceOptions: MigrationSourceDescriptor[] = [
         hint: 'Translate SQLite DDL/INSERT statements into PostgreSQL.',
         accept: '.sql,.txt',
         requiresTableName: false,
+        icon: TableProperties,
+        accentClass: 'border-violet-500/20 bg-violet-500/6 hover:border-violet-400/40 hover:bg-violet-500/10',
     },
     {
         id: 'sqlserver_sql',
@@ -244,6 +258,8 @@ const migrationSourceOptions: MigrationSourceDescriptor[] = [
         hint: 'Translate SQL Server table definitions and INSERT batches.',
         accept: '.sql,.txt',
         requiresTableName: false,
+        icon: Server,
+        accentClass: 'border-amber-500/20 bg-amber-500/6 hover:border-amber-400/40 hover:bg-amber-500/10',
     },
     {
         id: 'postgres_sql',
@@ -252,6 +268,8 @@ const migrationSourceOptions: MigrationSourceDescriptor[] = [
         hint: 'Bootstrap existing Postgres DDL into OzyBase metadata and setup-time imports.',
         accept: '.sql,.txt',
         requiresTableName: false,
+        icon: Database,
+        accentClass: 'border-blue-500/20 bg-blue-500/6 hover:border-blue-400/40 hover:bg-blue-500/10',
     },
 ];
 
@@ -310,6 +328,8 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     const [migrationPreview, setMigrationPreview] = useState<MigrationPreviewResponse | null>(null);
     const [migrationPreviewing, setMigrationPreviewing] = useState(false);
     const [migrationFileName, setMigrationFileName] = useState('');
+    const [migrationDragActive, setMigrationDragActive] = useState(false);
+    const migrationFileInputRef = useRef<HTMLInputElement | null>(null);
 
     const selectedMode = useMemo(() => (
         mode ? modeDetails[mode] : null
@@ -401,10 +421,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         setError('');
     };
 
-    const handleMigrationFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
+    const processMigrationFile = (file: File) => {
         const reader = new FileReader();
         reader.onload = (loadEvent: ProgressEvent<FileReader>) => {
             const text = loadEvent.target?.result;
@@ -424,6 +441,24 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
             setError('');
         };
         reader.readAsText(file);
+    };
+
+    const handleMigrationFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        processMigrationFile(file);
+    };
+
+    const handleMigrationDrop = (event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        setMigrationDragActive(false);
+
+        const file = event.dataTransfer.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        processMigrationFile(file);
     };
 
     const handleAnalyzeMigration = async () => {
@@ -552,9 +587,9 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in fade-in duration-500">
-            <div className="w-full max-w-5xl bg-[#0a0a0a] border border-zinc-800 rounded-[2rem] overflow-hidden shadow-2xl flex max-h-[calc(100vh-2rem)] min-h-[620px] flex-col md:min-h-[640px] md:flex-row">
-                <div className="w-full md:w-[30%] bg-zinc-900/50 p-8 flex flex-col justify-between border-r border-zinc-800 relative overflow-y-auto">
+        <div className="fixed inset-0 bg-black/95 flex items-stretch md:items-center justify-center p-2 sm:p-4 z-50 backdrop-blur-sm animate-in fade-in duration-500">
+            <div className="w-full max-w-6xl h-full bg-[#0a0a0a] border border-zinc-800 rounded-[2rem] overflow-hidden shadow-2xl flex max-h-[calc(100vh-1rem)] min-h-[620px] flex-col md:h-auto md:max-h-[calc(100vh-2rem)] md:min-h-[680px] md:flex-row">
+                <div className="w-full md:w-[28%] xl:w-[24%] bg-zinc-900/50 p-6 md:p-8 flex flex-col justify-between border-r border-zinc-800 relative overflow-y-auto">
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-primary/[0.02] to-transparent pointer-events-none" />
 
                     <div className="relative">
@@ -606,7 +641,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                     </div>
                 </div>
 
-                <div className="flex-1 min-h-0 p-8 md:p-12 flex flex-col relative">
+                <div className="flex-1 min-h-0 p-6 md:p-8 xl:p-10 flex flex-col relative overflow-hidden">
                     {loading && selectedMode && (
                         <div className="absolute inset-0 z-20 bg-black/88 backdrop-blur-sm p-6 md:p-10 flex items-center justify-center animate-in fade-in duration-300">
                             <div className="w-full max-w-xl rounded-[2rem] border border-zinc-800 bg-[#0d0d0d] p-7 shadow-2xl">
@@ -699,7 +734,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                     )}
 
                     {step === 'prepare' && selectedMode && mode === 'migrate' && (
-                        <div className="animate-in slide-in-from-right duration-500 h-full min-h-0 flex flex-col">
+                        <div className="animate-in slide-in-from-right duration-500 h-full min-h-0 flex flex-col overflow-hidden">
                             <button
                                 onClick={() => setStep('mode')}
                                 className="text-xs text-zinc-500 hover:text-white mb-4 flex items-center gap-1"
@@ -715,29 +750,33 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 <p className="text-zinc-500 text-sm max-w-3xl">{selectedMode.prepDescription}</p>
                             </div>
 
-                            <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-6 flex-1 min-h-0">
-                                <div className="rounded-[2rem] border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col min-h-0 overflow-y-auto">
+                            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.16fr)_minmax(340px,0.84fr)] gap-6 flex-1 min-h-0 overflow-hidden">
+                                <div className="rounded-[2rem] border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col min-h-0 overflow-y-auto pr-1">
                                     <div className="flex items-center gap-3 mb-5">
                                         <div className={`p-3 rounded-2xl ${selectedMode.iconPanelClass}`}>
                                             <selectedMode.icon size={20} className={selectedMode.iconClass} />
                                         </div>
                                         <div>
-                                            <h3 className="text-lg font-bold text-white">Source intake</h3>
-                                            <p className="text-xs text-zinc-500">Choose the input you want OzyBase to translate into PostgreSQL.</p>
+                                            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500 mb-1">Step 1</p>
+                                            <h3 className="text-lg font-bold text-white">Choose the source database</h3>
+                                            <p className="text-xs text-zinc-500">Pick the format you want OzyBase to translate into PostgreSQL before uploading or pasting the dump.</p>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
                                         {migrationSourceOptions.map((source) => (
                                             <button
                                                 key={source.id}
                                                 onClick={() => handleMigrationDraftChange({ sourceKind: source.id })}
-                                                className={`rounded-2xl border p-4 text-left transition-all ${migrationDraft.sourceKind === source.id ? 'border-primary/40 bg-primary/8' : 'border-zinc-800 bg-black/20 hover:border-zinc-700'}`}
+                                                className={`rounded-2xl border p-4 text-left transition-all ${migrationDraft.sourceKind === source.id ? 'border-primary/40 bg-primary/8 shadow-[0_0_0_1px_rgba(254,254,0,0.08)]' : source.accentClass}`}
                                             >
-                                                <div className="flex items-center justify-between gap-3 mb-2">
-                                                    <span className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">{source.label}</span>
-                                                    {migrationDraft.sourceKind === source.id && <CheckCircle size={14} className="text-primary" />}
+                                                <div className="flex items-start justify-between gap-3 mb-3">
+                                                    <div className="p-3 rounded-2xl bg-black/30 border border-white/5">
+                                                        <source.icon size={18} className={migrationDraft.sourceKind === source.id ? 'text-primary' : 'text-white'} />
+                                                    </div>
+                                                    {migrationDraft.sourceKind === source.id && <CheckCircle size={14} className="text-primary shrink-0" />}
                                                 </div>
+                                                <span className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">{source.label}</span>
                                                 <p className="text-sm font-semibold text-white mb-1">{source.title}</p>
                                                 <p className="text-xs text-zinc-500 leading-relaxed">{source.hint}</p>
                                             </button>
@@ -759,29 +798,71 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Upload Source File</label>
-                                            <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4 flex flex-col gap-3">
+                                            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Step 2 · Upload Source File</label>
+                                            <div
+                                                onDragOver={(event) => {
+                                                    event.preventDefault();
+                                                    setMigrationDragActive(true);
+                                                }}
+                                                onDragEnter={(event) => {
+                                                    event.preventDefault();
+                                                    setMigrationDragActive(true);
+                                                }}
+                                                onDragLeave={(event) => {
+                                                    event.preventDefault();
+                                                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                                                        setMigrationDragActive(false);
+                                                    }
+                                                }}
+                                                onDrop={handleMigrationDrop}
+                                                className={`rounded-2xl border border-dashed p-4 flex flex-col gap-4 transition-all ${migrationDragActive ? 'border-primary bg-primary/8' : 'border-zinc-700 bg-black/20'}`}
+                                            >
                                                 <input
+                                                    ref={migrationFileInputRef}
                                                     type="file"
                                                     accept={selectedMigrationSource.accept}
                                                     onChange={handleMigrationFileUpload}
-                                                    className="text-xs text-zinc-400 file:mr-4 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:text-black"
+                                                    className="hidden"
                                                 />
-                                                <p className="text-xs text-zinc-500">
-                                                    {migrationFileName ? `Loaded ${migrationFileName}` : `Accepted formats: ${selectedMigrationSource.accept}`}
-                                                </p>
+
+                                                <div className="flex items-start gap-4">
+                                                    <div className="p-3 rounded-2xl bg-black/30 border border-white/5">
+                                                        <selectedMigrationSource.icon size={18} className="text-primary" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-semibold text-white">Drag and drop your {selectedMigrationSource.label} file here</p>
+                                                        <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                                                            Accepted formats: {selectedMigrationSource.accept}. If your dump needs cleanup, you can still paste the content manually below.
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                                    <div className="rounded-xl border border-zinc-800 bg-black/30 px-3 py-3 text-xs">
+                                                        <span className="block text-zinc-500 uppercase tracking-widest text-[10px] mb-1">Loaded source</span>
+                                                        <span className="text-white font-medium break-all">{migrationFileName || 'No file loaded yet'}</span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => migrationFileInputRef.current?.click()}
+                                                        className="px-4 py-2 rounded-xl border border-zinc-700 bg-zinc-900 text-[10px] font-black uppercase tracking-[0.22em] text-white hover:border-primary/40 hover:text-primary transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <MousePointerClick size={14} />
+                                                        Browse file
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
 
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Paste Schema / Data</label>
                                             <textarea
-                                                className="w-full min-h-[260px] resize-y bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-4 text-sm text-white focus:border-primary/50 focus:outline-none transition-all"
+                                                className="w-full min-h-[320px] resize-y bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-4 text-sm text-white focus:border-primary/50 focus:outline-none transition-all"
                                                 placeholder={selectedMigrationSource.id === 'csv'
                                                     ? 'id,name,email\n1,Ana,ana@example.com'
                                                     : selectedMigrationSource.id === 'mongo_json'
                                                         ? '[{\"name\":\"Ana\",\"email\":\"ana@example.com\"}]'
-                                                        : 'CREATE TABLE users (...);\nINSERT INTO users (...) VALUES (...);'}
+                                                        : 'CREATE TABLE users (...);\nINSERT INTO users VALUES (...);'}
                                                 value={migrationDraft.rawInput}
                                                 onChange={(e) => handleMigrationDraftChange({ rawInput: e.target.value })}
                                             />
@@ -789,6 +870,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                     </div>
 
                                     <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-zinc-800 bg-black/25 p-4">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">Step 3 · Analyze</p>
                                         <label className="flex items-start gap-3 text-sm text-zinc-300">
                                             <input
                                                 type="checkbox"
@@ -810,19 +892,25 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             className="px-6 py-3 bg-primary text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
                                         >
                                             {migrationPreviewing ? <Loader2 size={14} className="animate-spin" /> : <ScanSearch size={14} />}
-                                            {migrationPreviewing ? 'Analyzing...' : 'Analyze Migration'}
+                                            {migrationPreviewing ? 'Analyzing...' : 'Analyze migration plan'}
                                         </button>
                                     </div>
                                 </div>
 
-                                <div className="rounded-[2rem] border border-zinc-800 bg-[#0c0c0c] p-6 flex flex-col min-h-0">
-                                    <div className="flex items-center gap-2 text-primary mb-4">
-                                        <ScanSearch size={16} />
-                                        <span className="text-[10px] font-black uppercase tracking-[0.24em]">Migration Preview</span>
+                                <div className="rounded-[2rem] border border-zinc-800 bg-[#0c0c0c] flex flex-col min-h-0 overflow-hidden">
+                                    <div className="px-6 pt-6 pb-5 border-b border-zinc-800">
+                                        <div className="flex items-center gap-2 text-primary mb-2">
+                                            <ScanSearch size={16} />
+                                            <span className="text-[10px] font-black uppercase tracking-[0.24em]">Migration Preview</span>
+                                        </div>
+                                        <h3 className="text-lg font-bold text-white">Review before creating the admin</h3>
+                                        <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                                            Keep this panel open while you verify the translated PostgreSQL plan and detected rows.
+                                        </p>
                                     </div>
 
                                     {migrationPreview ? (
-                                        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
+                                        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
                                             <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
                                                 <p className="text-sm text-white font-semibold mb-2">{migrationPreview.summary}</p>
                                                 <div className="grid grid-cols-2 gap-3 text-xs text-zinc-400">
@@ -879,8 +967,21 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="flex-1 flex flex-col justify-between">
+                                        <div className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col justify-between">
                                             <div className="space-y-3">
+                                                <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="p-3 rounded-2xl bg-black/30 border border-white/5">
+                                                            <selectedMigrationSource.icon size={18} className="text-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary mb-2">Current source</p>
+                                                            <h4 className="text-sm font-semibold text-white">{selectedMigrationSource.title}</h4>
+                                                            <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{selectedMigrationSource.hint}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
                                                 {selectedMode.prepSteps.map((prepStep) => (
                                                     <div key={prepStep} className="rounded-2xl border border-zinc-800 bg-black/20 px-4 py-3 text-sm text-zinc-500 flex items-center gap-3">
                                                         {migrationPreviewing ? <Loader2 size={16} className="text-primary shrink-0 animate-spin" /> : <Sparkles size={14} className="text-primary shrink-0" />}
@@ -894,7 +995,13 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                         </div>
                                     )}
 
-                                    <div className="mt-6 pt-6 border-t border-zinc-800 flex flex-col gap-4">
+                                    <div className="border-t border-zinc-800 px-6 py-5 bg-[#0c0c0c] flex flex-col gap-4">
+                                        {error && (
+                                            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium rounded-xl flex items-start gap-2">
+                                                <Shield size={14} className="shrink-0 mt-0.5" />
+                                                <span>{error}</span>
+                                            </div>
+                                        )}
                                         <p className="text-xs text-zinc-500 leading-relaxed">
                                             {selectedMode.footnote}
                                         </p>
