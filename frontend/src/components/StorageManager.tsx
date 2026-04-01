@@ -20,11 +20,13 @@ import {
 
 import ConfirmModal from './ConfirmModal';
 import ModulePageHero from './ModulePageHero';
+import OzySelect from './OzySelect';
 import { BrandedToast } from './OverlayPrimitives';
 import { fetchWithAuth } from '../utils/api';
 
 type ToastTone = 'success' | 'error' | 'warning' | 'info';
 type BucketDialogMode = 'create' | 'edit';
+type BucketPolicyProfile = 'visibility_only' | 'owner_only' | 'admin_only' | 'deny_all' | 'custom';
 
 interface StorageManagerProps {
     view?: 'buckets' | 'policies' | 'usage' | 'settings';
@@ -59,7 +61,7 @@ interface StorageObject {
 interface BucketFormState {
     name: string;
     isPublic: boolean;
-    isRLS: boolean;
+    policyProfile: BucketPolicyProfile;
     rlsRule: string;
     maxFileSizeMB: string;
     maxTotalSizeMB: string;
@@ -67,7 +69,8 @@ interface BucketFormState {
 }
 
 const DEFAULT_RLS_RULE = "auth.uid() = owner_id";
-const EMPTY_BUCKET_FORM: BucketFormState = { name: '', isPublic: false, isRLS: false, rlsRule: DEFAULT_RLS_RULE, maxFileSizeMB: '', maxTotalSizeMB: '', lifecycleDeleteAfterDays: '' };
+const ADMIN_BUCKET_RLS_RULE = "auth.role() = 'admin'";
+const EMPTY_BUCKET_FORM: BucketFormState = { name: '', isPublic: false, policyProfile: 'visibility_only', rlsRule: DEFAULT_RLS_RULE, maxFileSizeMB: '', maxTotalSizeMB: '', lifecycleDeleteAfterDays: '' };
 
 interface StorageUploadSession {
     upload_url: string;
@@ -123,6 +126,73 @@ const parsePositiveInt = (value: string): number | null => {
 const formatBucketLimit = (bytes: number): string => (
     Number.isFinite(bytes) && bytes > 0 ? formatSize(bytes) : 'Unlimited'
 );
+
+const inferBucketPolicyProfile = (enabled: boolean, rule: string): BucketPolicyProfile => {
+    if (!enabled) return 'visibility_only';
+
+    const normalized = rule.trim();
+    switch (normalized) {
+        case '':
+        case 'true':
+            return 'visibility_only';
+        case DEFAULT_RLS_RULE:
+            return 'owner_only';
+        case ADMIN_BUCKET_RLS_RULE:
+            return 'admin_only';
+        case 'false':
+            return 'deny_all';
+        default:
+            return 'custom';
+    }
+};
+
+const resolveBucketPolicyRule = (profile: BucketPolicyProfile, customRule: string): string => {
+    switch (profile) {
+        case 'visibility_only':
+            return 'true';
+        case 'owner_only':
+            return DEFAULT_RLS_RULE;
+        case 'admin_only':
+            return ADMIN_BUCKET_RLS_RULE;
+        case 'deny_all':
+            return 'false';
+        case 'custom':
+        default:
+            return customRule.trim();
+    }
+};
+
+const formatBucketPolicyProfile = (profile: BucketPolicyProfile): string => {
+    switch (profile) {
+        case 'visibility_only':
+            return 'Visibility only';
+        case 'owner_only':
+            return 'Owner only';
+        case 'admin_only':
+            return 'Admin only';
+        case 'deny_all':
+            return 'Deny all';
+        case 'custom':
+        default:
+            return 'Custom / legacy';
+    }
+};
+
+const describeBucketPolicyProfile = (profile: BucketPolicyProfile): string => {
+    switch (profile) {
+        case 'visibility_only':
+            return 'Only bucket visibility is enforced. Public buckets allow anonymous reads; private buckets require authentication.';
+        case 'owner_only':
+            return 'Objects are filtered by owner_id = auth.uid() for reads and deletes. Uploads still require authentication.';
+        case 'admin_only':
+            return 'Only admin-role sessions can list, read, or delete objects in this bucket.';
+        case 'deny_all':
+            return 'The bucket is effectively sealed. Reads and deletes are denied until you change the profile.';
+        case 'custom':
+        default:
+            return 'This bucket stores a legacy custom rule. OzyBase only guarantees visibility-only, owner-only, admin-only, and deny-all profiles today.';
+    }
+};
 
 const MULTIPART_THRESHOLD_BYTES = 64 * 1024 * 1024;
 
@@ -216,6 +286,9 @@ const StorageManager = (_props: StorageManagerProps) => {
             total_size: files.reduce((sum, file) => sum + file.size, 0),
         }
     ), [buckets, files, selectedBucketName]);
+    const selectedBucketPolicyProfile = useMemo<BucketPolicyProfile>(() => (
+        inferBucketPolicyProfile(selectedBucket.rls_enabled, selectedBucket.rls_rule)
+    ), [selectedBucket.rls_enabled, selectedBucket.rls_rule]);
 
     const filteredFiles = useMemo(() => {
         const term = deferredSearch.trim().toLowerCase();
@@ -224,7 +297,7 @@ const StorageManager = (_props: StorageManagerProps) => {
     }, [deferredSearch, files]);
     const storageHeroPills = [
         { label: selectedBucket.public ? 'public reads allowed' : 'private bucket', tone: selectedBucket.public ? 'accent' : 'neutral' },
-        { label: selectedBucket.rls_enabled ? 'rls enforced' : 'rls optional', tone: selectedBucket.rls_enabled ? 'success' : 'warning' },
+        { label: `acl ${formatBucketPolicyProfile(selectedBucketPolicyProfile).toLowerCase()}`, tone: selectedBucketPolicyProfile === 'visibility_only' ? 'warning' : selectedBucketPolicyProfile === 'custom' ? 'danger' : 'success' },
         { label: `per-file ${formatBucketLimit(selectedBucket.max_file_size_bytes)}`, tone: selectedBucket.max_file_size_bytes > 0 ? 'warning' : 'neutral' },
         { label: `bucket ${formatBucketLimit(selectedBucket.max_total_size_bytes)}`, tone: selectedBucket.max_total_size_bytes > 0 ? 'warning' : 'neutral' },
         { label: `${selectedBucket.object_count} object${selectedBucket.object_count === 1 ? '' : 's'}`, tone: 'neutral' },
@@ -267,12 +340,13 @@ const StorageManager = (_props: StorageManagerProps) => {
         if (mode === 'edit') {
             setSelectedBucketName(bucket.name);
         }
+        const policyProfile = inferBucketPolicyProfile(bucket.rls_enabled, bucket.rls_rule);
         setBucketDialogMode(mode);
         setBucketForm(mode === 'edit'
             ? {
                 name: bucket.name,
                 isPublic: bucket.public,
-                isRLS: bucket.rls_enabled,
+                policyProfile,
                 rlsRule: bucket.rls_rule || DEFAULT_RLS_RULE,
                 maxFileSizeMB: bucket.max_file_size_bytes > 0 ? (bucket.max_file_size_bytes / (1024 * 1024)).toString() : '',
                 maxTotalSizeMB: bucket.max_total_size_bytes > 0 ? (bucket.max_total_size_bytes / (1024 * 1024)).toString() : '',
@@ -296,6 +370,11 @@ const StorageManager = (_props: StorageManagerProps) => {
         if (maxTotalSizeBytes === null) return showToast('Bucket quota must be a valid number of MB', 'error');
         const lifecycleDeleteAfterDays = parsePositiveInt(bucketForm.lifecycleDeleteAfterDays);
         if (lifecycleDeleteAfterDays === null) return showToast('Lifecycle retention must be a valid number of days', 'error');
+        const rlsRule = resolveBucketPolicyRule(bucketForm.policyProfile, bucketForm.rlsRule);
+        if (bucketForm.policyProfile === 'custom' && !rlsRule) {
+            return showToast('Custom ACL rules cannot be empty', 'error');
+        }
+        const rlsEnabled = bucketForm.policyProfile !== 'visibility_only';
 
         setIsSavingBucket(true);
         try {
@@ -307,8 +386,8 @@ const StorageManager = (_props: StorageManagerProps) => {
                 body: JSON.stringify({
                     name: trimmedName,
                     public: bucketForm.isPublic,
-                    rls_enabled: bucketForm.isRLS,
-                    rls_rule: bucketForm.isRLS ? bucketForm.rlsRule.trim() || DEFAULT_RLS_RULE : 'true',
+                    rls_enabled: rlsEnabled,
+                    rls_rule: rlsRule,
                     max_file_size_bytes: maxFileSizeBytes,
                     max_total_size_bytes: maxTotalSizeBytes,
                     lifecycle_delete_after_days: lifecycleDeleteAfterDays,
@@ -561,7 +640,7 @@ const StorageManager = (_props: StorageManagerProps) => {
                     <ModulePageHero
                         eyebrow="Storage"
                         title={selectedBucket.name}
-                        description="Choose a bucket, upload files, and control access with public visibility plus optional RLS. The right panel stays focused on the current bucket so file operations feel predictable."
+                        description="Choose a bucket, upload files, and control access with public visibility plus the ACL profiles OzyBase actually supports today. The right panel stays focused on the current bucket so file operations feel predictable."
                         icon={FolderOpen}
                         pills={storageHeroPills}
                         stats={storageHeroStats}
@@ -659,7 +738,8 @@ const StorageManager = (_props: StorageManagerProps) => {
                             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Bucket Policies</p>
                             <div className="mt-5 grid gap-4">
                                 <div className="rounded-3xl border border-[#2e2e2e] bg-[#0c0c0c] p-5"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Read Access</p><p className="mt-2 text-lg font-black text-white">{selectedBucket.public ? 'Public' : 'Authenticated only'}</p><p className="mt-2 text-sm text-zinc-500">{selectedBucket.public ? 'Anon reads work when RLS does not narrow access.' : 'Objects require a user session or service role key.'}</p></div>
-                                <div className="rounded-3xl border border-[#2e2e2e] bg-[#0c0c0c] p-5"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">RLS Rule</p><code className="mt-3 block overflow-x-auto rounded-2xl border border-zinc-800 bg-[#070707] px-4 py-4 text-xs text-primary">{selectedBucket.rls_enabled ? selectedBucket.rls_rule : 'true'}</code></div>
+                                <div className="rounded-3xl border border-[#2e2e2e] bg-[#0c0c0c] p-5"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">ACL Profile</p><p className="mt-2 text-lg font-black text-white">{formatBucketPolicyProfile(selectedBucketPolicyProfile)}</p><p className="mt-2 text-sm text-zinc-500">{describeBucketPolicyProfile(selectedBucketPolicyProfile)}</p></div>
+                                <div className="rounded-3xl border border-[#2e2e2e] bg-[#0c0c0c] p-5"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Stored Rule</p><code className="mt-3 block overflow-x-auto rounded-2xl border border-zinc-800 bg-[#070707] px-4 py-4 text-xs text-primary">{selectedBucket.rls_enabled ? selectedBucket.rls_rule : 'true'}</code><p className="mt-3 text-[11px] leading-relaxed text-zinc-500">Runtime-guaranteed profiles are `visibility`, `owner only`, `admin only`, and `deny all`. Richer visual ACL composition is still in progress.</p></div>
                                 <div className="rounded-3xl border border-[#2e2e2e] bg-[#0c0c0c] p-5"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Per-File Limit</p><p className="mt-2 text-lg font-black text-white">{formatBucketLimit(selectedBucket.max_file_size_bytes)}</p><p className="mt-2 text-sm text-zinc-500">Session uploads reject oversize files before the stream starts and keep the limit consistent across local or S3 backends.</p></div>
                                 <div className="rounded-3xl border border-[#2e2e2e] bg-[#0c0c0c] p-5"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Bucket Quota</p><p className="mt-2 text-lg font-black text-white">{formatBucketLimit(selectedBucket.max_total_size_bytes)}</p><p className="mt-2 text-sm text-zinc-500">{selectedBucket.max_total_size_bytes > 0 ? `Current usage ${formatSize(selectedBucket.total_size)} / ${Math.round(selectedBucket.usage_ratio_pct ?? 0)}%` : 'Keep this empty when you do not want a total-capacity ceiling.'}</p></div>
                                 <div className="rounded-3xl border border-[#2e2e2e] bg-[#0c0c0c] p-5"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Lifecycle Retention</p><p className="mt-2 text-lg font-black text-white">{selectedBucket.lifecycle_delete_after_days > 0 ? `${selectedBucket.lifecycle_delete_after_days} day${selectedBucket.lifecycle_delete_after_days === 1 ? '' : 's'}` : 'Disabled'}</p><p className="mt-2 text-sm text-zinc-500">Use retention to sweep stale objects from self-hosted buckets without manual cleanup.</p><button type="button" onClick={() => void handleLifecycleSweep()} disabled={isSweepingLifecycle || selectedBucket.lifecycle_delete_after_days <= 0} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-zinc-800 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-200 transition-colors hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"><RefreshCw size={14} />{isSweepingLifecycle ? 'Sweeping...' : 'Run sweep'}</button></div>
@@ -682,7 +762,7 @@ const StorageManager = (_props: StorageManagerProps) => {
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-6">
                     <div className="absolute inset-0 ozy-overlay-backdrop backdrop-blur-md" onClick={closeBucketDialog} />
                     <div className="ozy-dialog-panel relative w-full max-w-lg overflow-hidden">
-                        <div className="flex items-center justify-between border-b border-[#2e2e2e] bg-[#171717] px-8 py-6"><div><h3 className="text-xl font-black tracking-tight text-white">{bucketDialogMode === 'create' ? 'Create bucket' : 'Edit bucket'}</h3><p className="mt-1 text-[10px] font-black uppercase tracking-widest text-zinc-500">{bucketDialogMode === 'create' ? 'Provision a new storage namespace' : 'Adjust visibility and policy enforcement'}</p></div><button type="button" onClick={closeBucketDialog} className="text-zinc-500 transition-colors hover:text-white"><Plus className="rotate-45" size={18} /></button></div>
+                        <div className="flex items-center justify-between border-b border-[#2e2e2e] bg-[#171717] px-8 py-6"><div><h3 className="text-xl font-black tracking-tight text-white">{bucketDialogMode === 'create' ? 'Create bucket' : 'Edit bucket'}</h3><p className="mt-1 text-[10px] font-black uppercase tracking-widest text-zinc-500">{bucketDialogMode === 'create' ? 'Provision a new storage namespace' : 'Adjust visibility and supported ACL profiles'}</p></div><button type="button" onClick={closeBucketDialog} className="text-zinc-500 transition-colors hover:text-white"><Plus className="rotate-45" size={18} /></button></div>
                         <div className="space-y-5 p-8">
                             <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Bucket Name</label><input autoFocus={bucketDialogMode === 'create'} type="text" value={bucketForm.name} onChange={(event) => setBucketForm((current) => ({ ...current, name: event.target.value }))} placeholder="e.g. customer-assets" disabled={bucketDialogMode === 'edit'} className="w-full rounded-xl border border-zinc-800 bg-[#0c0c0c] px-4 py-3 text-sm text-white focus:border-primary/50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60" /></div>
                             <div className="space-y-2">
@@ -701,10 +781,38 @@ const StorageManager = (_props: StorageManagerProps) => {
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                <button type="button" onClick={() => setBucketForm((current) => ({ ...current, isPublic: !current.isPublic }))} className={`rounded-2xl border px-4 py-4 text-left transition-all ${bucketForm.isPublic ? 'border-primary/30 bg-primary/10 text-primary' : 'border-zinc-800 bg-zinc-900/40 text-zinc-400'}`}><p className="text-[10px] font-black uppercase tracking-widest">Public Access</p><p className="mt-2 text-[11px] leading-relaxed text-white/80">Allow anonymous reads when RLS does not narrow access.</p></button>
-                                <button type="button" onClick={() => setBucketForm((current) => ({ ...current, isRLS: !current.isRLS }))} className={`rounded-2xl border px-4 py-4 text-left transition-all ${bucketForm.isRLS ? 'border-primary/30 bg-primary/10 text-primary' : 'border-zinc-800 bg-zinc-900/40 text-zinc-400'}`}><p className="text-[10px] font-black uppercase tracking-widest">RLS Policy</p><p className="mt-2 text-[11px] leading-relaxed text-white/80">Filter reads and deletes with a Supabase-style rule.</p></button>
+                                <button type="button" onClick={() => setBucketForm((current) => ({ ...current, isPublic: !current.isPublic }))} className={`rounded-2xl border px-4 py-4 text-left transition-all ${bucketForm.isPublic ? 'border-primary/30 bg-primary/10 text-primary' : 'border-zinc-800 bg-zinc-900/40 text-zinc-400'}`}><p className="text-[10px] font-black uppercase tracking-widest">Public Access</p><p className="mt-2 text-[11px] leading-relaxed text-white/80">Allow anonymous reads when the ACL profile does not narrow access further.</p></button>
+                                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-4">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">ACL Profile</p>
+                                    <p className="mt-2 text-[11px] leading-relaxed text-zinc-400">Pick one of the runtime-supported modes instead of writing an unrestricted rule.</p>
+                                    <div className="mt-4">
+                                        <OzySelect
+                                            value={bucketForm.policyProfile}
+                                            onChange={(event) => setBucketForm((current) => ({ ...current, policyProfile: event.target.value as BucketPolicyProfile }))}
+                                            wrapperClassName="rounded-xl"
+                                            selectClassName="h-11 text-[10px]"
+                                        >
+                                            <option value="visibility_only">Visibility only</option>
+                                            <option value="owner_only">Owner only</option>
+                                            <option value="admin_only">Admin only</option>
+                                            <option value="deny_all">Deny all</option>
+                                            <option value="custom">Custom / legacy</option>
+                                        </OzySelect>
+                                    </div>
+                                </div>
                             </div>
-                            {bucketForm.isRLS ? <textarea value={bucketForm.rlsRule} onChange={(event) => setBucketForm((current) => ({ ...current, rlsRule: event.target.value }))} className="min-h-[120px] w-full rounded-2xl border border-zinc-800 bg-[#0c0c0c] px-4 py-3 font-mono text-xs text-zinc-200 focus:border-primary/50 focus:outline-none" /> : <div className="rounded-2xl border border-zinc-800 bg-[#0c0c0c] px-4 py-4 text-[11px] leading-relaxed text-zinc-500">With RLS disabled, OzyBase uses `true` and enforces only public/private visibility plus authenticated uploads.</div>}
+                            <div className="rounded-2xl border border-zinc-800 bg-[#0c0c0c] px-4 py-4">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">ACL Runtime</p>
+                                <p className="mt-2 text-[11px] leading-relaxed text-zinc-400">{describeBucketPolicyProfile(bucketForm.policyProfile)}</p>
+                                {bucketForm.policyProfile === 'custom' ? (
+                                    <div className="mt-4 space-y-3">
+                                        <textarea value={bucketForm.rlsRule} onChange={(event) => setBucketForm((current) => ({ ...current, rlsRule: event.target.value }))} className="min-h-[120px] w-full rounded-2xl border border-zinc-800 bg-[#070707] px-4 py-3 font-mono text-xs text-zinc-200 focus:border-primary/50 focus:outline-none" />
+                                        <p className="text-[11px] leading-relaxed text-amber-300/75">Custom rules are preserved for legacy buckets, but the runtime only guarantees the built-in profiles above. Unsupported expressions are rejected when you change the ACL itself.</p>
+                                    </div>
+                                ) : (
+                                    <code className="mt-4 block overflow-x-auto rounded-2xl border border-zinc-800 bg-[#070707] px-4 py-4 text-xs text-primary">{resolveBucketPolicyRule(bucketForm.policyProfile, bucketForm.rlsRule) || 'true'}</code>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center justify-end gap-3 border-t border-[#2e2e2e] bg-[#111111]/85 px-8 py-5"><button type="button" onClick={closeBucketDialog} className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-colors hover:text-white">Cancel</button><button type="button" onClick={() => void handleBucketSave()} disabled={isSavingBucket} className="rounded-xl bg-primary px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-black transition-all hover:bg-[#E6E600] disabled:opacity-60">{isSavingBucket ? 'Saving...' : bucketDialogMode === 'create' ? 'Create bucket' : 'Save changes'}</button></div>
                     </div>

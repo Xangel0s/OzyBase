@@ -139,3 +139,34 @@ func TestStorageUploadTokenRejectsExpired(t *testing.T) {
 	_, err = validateStorageUploadToken("test-secret", token, now.Add(2*time.Minute))
 	assert.Error(t, err)
 }
+
+func TestValidateBucketRLSRule(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		enabled bool
+		rule    string
+		wantErr bool
+	}{
+		{name: "visibility only when disabled", enabled: false, rule: "", wantErr: false},
+		{name: "owner only", enabled: true, rule: defaultBucketRLSRule, wantErr: false},
+		{name: "admin only", enabled: true, rule: adminBucketRLSRule, wantErr: false},
+		{name: "deny all", enabled: true, rule: "false", wantErr: false},
+		{name: "unsupported custom expression", enabled: true, rule: "team_id = auth.uid()", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := validateBucketRLSRule(tt.enabled, tt.rule)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}

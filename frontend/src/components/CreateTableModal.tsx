@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { X, Check, Plus, Trash2, Shield, Info, Link as LinkIcon, Settings, FileUp, FileText } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
+import OzySelect from './OzySelect';
 
 const MODAL_ENTER_MS = 200;
 const MODAL_EXIT_MS = 160;
@@ -583,7 +584,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({ isOpen, onClose, on
                             />
                             <div>
                                 <h4 className="text-sm font-medium text-zinc-200">Enable Row Level Security (RLS) <span className="text-[10px] text-zinc-500 uppercase tracking-wider ml-2 border border-zinc-700 px-1 rounded">Recommended</span></h4>
-                                <p className="text-xs text-zinc-500 mt-1">Restrict access to your table by enabling RLS and writing Postgres policies.</p>
+                                <p className="text-xs text-zinc-500 mt-1">Restrict access to your table with per-action Postgres policies. The dedicated unified visual editor is still in progress, so this modal focuses on presets and explicit expressions.</p>
                             </div>
                         </div>
 
@@ -597,16 +598,17 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({ isOpen, onClose, on
 
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Policy Preset</label>
-                                        <select
+                                        <OzySelect
                                             value={rlsPreset}
                                             onChange={(e: any) => handleRlsPresetChange(e.target.value)}
-                                            className="w-full bg-[#0c0c0c] border border-[#2e2e2e] rounded px-3 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-primary/50"
+                                            wrapperClassName="rounded-xl"
+                                            selectClassName="h-11 text-[10px]"
                                         >
                                             <option value="owner_only">Owner only (user_id = auth.uid())</option>
                                             <option value="public_read_only">Public read only</option>
                                             <option value="deny_all">Deny all</option>
                                             <option value="custom">Custom</option>
-                                        </select>
+                                        </OzySelect>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -738,11 +740,12 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({ isOpen, onClose, on
                                         {col.isSystem && <LinkIcon size={10} className="absolute right-0 top-1/2 -translate-y-1/2 text-zinc-600" />}
                                     </div>
                                     <div className="col-span-2">
-                                        <select
+                                        <OzySelect
                                             value={col.type}
                                             onChange={(e: any) => handleColumnChange(idx, 'type', e.target.value)}
                                             disabled={col.isSystem || (requiresPolicyOwnerColumn && normalizeIdentifier(col.name) === policyOwnerField)}
-                                            className={`w-full bg-[#111111] border border-[#2e2e2e] rounded px-1 py-1 text-[10px] text-zinc-300 focus:outline-none ${col.isSystem ? 'opacity-50' : ''}`}
+                                            wrapperClassName="rounded-md"
+                                            selectClassName="h-8 pl-2 pr-8 text-[10px] tracking-[0.12em]"
                                         >
                                             <option value="uuid">uuid</option>
                                             <option value="text">text</option>
@@ -757,7 +760,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({ isOpen, onClose, on
                                             <option value="date">date</option>
                                             <option value="jsonb">jsonb</option>
                                             <option value="text_array">text[]</option>
-                                        </select>
+                                        </OzySelect>
                                     </div>
                                     <div className="col-span-2">
                                         <input

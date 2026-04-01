@@ -148,7 +148,7 @@ export const VIEW_REGISTRY: Record<string, ViewMeta> = {
     workspaces: { id: 'workspaces', group: 'workspaces', label: 'Projects', component: 'WorkspaceManager', props: { view: 'wm_overview' }, supportsExplorer: true },
     wm_overview: { id: 'wm_overview', group: 'workspaces', label: 'My Projects', component: 'WorkspaceManager', props: { view: 'wm_overview' }, supportsExplorer: true },
     wm_shared: { id: 'wm_shared', group: 'workspaces', label: 'Shared With Me', component: 'WorkspaceManager', props: { view: 'wm_shared' }, supportsExplorer: true },
-    wm_templates: { id: 'wm_templates', group: 'workspaces', label: 'Templates', component: 'WorkspaceManager', props: { view: 'wm_templates' }, supportsExplorer: true },
+    wm_templates: { id: 'wm_templates', group: 'workspaces', label: 'Quick Seeds', component: 'WorkspaceManager', props: { view: 'wm_templates' }, supportsExplorer: true },
 
     workspace_settings: { id: 'workspace_settings', group: 'workspace_settings', label: 'Project Settings', component: 'WorkspaceSettings', props: { view: 'ws_general' }, supportsExplorer: true },
     ws_general: { id: 'ws_general', group: 'workspace_settings', label: 'General', component: 'WorkspaceSettings', props: { view: 'ws_general' }, supportsExplorer: true },
@@ -231,7 +231,7 @@ export const SUBMENUS: Record<string, SubmenuItem[]> = {
     workspaces: [
         { id: 'wm_overview', name: 'My Projects', icon: Briefcase },
         { id: 'wm_shared', name: 'Shared with me', icon: Users },
-        { id: 'wm_templates', name: 'Templates', icon: LayoutGrid },
+        { id: 'wm_templates', name: 'Quick Seeds', icon: LayoutGrid },
     ],
     workspace_settings: [
         { id: 'ws_general', name: 'General', icon: Settings },

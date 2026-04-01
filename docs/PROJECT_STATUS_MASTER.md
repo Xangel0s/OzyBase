@@ -27,7 +27,7 @@
 - [x] **Type Generator CLI**: Automatic TypeScript interface generation from Postgres.
 - [x] **Enterprise Table Explorer**: Supabase-like UI for data management.
 - [x] **RBAC Console**: Table-level permission management for list/create/update/delete rules.
-- [x] **Workspace / Project Foundation**: Workspace entities, membership management, and scoped metadata/API key support.
+- [x] **Workspace / Project Foundation**: Workspace entities, membership management, saved views, and scoped metadata/API key support.
 - [x] **Client Integration Docs**: Lightweight HTTP client patterns exposed in the dashboard while the public SDK package is still pending.
 
 ---
@@ -35,8 +35,8 @@
 ## 🚧 In Progress
 
 - [ ] **Public JS/TS SDK npm Release**: The SDK repo/docs work exists, but the package is not yet published to npm.
-- [ ] **Unified RLS Policy Editor**: RLS presets exist in table creation flows, but a dedicated consolidated editor is still incomplete.
-- [ ] **Visual Storage ACL Editor**: Bucket visibility exists, but a richer policy-management experience is still pending.
+- [ ] **Unified RLS Policy Editor**: RLS presets, coverage auditing, and bulk enforcement exist, but a dedicated consolidated editor is still incomplete.
+- [ ] **Visual Storage ACL Editor**: Bucket visibility plus supported ACL profiles exist, but a richer policy-management experience is still pending.
 
 ---
 
@@ -70,6 +70,7 @@
 - Runtime roadmap closure remains strong for backend and dashboard capabilities.
 - The main status correction in this document is the SDK: documentation and integration patterns exist, but public npm publication is still pending.
 - Older documents that said "official SDK released" should now be interpreted as SDK groundwork/runtime compatibility, not npm availability.
+- Workspace isolation today covers memberships, collection metadata, API keys, saved views, and dashboard context. Automatic physical schema/bucket provisioning per workspace is still pending.
 
 ---
 **OzyBase: Power in a single binary.**

@@ -12,6 +12,7 @@ import {
 import { fetchWithAuth } from '../utils/api';
 import ConfirmModal from './ConfirmModal';
 import ModulePageHero from './ModulePageHero';
+import OzySelect from './OzySelect';
 
 interface Workspace {
     id: string | number;
@@ -251,7 +252,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({
                     <ModulePageHero
                         eyebrow="Project Settings"
                         title={workspace.name}
-                        description="Adjust the project identity, manage who can access it, and handle destructive actions from one place. The goal is to keep project administration obvious, not hidden behind ambiguous workspace jargon."
+                        description="Adjust the project identity, manage who can access it, and control the workspace-scoped resources OzyBase already isolates today. Physical tables, buckets, and infrastructure topology still stay explicit."
                         icon={Settings}
                         pills={[
                             { label: workspace.slug ? `slug: ${workspace.slug}` : 'slug pending', tone: workspace.slug ? 'accent' : 'warning' },
@@ -287,6 +288,14 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({
                         {feedback.message}
                     </div>
                 )}
+
+                <div className="mb-8 rounded-[2rem] border border-primary/15 bg-[linear-gradient(180deg,rgba(34,34,10,0.18),rgba(10,10,10,0.96))] p-5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">Project Scope Today</p>
+                    <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+                        This workspace scopes <span className="text-white">memberships, collection metadata, API keys, saved views, and dashboard context</span>.
+                        Dedicated Postgres schemas, automatic bucket provisioning, and infra-region settings are still separate concerns.
+                    </p>
+                </div>
 
                 <div className="grid grid-cols-1 gap-12">
                     {/* General Settings */}
@@ -358,15 +367,16 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({
                                             className="w-full bg-[#111111] border border-[#2e2e2e] rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-white focus:outline-none focus:border-primary/50 transition-all"
                                         />
                                     </div>
-                                    <select 
+                                    <OzySelect 
                                         value={inviteRole}
                                         onChange={(e: any) => setInviteRole(e.target.value)}
-                                        className="bg-[#111111] border border-[#2e2e2e] rounded-xl px-4 py-3 text-xs font-black text-white uppercase tracking-widest focus:outline-none focus:border-primary/50"
+                                        wrapperClassName="w-full md:min-w-[220px] md:w-auto"
+                                        selectClassName="text-[10px]"
                                     >
                                         <option value="member">Member</option>
                                         <option value="admin">Admin</option>
                                         <option value="viewer">Viewer</option>
-                                    </select>
+                                    </OzySelect>
                                     <button 
                                         onClick={handleInvite}
                                         disabled={!inviteEmail.trim()}
@@ -426,7 +436,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({
                         </div>
                         <div className="p-8">
                             <p className="text-sm text-zinc-400 font-bold mb-6 italic">
-                                Deleting this project will permanently erase all associated data, configurations, and edge functions. This action is catastrophic and irreversible.
+                                Deleting this project removes the workspace record, memberships, and workspace-scoped dashboard metadata. It does not automatically drop physical Postgres tables, storage buckets, or edge functions.
                             </p>
                             <button
                                 onClick={() => setIsDeleteConfirmOpen(true)}
@@ -447,7 +457,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({
                 onClose={() => setIsDeleteConfirmOpen(false)}
                 onConfirm={handleDeleteWorkspace}
                 title="Delete Project"
-                message={`Project "${workspace.name}" and its configuration metadata will be removed from the dashboard context.`}
+                message={`Project "${workspace.name}" will be removed from workspace routing, membership, and dashboard metadata. Physical tables and buckets are not dropped automatically by this action.`}
                 confirmText="Delete Project"
                 type="danger"
             />

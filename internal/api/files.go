@@ -24,6 +24,7 @@ import (
 )
 
 const defaultBucketRLSRule = "auth.uid() = owner_id"
+const adminBucketRLSRule = "auth.role() = 'admin'"
 const storageUploadSessionTTL = 15 * time.Minute
 const storageMultipartChunkSize int64 = 8 * 1024 * 1024
 const storageMultipartThreshold int64 = 64 * 1024 * 1024
@@ -837,6 +838,9 @@ func (h *FileHandler) CreateBucket(c echo.Context) error {
 	}
 
 	req.RLSRule = normalizeRLSRule(req.RLSEnabled, req.RLSRule)
+	if err := validateBucketRLSRule(req.RLSEnabled, req.RLSRule); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	}
 	if req.MaxFileSizeBytes < 0 {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "max_file_size_bytes must be zero or greater"})
 	}
@@ -911,6 +915,11 @@ func (h *FileHandler) UpdateBucket(c echo.Context) error {
 		rlsRuleValue = *req.RLSRule
 	}
 	rlsRuleValue = normalizeRLSRule(rlsEnabledValue, rlsRuleValue)
+	if rlsEnabledValue != bucket.RLSEnabled || rlsRuleValue != bucket.RLSRule {
+		if err := validateBucketRLSRule(rlsEnabledValue, rlsRuleValue); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+		}
+	}
 
 	maxFileSizeBytes := bucket.MaxFileSizeBytes
 	if req.MaxFileSizeBytes != nil {
@@ -1051,7 +1060,7 @@ func (h *FileHandler) authorizeBucket(c echo.Context, bucket bucketRecord, actio
 			return "", fmt.Errorf("policy requires a valid authenticated user")
 		}
 		return userID, nil
-	case "auth.role() = 'admin'":
+	case adminBucketRLSRule:
 		if role != "admin" {
 			return "", fmt.Errorf("policy requires admin role")
 		}
@@ -1066,7 +1075,7 @@ func (h *FileHandler) authorizeBucket(c echo.Context, bucket bucketRecord, actio
 			}
 			return userID, nil
 		}
-		if strings.Contains(rule, "auth.role() = 'admin'") {
+		if strings.Contains(rule, adminBucketRLSRule) {
 			if role != "admin" {
 				return "", fmt.Errorf("policy requires admin role")
 			}
@@ -1598,6 +1607,16 @@ func normalizeRLSRule(enabled bool, rule string) string {
 		return defaultBucketRLSRule
 	}
 	return trimmed
+}
+
+func validateBucketRLSRule(enabled bool, rule string) error {
+	normalized := normalizeRLSRule(enabled, rule)
+	switch normalized {
+	case "true", "false", defaultBucketRLSRule, adminBucketRLSRule:
+		return nil
+	default:
+		return fmt.Errorf("bucket ACL supports only true, false, %q, or %q", defaultBucketRLSRule, adminBucketRLSRule)
+	}
 }
 
 func cleanObjectName(name string) string {

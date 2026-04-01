@@ -184,19 +184,19 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
         {
             id: 'saas',
             name: 'SaaS Starter',
-            hint: 'Auth + billing-ready structure',
+            hint: 'Naming seed for a SaaS-oriented project',
             quickSeed: 'SaaS Project'
         },
         {
             id: 'ecommerce',
             name: 'E-commerce',
-            hint: 'Catalog, orders and analytics baseline',
+            hint: 'Naming seed for catalog and order workloads',
             quickSeed: 'Commerce Project'
         },
         {
             id: 'internal',
             name: 'Internal Tool',
-            hint: 'Admin ops and automation workflows',
+            hint: 'Naming seed for ops and automation projects',
             quickSeed: 'Ops Project'
         }
     ]), []);
@@ -211,12 +211,12 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
                 <ModulePageHero
                     eyebrow="Projects"
                     title="Projects"
-                    description="Create isolated project spaces for apps, teams, and environments. Keep data, members, and settings scoped cleanly so a new user understands where work belongs immediately."
+                    description="Create project spaces for teams, API keys, collections metadata, and dashboard context. Workspace-aware routing is real today, while automatic physical schema or bucket provisioning is still manual."
                     icon={Briefcase}
                     pills={[
                         { label: `${overviewStats.total} total projects`, tone: 'accent' },
                         { label: `${overviewStats.shared} shared with you`, tone: sharedWorkspaces.length > 0 ? 'success' : 'neutral' },
-                        { label: 'team-aware navigation', tone: 'neutral' },
+                        { label: 'workspace-aware routing', tone: 'neutral' },
                     ]}
                     stats={[
                         {
@@ -226,13 +226,13 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
                         },
                         {
                             label: 'Primary Use',
-                            value: 'Apps, teams, environments',
-                            hint: 'Use projects to separate clients, stages, or internal workloads without mixing context.',
+                            value: 'Team + metadata scope',
+                            hint: 'Use projects to separate memberships, API keys, collection metadata, and admin context by active workspace.',
                         },
                         {
                             label: 'First Step',
                             value: 'Create or select a project',
-                            hint: 'Once selected, the rest of the dashboard stays scoped to that active project.',
+                            hint: 'Once selected, compatible dashboard resources follow the active workspace through the X-Workspace-Id context.',
                         },
                     ]}
                     actions={
@@ -285,6 +285,13 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
                             className="w-full bg-[#111111] border border-[#2e2e2e] rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-white placeholder-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all"
                         />
                     </div>
+                    <div className="mt-6 rounded-[2rem] border border-primary/15 bg-[linear-gradient(180deg,rgba(34,34,10,0.18),rgba(10,10,10,0.96))] p-5">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">Current Isolation Scope</p>
+                        <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+                            Projects currently scope <span className="text-white">memberships, collection metadata, API keys, saved views, and admin audit context</span>.
+                            Automatic Postgres schema provisioning, dedicated storage buckets, and region presets are still pending.
+                        </p>
+                    </div>
                 </div>
 
                 {/* Grid of Projects */}
@@ -300,7 +307,7 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
                         </div>
                         <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">No projects found</h2>
                         <p className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest mb-8 max-w-xs">
-                            Start by creating your first isolated environment to manage your data and services.
+                            Start by creating your first scoped workspace to manage membership and dashboard context.
                         </p>
                         <button
                             onClick={() => setShowCreateModal(true)}
@@ -408,25 +415,34 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
             )}
 
             {view === 'wm_templates' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-500">
-                    {templates.map((template: any) => (
-                        <div key={template.id} className="group bg-[#0a0a0a] border border-[#2e2e2e] rounded-3xl p-6 hover:border-primary/50 transition-all">
-                            <div className="h-32 bg-zinc-900 rounded-2xl mb-6 flex items-center justify-center">
-                                <span className="text-4xl font-black text-zinc-800 group-hover:text-zinc-700 transition-colors">{template.name.charAt(0)}</span>
+                <div className="space-y-6 animate-in fade-in duration-500">
+                    <div className="rounded-[2rem] border border-[#2e2e2e] bg-[#0a0a0a] p-5">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Quick Seeds</p>
+                        <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+                            These cards create a normal blank project with a helpful name seed. Full project scaffolds and data templates are still pending.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                        {templates.map((template: any) => (
+                            <div key={template.id} className="group bg-[#0a0a0a] border border-[#2e2e2e] rounded-3xl p-6 hover:border-primary/50 transition-all">
+                                <div className="h-32 bg-zinc-900 rounded-2xl mb-6 flex items-center justify-center">
+                                    <span className="text-4xl font-black text-zinc-800 group-hover:text-zinc-700 transition-colors">{template.name.charAt(0)}</span>
+                                </div>
+                                <h3 className="text-lg font-black text-white uppercase tracking-tight mb-2">{template.name}</h3>
+                                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-4 min-h-[32px]">
+                                    {template.hint}
+                                </p>
+                                <button
+                                    onClick={() => createFromTemplate(template)}
+                                    className="w-full py-3 bg-[#1a1a1a] text-zinc-400 font-black uppercase text-xs tracking-widest rounded-xl group-hover:bg-primary group-hover:text-black transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Sparkles size={14} />
+                                    Use Quick Seed
+                                </button>
                             </div>
-                            <h3 className="text-lg font-black text-white uppercase tracking-tight mb-2">{template.name}</h3>
-                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-4 min-h-[32px]">
-                                {template.hint}
-                            </p>
-                            <button
-                                onClick={() => createFromTemplate(template)}
-                                className="w-full py-3 bg-[#1a1a1a] text-zinc-400 font-black uppercase text-xs tracking-widest rounded-xl group-hover:bg-primary group-hover:text-black transition-all flex items-center justify-center gap-2"
-                            >
-                                <Sparkles size={14} />
-                                Use Template
-                            </button>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             )}
 
@@ -436,7 +452,7 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
                     <div className="absolute inset-0 ozy-overlay-backdrop backdrop-blur-md" onClick={() => setShowCreateModal(false)} />
                     <div className="ozy-dialog-panel max-w-md w-full p-8">
                         <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter mb-2">Initialize New Project</h2>
-                        <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-8">Isolated environment creation</p>
+                        <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-8">Workspace scope creation</p>
 
                         <div className="space-y-6">
                             <div>
@@ -453,7 +469,7 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
 
                             <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
                                 <p className="text-[9px] text-primary font-black uppercase leading-relaxed tracking-wider">
-                                    New projects are initialized with a default schema and dedicated storage bucket. You can configure high-availability and regional settings in the project dashboard.
+                                    New projects currently create the workspace record, owner membership, and workspace-scoped dashboard context. Physical tables, buckets, and deployment topology stay manual for now.
                                 </p>
                             </div>
 
