@@ -1,17 +1,18 @@
-# Tutorial: Build your first App with OzyBase 🚀
+# Tutorial: Build your first app with OzyBase
 
-In this tutorial, we will build a simple **Realtime Task Manager** using React, OzyBase SDK, and TypeScript. Thanks to the "Install to Play" mode, we'll be up and running in seconds.
+In this tutorial, we will build a simple **Task Manager** using React and the current OzyBase HTTP client pattern. The public npm SDK package is still pending, so the supported path today is direct HTTP plus generated types.
 
-## 1. Setup the Backend
+## 1. Setup the backend
 
-Ensure OzyBase is running. If you don't have a DB, just run it!
+Ensure OzyBase is running. If you do not have an external DB configured, it will start with embedded Postgres automatically.
 
 ```bash
-# Start OzyBase (Embedded Postgres will start automatically)
+# Start OzyBase
 go run ./cmd/ozybase
 
-# In another terminal, Create the collection
+# In another terminal, create the collection
 curl -X POST http://localhost:8090/api/collections \
+  -H "Content-Type: application/json" \
   -d '{
     "name": "tasks",
     "schema": [
@@ -23,71 +24,88 @@ curl -X POST http://localhost:8090/api/collections \
   }'
 ```
 
-## 2. Generate Types
+## 2. Generate types
 
-Generate the TypeScript interfaces for your new collection:
+Generate TypeScript interfaces for your new collection:
 
 ```bash
 go run ./cmd/ozybase gen-types --out ./src/types/OzyBase.ts
 ```
 
-## 3. Install the SDK
+## 3. Use the current client pattern
 
-In your React project:
-
-```bash
-# Install the official OzyBase SDK
-npm install @OzyBase/sdk
-```
-
-## 4. Connect with React
+Until the npm SDK is published, use a small HTTP wrapper in your app:
 
 ```tsx
 import React, { useEffect, useState } from 'react';
-import { createClient } from '@OzyBase/sdk';
-import { Database } from './types/OzyBase';
 
-// Initialize client with generated types
-const OzyBase = createClient<Database>('http://localhost:8090');
+type Task = {
+  id: string;
+  title: string;
+  is_completed: boolean;
+};
+
+const API_URL = 'http://localhost:8090';
+
+async function listTasks(): Promise<Task[]> {
+  const res = await fetch(`${API_URL}/api/tables/tasks`);
+  if (!res.ok) {
+    throw new Error('Failed to load tasks');
+  }
+
+  const data = await res.json();
+  if (Array.isArray(data)) {
+    return data as Task[];
+  }
+
+  if (Array.isArray(data?.data)) {
+    return data.data as Task[];
+  }
+
+  return [];
+}
+
+async function createTask(input: Pick<Task, 'title' | 'is_completed'>) {
+  const res = await fetch(`${API_URL}/api/tables/tasks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to create task');
+  }
+}
 
 export const TaskApp = () => {
-  const [tasks, setTasks] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Fetch initial tasks
-    const fetchTasks = async () => {
-      const { data } = await OzyBase.from('tasks').select('*');
-      if (data) setTasks(data);
-    };
-
-    fetchTasks();
-
-    // 2. Subscribe to REALTIME updates
-    const channel = OzyBase
-      .channel('tasks')
-      .on('INSERT', (payload) => {
-        setTasks((prev) => [...prev, payload.new]);
-      })
-      .subscribe();
-
-    return () => {
-      channel.unsubscribe();
-    };
+    listTasks()
+      .then(setTasks)
+      .finally(() => setLoading(false));
   }, []);
 
   const addTask = async () => {
-    await OzyBase.from('tasks').insert({
+    await createTask({
       title: 'Learn OzyBase',
-      is_completed: false
+      is_completed: false,
     });
+
+    setTasks(await listTasks());
   };
+
+  if (loading) {
+    return <p>Loading tasks...</p>;
+  }
 
   return (
     <div>
       <h1>Tasks</h1>
       <button onClick={addTask}>Add Task</button>
       <ul>
-        {tasks.map(task => (
+        {tasks.map((task) => (
           <li key={task.id}>{task.title}</li>
         ))}
       </ul>
@@ -96,15 +114,15 @@ export const TaskApp = () => {
 };
 ```
 
-## 5. Summary
+## 4. Summary
 
-You've just built a scalable, type-safe, and realtime application using **OzyBase**.
+You now have a working React integration against the current OzyBase runtime.
 
-*   **Zero Config**: No database to install.
-*   **Type Safety**: Your IDE now knows exactly what fields `tasks` has.
-*   **Realtime**: When another user adds a task, it appears instantly.
-*   **Performance**: The backend is consuming less than 30MB of RAM.
+- **Zero Config**: No manual local database setup is required.
+- **Type Safety**: `gen-types` can generate interfaces for your tables.
+- **Simple Client Path**: Direct HTTP access works today without waiting for the npm package release.
+- **Upgrade Path**: When the public SDK package ships, this tutorial can be swapped to the package-based client.
 
 ---
 
-**Ready for more?** Check the [SDK Documentation](https://github.com/Xangel0s/-js-sdk).
+**SDK publication status:** the public npm package is still pending. Track SDK work in the repo linked from the project status docs before promising `npm install`.

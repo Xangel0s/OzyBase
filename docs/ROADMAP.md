@@ -8,7 +8,8 @@ OzyBase is a high-performance, single-binary Backend-as-a-Service designed for d
 Focus: **Developer Experience (DX) & Zero Config**
 
 - [x] **Zero Config Engine**: Added Embedded PostgreSQL support.
-- [x] **Professional SDK**: Official JS/TS SDK released.
+- [x] **Client Integration Pattern**: Lightweight JS access patterns and dashboard docs are available today.
+- [ ] **Public JS/TS SDK Package Release**: npm publication and release workflow are still pending.
 - [x] **Automatic Type Safety**: `gen-types` command for TS interfaces.
 - [x] **Single Binary**: Backend + Frontend + DB in one executable.
 

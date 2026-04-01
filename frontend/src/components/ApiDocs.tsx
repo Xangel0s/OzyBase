@@ -426,14 +426,21 @@ const ApiDocs = ({ page = 'intro' }: any) => {
                 return (
                     <div className="space-y-8 animate-in fade-in duration-500">
                         <div className="p-8 bg-[#111111] border border-[#2e2e2e] rounded-3xl">
-                            <h2 className="text-2xl font-black text-white mb-4 uppercase tracking-tighter italic">Client SDKs</h2>
+                            <h2 className="text-2xl font-black text-white mb-4 uppercase tracking-tighter italic">Client Integration Patterns</h2>
                             <p className="text-zinc-400 mb-8 leading-relaxed">
-                                Use our lightweight JS pattern to interact with OzyBase in seconds. 
-                                We prioritize simplicity and performance over heavy libraries.
+                                Use the lightweight JS pattern below to interact with OzyBase today.
+                                The public npm SDK package is still in release preparation, so the current supported path is direct HTTP plus generated types.
                             </p>
 
+                            <div className="mb-6 p-5 rounded-2xl border border-amber-500/20 bg-amber-500/5">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-amber-300 mb-2">Current Status</p>
+                                <p className="text-xs text-zinc-300 leading-relaxed">
+                                    The runtime and docs are ready for direct integration now. Public npm distribution for the SDK is still pending, so avoid promising <code>npm install</code> until that release is published.
+                                </p>
+                            </div>
+
                             <div className="space-y-6">
-                                <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Base OzyClient Pattern</h4>
+                                <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Current OzyClient Pattern</h4>
                                 <div className="bg-black/40 border border-[#2e2e2e] rounded-2xl overflow-hidden shadow-2xl">
                                     <div className="px-4 py-3 bg-[#1a1a1a] border-b border-[#2e2e2e] flex items-center justify-between">
                                         <div className="flex items-center gap-2">
@@ -442,28 +449,28 @@ const ApiDocs = ({ page = 'intro' }: any) => {
                                             <div className="w-2 h-2 rounded-full bg-green-500" />
                                             <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-zinc-600">OzyClient.js</span>
                                         </div>
-                                        <button onClick={() => copyToClipboard(`class OzyClient {\n  constructor(url, token) {\n    this.url = url;\n    this.token = token;\n  }\n\n  async table(name) {\n    const res = await fetch(\`\${this.url}/api/tables/\${name}\`, {\n      headers: { 'Authorization': \`Bearer \${this.token}\` }\n    });\n    return res.json();\n  }\n}`, 'sdk-js')} className="text-zinc-500 hover:text-white transition-colors">
+                                        <button onClick={() => copyToClipboard(`class OzyClient {\n  constructor(url, apiKey) {\n    this.url = url;\n    this.apiKey = apiKey;\n  }\n\n  async from(table) {\n    const res = await fetch(\`\${this.url}/api/tables/\${table}\`, {\n      headers: this.apiKey ? { apikey: this.apiKey } : {}\n    });\n    return res.json();\n  }\n}`, 'sdk-js')} className="text-zinc-500 hover:text-white transition-colors">
                                             {copied === 'sdk-js' ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
                                         </button>
                                     </div>
                                     <div className="p-5 overflow-x-auto">
                                         <pre className="text-[11px] font-mono leading-relaxed">
                                             <code className="text-blue-400">class</code> <code className="text-yellow-400">OzyClient</code> {'{'}<br/>
-                                            <code className="text-blue-400">  constructor</code>(url, key) {'{'}<br/>
+                                            <code className="text-blue-400">  constructor</code>(url, apiKey) {'{'}<br/>
                                             <code className="text-blue-400">    this</code>.url = url;<br/>
-                                            <code className="text-blue-400">    this</code>.key = key;<br/>
+                                            <code className="text-blue-400">    this</code>.apiKey = apiKey;<br/>
                                             <code className="text-white">  {'}'}</code><br/>
                                             <br/>
                                             <code className="text-blue-400">  async</code> <code className="text-yellow-400">from</code>(table) {'{'}<br/>
                                             <code className="text-blue-400">    const</code> res = <code className="text-blue-400">await</code> <code className="text-yellow-400">fetch</code>(`$<code className="text-white">{'{this.url}'}</code>/api/tables/$<code className="text-white">{'{table}'}</code>`, {'{'}<br/>
-                                            <code className="text-white">      headers: {'{'} </code> <code className="text-green-400">'X-Ozy-API-Key'</code>: <code className="text-blue-400">this</code>.key <code className="text-white">{'}'}</code><br/>
+                                            <code className="text-white">      headers: </code><code className="text-blue-400">this</code>.apiKey ? {'{'} <code className="text-green-400">'apikey'</code>: <code className="text-blue-400">this</code>.apiKey {'}'} : {'{'}{'}'}<br/>
                                             <code className="text-white">    {'}'}</code>);<br/>
                                             <code className="text-blue-400">    return</code> res.<code className="text-yellow-400">json</code>();<br/>
                                             <code className="text-white">  {'}'}</code><br/>
                                             <code className="text-white">{'}'}</code><br/>
                                             <br/>
                                             <code className="text-zinc-500">// Usage</code><br/>
-                                            <code className="text-blue-400">const</code> <code className="text-white">ozy = </code> <code className="text-blue-400">new</code> <code className="text-yellow-400">OzyClient</code>(<code className="text-green-400">'https://api.ozy.io'</code>, <code className="text-green-400">'YOUR_KEY'</code>);<br/>
+                                            <code className="text-blue-400">const</code> <code className="text-white">ozy = </code> <code className="text-blue-400">new</code> <code className="text-yellow-400">OzyClient</code>(<code className="text-green-400">'https://api.ozy.io'</code>, <code className="text-green-400">'YOUR_API_KEY'</code>);<br/>
                                             <code className="text-blue-400">const</code> <code className="text-white">{'{ data }'} = </code> <code className="text-blue-400">await</code> ozy.<code className="text-yellow-400">from</code>(<code className="text-green-400">'users'</code>);
                                         </pre>
                                     </div>
@@ -495,7 +502,7 @@ const ApiDocs = ({ page = 'intro' }: any) => {
                         <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">API Documentation</h1>
                         <p className="text-zinc-500 text-sm font-medium uppercase tracking-[0.2em] text-[10px] mt-1 flex items-center gap-2">
                             <Code size={12} className="text-blue-500" />
-                            Auto-Generated Reference v1.0
+                            Curated Reference v1.0
                         </p>
                     </div>
                 </div>

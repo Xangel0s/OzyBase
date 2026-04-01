@@ -90,12 +90,13 @@ curl -sS -X POST "https://YOUR_DOMAIN/api/project/mcp/invoke" \
 
 - Enterprise core (through `L`): completed.
 - XL native progress: `pgvector + NLQ + MCP + WASM edge/functions + extensions marketplace + global SSE scaling` completed.
-- Roadmap closure status: `100% complete` for the tracked phases in `docs/ROADMAP.md`.
-- Source of truth: `docs/ROADMAP.md` and `docs/ROADMAP_EXECUTION_STATUS_2026-02-23.md`.
+- Public JS/TS SDK package publication: `in progress` (repo/docs work exists, npm release is still pending).
+- Runtime roadmap closure status: completed for the backend/runtime milestones tracked in `docs/ROADMAP_EXECUTION_STATUS_2026-02-23.md`.
+- Source of truth: `docs/ROADMAP.md`, `docs/PROJECT_STATUS_MASTER.md`, and `docs/ROADMAP_EXECUTION_STATUS_2026-02-23.md`.
 
 ## Pending Work (Current)
 
-- Roadmap phases tracked in `docs/ROADMAP.md`: `0` pending items.
+- Roadmap phases tracked in `docs/ROADMAP.md`: `1` public distribution item still pending (`JS/TS SDK npm publication`).
 - Operational recommendation (optional, non-blocking): keep running `scripts/validate_enterprise.ps1` as release gate.
 
 ## 🚀 Quick Start

@@ -4,6 +4,10 @@ Last validation run:
 - Command: `./scripts/validate_enterprise.ps1`
 - Result: `PASS` (backend tests, frontend lint/typecheck/build/bundle, smoke API, smoke E2E)
 
+Documentation correction (2026-04-01):
+- Runtime validation below remains valid for backend/dashboard capabilities.
+- Public npm publication of the JS/TS SDK is still pending and should not be interpreted as closed by this runtime validation report.
+
 Additional production validation (2026-02-24):
 - Manual enterprise smoke on `https://base.geofal.com.pe`: `PASS` (`health + system status/setup + CSP + login + api key rotate`).
 - Install-to-play bootstrap validated:
@@ -55,7 +59,7 @@ Additional WASM + marketplace + global SSE validation (2026-02-24):
 
 Roadmap snapshot (2026-02-24):
 - Completed: `11`
-- In progress: `0`
+- In progress: `1` (`public JS/TS SDK npm publication`)
 - Pending: `0` (top-level enterprise table in this document)
 - Enterprise core (up to `L`): `100%` complete
 - XL status: `completed` (`pgvector`, `NLQ`, `MCP`, `WASM edge/functions`, `extensions marketplace`, `global SSE scaling`)

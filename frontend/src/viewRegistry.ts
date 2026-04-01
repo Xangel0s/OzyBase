@@ -128,7 +128,7 @@ export const VIEW_REGISTRY: Record<string, ViewMeta> = {
     storage_api: { id: 'storage_api', group: 'docs', label: 'Storage', component: 'ApiDocs', props: { page: 'storage_api' }, supportsExplorer: true },
     realtime_api: { id: 'realtime_api', group: 'docs', label: 'Realtime', component: 'ApiDocs', props: { page: 'realtime_api' }, supportsExplorer: true },
     edge_api: { id: 'edge_api', group: 'docs', label: 'Edge Functions', component: 'ApiDocs', props: { page: 'edge_api' }, supportsExplorer: true },
-    sdk: { id: 'sdk', group: 'docs', label: 'Client SDKs', component: 'ApiDocs', props: { page: 'sdk' }, supportsExplorer: true },
+    sdk: { id: 'sdk', group: 'docs', label: 'Client Access', component: 'ApiDocs', props: { page: 'sdk' }, supportsExplorer: true },
 
     integrations: { id: 'integrations', group: 'integrations', label: 'Integrations', component: 'Integrations', props: { page: 'wrappers' }, supportsExplorer: true },
     wrappers: { id: 'wrappers', group: 'integrations', label: 'Wrappers', component: 'Integrations', props: { page: 'wrappers' }, supportsExplorer: true },
@@ -211,7 +211,7 @@ export const SUBMENUS: Record<string, SubmenuItem[]> = {
         { id: 'storage_api', name: 'Storage', icon: FolderOpen },
         { id: 'realtime_api', name: 'Realtime', icon: MousePointer2 },
         { id: 'edge_api', name: 'Edge Functions', icon: Zap },
-        { id: 'sdk', name: 'Client SDKs', icon: Code },
+        { id: 'sdk', name: 'Client Access', icon: Code },
     ],
     integrations: [
         { id: 'wrappers', name: 'Wrappers', icon: Globe },
