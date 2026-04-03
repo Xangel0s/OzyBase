@@ -319,6 +319,26 @@ Auto defaults in Coolify compose:
 - Expose internal port `8090` in Coolify and attach your domain.
 - Health check endpoint: `/api/health`.
 
+### 11.1 Cloudflare Tunnel Override
+If you need `cloudflared` running on the host to reach the Coolify stack through `http://localhost:8090`, use the optional override file `docker-compose.tunnel.override.yml`.
+
+This file is not loaded automatically by Docker Compose because it is a custom override name. Per Docker Compose, custom-named override files must be passed with `-f` or via `COMPOSE_FILE`.
+
+Example:
+```bash
+docker compose -f docker-compose.coolify.yml -f docker-compose.tunnel.override.yml up -d
+```
+
+Or:
+```bash
+export COMPOSE_FILE=docker-compose.coolify.yml:docker-compose.tunnel.override.yml
+docker compose up -d
+```
+
+This override binds the app only to `127.0.0.1:8090`, not `0.0.0.0`, so the service is reachable by a local Cloudflare Tunnel without publishing the port to the public internet.
+
+If you deploy OzyBase through Coolify's Docker Compose build pack, do not assume Coolify will merge arbitrary extra Compose files automatically. Coolify's Docker Compose location points to a single compose file path, so use this override for manual host-side Docker workflows unless you explicitly configure your deployment process to include both files.
+
 ## 12. Install-to-Play Deployment (DB + App Together)
 Use `docker-compose.install.yml` when you want OzyBase + Postgres in one stack.
 

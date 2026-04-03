@@ -1,0 +1,5 @@
+services:
+  ozybase:
+    # Bind only on localhost so cloudflared can reach the app without exposing 8090 publicly.
+    ports:
+      - "127.0.0.1:${TUNNEL_BIND_PORT:-8090}:8090"
