@@ -85,7 +85,11 @@ type setupParsedInsert struct {
 
 var blockSQLCommentsPattern = regexp.MustCompile(`(?s)/\*.*?\*/`)
 
-const setupMigrationPreviewRowLimit = 6
+const (
+	setupMigrationPreviewRowLimit       = 6
+	setupMigrationMaxInsertParameters   = 65535
+	setupMigrationMaxRowsPerInsertBatch = 1000
+)
 
 func (h *Handler) PreviewSetupMigration(c echo.Context) error {
 	var req setupMigrationRequest
@@ -604,17 +608,56 @@ func insertMigrationRowsTx(ctx context.Context, tx pgx.Tx, table setupMigrationT
 		return 0, nil
 	}
 
+	batchSize, err := migrationInsertBatchSize(len(columns))
+	if err != nil {
+		return 0, fmt.Errorf("failed to prepare migrated rows for %s: %w", table.Name, err)
+	}
+
+	inserted := 0
+	for start := 0; start < len(table.Rows); start += batchSize {
+		end := min(start+batchSize, len(table.Rows))
+		if err := execMigrationInsertBatchTx(ctx, tx, table.Name, fieldMap, columns, table.Rows[start:end], start); err != nil {
+			return inserted, err
+		}
+		inserted += end - start
+	}
+
+	return inserted, nil
+}
+
+func migrationInsertBatchSize(columnCount int) (int, error) {
+	if columnCount <= 0 {
+		return 0, fmt.Errorf("no columns available for migrated row insert")
+	}
+
+	maxRowsByParams := setupMigrationMaxInsertParameters / columnCount
+	if maxRowsByParams < 1 {
+		return 0, fmt.Errorf("single-row insert exceeds PostgreSQL parameter limit with %d columns", columnCount)
+	}
+
+	return min(setupMigrationMaxRowsPerInsertBatch, maxRowsByParams), nil
+}
+
+func execMigrationInsertBatchTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	tableName string,
+	fieldMap map[string]data.FieldSchema,
+	columns []string,
+	rows []map[string]any,
+	rowOffset int,
+) error {
 	var builder strings.Builder
 	builder.WriteString("INSERT INTO ")
-	builder.WriteString(table.Name)
+	builder.WriteString(tableName)
 	builder.WriteString(" (")
 	builder.WriteString(strings.Join(columns, ", "))
 	builder.WriteString(") VALUES ")
 
-	args := make([]any, 0, len(table.Rows)*len(columns))
+	args := make([]any, 0, len(rows)*len(columns))
 	argIndex := 1
 
-	for rowIndex, record := range table.Rows {
+	for rowIndex, record := range rows {
 		if rowIndex > 0 {
 			builder.WriteString(", ")
 		}
@@ -627,7 +670,7 @@ func insertMigrationRowsTx(ctx context.Context, tx pgx.Tx, table setupMigrationT
 			builder.WriteString(migrationPlaceholderForField(field, argIndex))
 			value, err := normalizeMigrationInsertValue(field.Type, record[column])
 			if err != nil {
-				return rowIndex, fmt.Errorf("row %d column %s: %w", rowIndex+1, column, err)
+				return fmt.Errorf("row %d column %s: %w", rowOffset+rowIndex+1, column, err)
 			}
 			args = append(args, value)
 			argIndex++
@@ -636,10 +679,10 @@ func insertMigrationRowsTx(ctx context.Context, tx pgx.Tx, table setupMigrationT
 	}
 
 	if _, err := tx.Exec(ctx, builder.String(), args...); err != nil {
-		return 0, fmt.Errorf("failed to insert migrated rows into %s: %w", table.Name, err)
+		return fmt.Errorf("failed to insert migrated rows into %s: %w", tableName, err)
 	}
 
-	return len(table.Rows), nil
+	return nil
 }
 
 func migrationRowsContainField(rows []map[string]any, field string) bool {
