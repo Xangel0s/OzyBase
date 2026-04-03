@@ -73,6 +73,8 @@ interface MigrationPreviewTable {
     detected_rows: number;
     translated_sql: string;
     columns: MigrationPreviewColumn[];
+    sample_rows?: Record<string, unknown>[];
+    has_more_rows?: boolean;
     warnings?: string[];
 }
 
@@ -301,6 +303,165 @@ const sanitizeImportedTableName = (value: string): string => {
     }
 
     return /^\d/.test(cleaned) ? `n_${cleaned}` : cleaned;
+};
+
+const formatMigrationPreviewValue = (value: unknown, columnType: string): string => {
+    if (value === null || value === undefined || value === '') {
+        return '—';
+    }
+
+    const normalizedType = columnType.toLowerCase();
+    if (normalizedType === 'boolean' || normalizedType === 'bool') {
+        const normalizedValue = typeof value === 'string' ? value.trim().toLowerCase() : value;
+        if (normalizedValue === true || normalizedValue === 1 || normalizedValue === '1' || normalizedValue === 'true' || normalizedValue === 't' || normalizedValue === 'yes' || normalizedValue === 'y') {
+            return 'True';
+        }
+        if (normalizedValue === false || normalizedValue === 0 || normalizedValue === '0' || normalizedValue === 'false' || normalizedValue === 'f' || normalizedValue === 'no' || normalizedValue === 'n') {
+            return 'False';
+        }
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((item) => formatMigrationPreviewValue(item, 'text')).join(', ');
+    }
+
+    if (typeof value === 'object') {
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return String(value);
+        }
+    }
+
+    return String(value);
+};
+
+const describeMigrationColumn = (column: MigrationPreviewColumn): string => {
+    const parts = [column.type.toUpperCase()];
+    if (column.is_primary) {
+        parts.push('PK');
+    }
+    if (column.required) {
+        parts.push('Required');
+    }
+    return parts.join(' • ');
+};
+
+const MigrationTablePreviewCard: React.FC<{ table: MigrationPreviewTable }> = ({ table }) => {
+    const sampleRows = table.sample_rows || [];
+
+    return (
+        <div className="rounded-[2rem] border border-zinc-800 bg-zinc-950/70 p-5 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.9)] space-y-5">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-blue-100/80">
+                            {table.display_name}
+                        </span>
+                        {table.has_more_rows && (
+                            <span className="rounded-full border border-zinc-700 bg-black/30 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+                                Showing first {sampleRows.length} rows
+                            </span>
+                        )}
+                    </div>
+                    <h3 className="text-xl font-black tracking-tight text-white break-all">{table.name}</h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-500">
+                        Review the imported shape first: columns, sample records, and warnings. The SQL translation is available only if you need the technical detail.
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:min-w-[320px]">
+                    <div className="rounded-2xl border border-zinc-800 bg-black/35 px-4 py-3">
+                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Columns</span>
+                        <span className="mt-1 block text-lg font-black text-white">{table.column_count}</span>
+                    </div>
+                    <div className="rounded-2xl border border-zinc-800 bg-black/35 px-4 py-3">
+                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Rows</span>
+                        <span className="mt-1 block text-lg font-black text-white">{table.detected_rows}</span>
+                    </div>
+                    <div className="rounded-2xl border border-zinc-800 bg-black/35 px-4 py-3 col-span-2 sm:col-span-1">
+                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Preview</span>
+                        <span className="mt-1 block text-sm font-semibold text-zinc-200">
+                            {sampleRows.length > 0 ? `${sampleRows.length} rows visible` : 'Schema only'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                {table.columns.map((column) => (
+                    <div key={`${table.name}-${column.name}`} className="rounded-2xl border border-zinc-800 bg-black/35 px-4 py-3">
+                        <span className="block text-sm font-semibold text-white break-all">{column.name}</span>
+                        <span className="mt-1 block text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                            {describeMigrationColumn(column)}
+                        </span>
+                    </div>
+                ))}
+            </div>
+
+            {sampleRows.length > 0 ? (
+                <div className="rounded-[1.5rem] border border-zinc-800 bg-black/35 overflow-hidden">
+                    <div className="flex flex-col gap-2 border-b border-zinc-800 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-sm font-semibold text-white">Sample rows</p>
+                            <p className="text-xs text-zinc-500">
+                                {table.has_more_rows ? `Showing ${sampleRows.length} of ${table.detected_rows} rows detected.` : `${table.detected_rows} rows detected in this source.`}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-left">
+                            <thead className="bg-zinc-950/70">
+                                <tr>
+                                    {table.columns.map((column) => (
+                                        <th key={`${table.name}-head-${column.name}`} className="px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+                                            {column.name}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sampleRows.map((row, rowIndex) => (
+                                    <tr key={`${table.name}-row-${rowIndex}`} className="border-t border-zinc-800/90">
+                                        {table.columns.map((column) => (
+                                            <td key={`${table.name}-row-${rowIndex}-${column.name}`} className="max-w-[220px] px-4 py-3 align-top text-sm text-zinc-200">
+                                                <span className="block truncate" title={formatMigrationPreviewValue(row[column.name], column.type)}>
+                                                    {formatMigrationPreviewValue(row[column.name], column.type)}
+                                                </span>
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ) : (
+                <div className="rounded-[1.5rem] border border-dashed border-zinc-800 bg-black/20 px-4 py-5 text-sm text-zinc-500">
+                    No row preview was detected for this table. Setup will create the schema only unless you add INSERT rows or enable data import.
+                </div>
+            )}
+
+            {table.warnings && table.warnings.length > 0 && (
+                <div className="space-y-2">
+                    {table.warnings.map((warning) => (
+                        <div key={`${table.name}-${warning}`} className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-100/85">
+                            {warning}
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <details className="rounded-[1.5rem] border border-zinc-800 bg-black/30">
+                <summary className="cursor-pointer list-none px-4 py-3 text-xs font-black uppercase tracking-[0.24em] text-zinc-400">
+                    Technical SQL Translation
+                </summary>
+                <div className="border-t border-zinc-800 px-4 py-4">
+                    <pre className="overflow-x-auto whitespace-pre-wrap text-[11px] leading-relaxed text-zinc-300">{table.translated_sql}</pre>
+                </div>
+            </details>
+        </div>
+    );
 };
 
 const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
@@ -587,9 +748,9 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/95 flex items-stretch md:items-center justify-center p-2 sm:p-4 z-50 backdrop-blur-sm animate-in fade-in duration-500">
-            <div className="w-full max-w-6xl h-full bg-[#0a0a0a] border border-zinc-800 rounded-[2rem] overflow-hidden shadow-2xl flex max-h-[calc(100vh-1rem)] min-h-[620px] flex-col md:h-auto md:max-h-[calc(100vh-2rem)] md:min-h-[680px] md:flex-row">
-                <div className="w-full md:w-[28%] xl:w-[24%] bg-zinc-900/50 p-6 md:p-8 flex flex-col justify-between border-r border-zinc-800 relative overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/95 p-2 backdrop-blur-sm animate-in fade-in duration-500 sm:p-4 md:items-center">
+            <div className="flex h-full w-full max-w-[min(96vw,1540px)] flex-col overflow-hidden rounded-[2rem] border border-zinc-800 bg-[#0a0a0a] shadow-2xl max-h-[calc(100vh-1rem)] min-h-0 md:h-auto md:max-h-[calc(100vh-2rem)] lg:min-h-[760px] lg:flex-row">
+                <div className="relative flex max-h-[34vh] w-full flex-col justify-between overflow-y-auto border-b border-zinc-800 bg-zinc-900/50 p-5 sm:p-6 lg:max-h-none lg:w-[22rem] lg:border-b-0 lg:border-r lg:p-8 xl:w-[24rem]">
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-primary/[0.02] to-transparent pointer-events-none" />
 
                     <div className="relative">
@@ -641,7 +802,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                     </div>
                 </div>
 
-                <div className="flex-1 min-h-0 p-6 md:p-8 xl:p-10 flex flex-col relative overflow-hidden">
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-6 lg:p-8 xl:p-10 2xl:p-12">
                     {loading && selectedMode && (
                         <div className="absolute inset-0 z-20 bg-black/88 backdrop-blur-sm p-6 md:p-10 flex items-center justify-center animate-in fade-in duration-300">
                             <div className="w-full max-w-xl rounded-[2rem] border border-zinc-800 bg-[#0d0d0d] p-7 shadow-2xl">
@@ -750,16 +911,16 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 <p className="text-zinc-500 text-sm max-w-3xl">{selectedMode.prepDescription}</p>
                             </div>
 
-                            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.16fr)_minmax(340px,0.84fr)] gap-6 flex-1 min-h-0 overflow-hidden">
+                            <div className="grid grid-cols-1 xl:grid-cols-[minmax(420px,0.82fr)_minmax(0,1.18fr)] gap-6 flex-1 min-h-0 overflow-hidden">
                                 <div className="rounded-[2rem] border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col min-h-0 overflow-y-auto pr-1">
                                     <div className="flex items-center gap-3 mb-5">
                                         <div className={`p-3 rounded-2xl ${selectedMode.iconPanelClass}`}>
                                             <selectedMode.icon size={20} className={selectedMode.iconClass} />
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500 mb-1">Step 1</p>
-                                            <h3 className="text-lg font-bold text-white">Choose the source database</h3>
-                                            <p className="text-xs text-zinc-500">Pick the format you want OzyBase to translate into PostgreSQL before uploading or pasting the dump.</p>
+                                            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500 mb-1">Step 1 · Source</p>
+                                            <h3 className="text-lg font-bold text-white">Upload the dataset you want to migrate</h3>
+                                            <p className="text-xs text-zinc-500">Pick the source format, drop the file, or paste the raw content. OzyBase will translate it before the first admin is created.</p>
                                         </div>
                                     </div>
 
@@ -903,24 +1064,34 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             <ScanSearch size={16} />
                                             <span className="text-[10px] font-black uppercase tracking-[0.24em]">Migration Preview</span>
                                         </div>
-                                        <h3 className="text-lg font-bold text-white">Review before creating the admin</h3>
-                                        <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
-                                            Keep this panel open while you verify the translated PostgreSQL plan and detected rows.
+                                        <h3 className="text-xl font-black tracking-tight text-white">Review the plan in plain language</h3>
+                                        <p className="text-sm text-zinc-500 mt-2 leading-relaxed max-w-3xl">
+                                            Focus on what will actually be created: tables, columns, row samples, and warnings. The SQL is still available, but it no longer dominates the screen.
                                         </p>
                                     </div>
 
                                     {migrationPreview ? (
-                                        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
-                                            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-                                                <p className="text-sm text-white font-semibold mb-2">{migrationPreview.summary}</p>
-                                                <div className="grid grid-cols-2 gap-3 text-xs text-zinc-400">
-                                                    <div className="rounded-xl border border-zinc-800 bg-black/20 px-3 py-3">
-                                                        <span className="block text-zinc-500 uppercase tracking-widest text-[10px] mb-1">Tables</span>
-                                                        <span className="text-white text-lg font-black">{migrationPreview.table_count}</span>
+                                        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
+                                            <div className="rounded-[2rem] border border-primary/20 bg-[linear-gradient(135deg,rgba(254,254,0,0.12),rgba(12,12,12,0.5))] p-5">
+                                                <p className="text-base font-semibold text-white">{migrationPreview.summary}</p>
+                                                <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
+                                                    <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Tables</span>
+                                                        <span className="mt-1 block text-2xl font-black text-white">{migrationPreview.table_count}</span>
                                                     </div>
-                                                    <div className="rounded-xl border border-zinc-800 bg-black/20 px-3 py-3">
-                                                        <span className="block text-zinc-500 uppercase tracking-widest text-[10px] mb-1">Rows</span>
-                                                        <span className="text-white text-lg font-black">{migrationPreview.row_count}</span>
+                                                    <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Rows</span>
+                                                        <span className="mt-1 block text-2xl font-black text-white">{migrationPreview.row_count}</span>
+                                                    </div>
+                                                    <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Source</span>
+                                                        <span className="mt-1 block text-sm font-semibold text-zinc-100">{selectedMigrationSource.label}</span>
+                                                    </div>
+                                                    <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Setup action</span>
+                                                        <span className="mt-1 block text-sm font-semibold text-zinc-100">
+                                                            {migrationDraft.importRows ? 'Create and import rows' : 'Create schema only'}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -931,47 +1102,18 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 </div>
                                             ))}
 
-                                            {migrationPreview.tables.map((table) => (
-                                                <div key={table.name} className="rounded-3xl border border-zinc-800 bg-black/25 p-4 space-y-4">
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <div>
-                                                            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500 mb-1">{table.display_name}</p>
-                                                            <h3 className="text-lg font-bold text-white">{table.name}</h3>
-                                                        </div>
-                                                        <div className="text-right text-xs text-zinc-400">
-                                                            <div>{table.column_count} columns</div>
-                                                            <div>{table.detected_rows} rows detected</div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-2">
-                                                        {table.columns.map((column) => (
-                                                            <div key={`${table.name}-${column.name}`} className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs">
-                                                                <span className="text-white font-medium">{column.name}</span>
-                                                                <span className="text-zinc-400">{column.type}{column.is_primary ? ' • PK' : ''}{column.required ? ' • required' : ''}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-
-                                                    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-4">
-                                                        <div className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500 mb-2">Translated PostgreSQL</div>
-                                                        <pre className="text-[11px] leading-relaxed text-zinc-300 whitespace-pre-wrap overflow-x-auto">{table.translated_sql}</pre>
-                                                    </div>
-
-                                                    {table.warnings?.map((warning) => (
-                                                        <div key={`${table.name}-${warning}`} className="rounded-2xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 text-xs text-blue-100/85">
-                                                            {warning}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ))}
+                                            <div className="space-y-5">
+                                                {migrationPreview.tables.map((table) => (
+                                                    <MigrationTablePreviewCard key={table.name} table={table} />
+                                                ))}
+                                            </div>
                                         </div>
                                     ) : (
                                         <div className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col justify-between">
-                                            <div className="space-y-3">
-                                                <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
-                                                    <div className="flex items-start gap-3">
-                                                        <div className="p-3 rounded-2xl bg-black/30 border border-white/5">
+                                            <div className="space-y-4">
+                                                <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
+                                                    <div className="flex items-start gap-4">
+                                                        <div className="rounded-2xl bg-black/30 border border-white/5 p-3">
                                                             <selectedMigrationSource.icon size={18} className="text-primary" />
                                                         </div>
                                                         <div>
@@ -982,15 +1124,20 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     </div>
                                                 </div>
 
-                                                {selectedMode.prepSteps.map((prepStep) => (
-                                                    <div key={prepStep} className="rounded-2xl border border-zinc-800 bg-black/20 px-4 py-3 text-sm text-zinc-500 flex items-center gap-3">
-                                                        {migrationPreviewing ? <Loader2 size={16} className="text-primary shrink-0 animate-spin" /> : <Sparkles size={14} className="text-primary shrink-0" />}
-                                                        <span>{prepStep}</span>
-                                                    </div>
-                                                ))}
+                                                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                                    {selectedMode.prepSteps.map((prepStep) => (
+                                                        <div key={prepStep} className="rounded-2xl border border-zinc-800 bg-black/20 px-4 py-4 text-sm text-zinc-500">
+                                                            <div className="mb-3 flex items-center gap-3">
+                                                                {migrationPreviewing ? <Loader2 size={16} className="text-primary shrink-0 animate-spin" /> : <Sparkles size={14} className="text-primary shrink-0" />}
+                                                                <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">Plan</span>
+                                                            </div>
+                                                            <span>{prepStep}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <p className="mt-6 text-xs text-zinc-500 leading-relaxed">
-                                                Analyze the source first so the wizard can show the translated PostgreSQL output, inferred columns, warnings, and the exact row counts that setup will import.
+                                            <p className="mt-6 text-sm text-zinc-500 leading-relaxed">
+                                                Analyze the source first so this panel can show every detected table, a row preview, the translated field types, and only then the technical SQL if you actually need to inspect it.
                                             </p>
                                         </div>
                                     )}
@@ -1008,7 +1155,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                         <button
                                             onClick={() => setStep('account')}
                                             disabled={!canContinueFromPrepare}
-                                            className="px-6 py-3 bg-primary text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
+                                            className="w-full px-6 py-3 bg-primary text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.01] transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
                                         >
                                             Continue to Admin
                                             <ArrowRight size={14} />
@@ -1139,7 +1286,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                         </div>
                                     </div>
 
-                                    <div className="mt-5 grid grid-cols-1 gap-3">
+                                    <div className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-2">
                                         {selectedMode.accountBullets.map((bullet) => (
                                             <div key={bullet} className="flex items-start gap-3 rounded-2xl border border-zinc-800 bg-black/20 px-4 py-3">
                                                 <Shield size={14} className="text-primary mt-0.5 shrink-0" />
@@ -1190,11 +1337,45 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     </div>
                                                 </div>
                                             )}
+                                            {migrationPreview && (
+                                                <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                                                    {migrationPreview.tables.map((table) => (
+                                                        <div key={`account-${table.name}`} className="rounded-2xl border border-blue-500/20 bg-black/25 px-4 py-4">
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div className="min-w-0">
+                                                                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200/60">{table.display_name}</p>
+                                                                    <h4 className="mt-1 text-sm font-semibold text-white break-all">{table.name}</h4>
+                                                                </div>
+                                                                <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-blue-100/80">
+                                                                    {table.detected_rows} rows
+                                                                </span>
+                                                            </div>
+                                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                                {table.columns.slice(0, 4).map((column) => (
+                                                                    <span key={`account-${table.name}-${column.name}`} className="rounded-full border border-zinc-700 bg-zinc-900/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-300">
+                                                                        {column.name}
+                                                                    </span>
+                                                                ))}
+                                                                {table.columns.length > 4 && (
+                                                                    <span className="rounded-full border border-zinc-700 bg-zinc-900/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">
+                                                                        +{table.columns.length - 4} more
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
 
-                                <div className="space-y-4">
+                                <div className="space-y-4 rounded-[2rem] border border-zinc-800 bg-zinc-950/60 p-5">
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary mb-2">Admin access</p>
+                                        <h3 className="text-lg font-bold text-white">Create the first admin credentials</h3>
+                                        <p className="mt-1 text-sm text-zinc-500">This account is created after the migration plan is applied, so you land directly in the initialized project.</p>
+                                    </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Email</label>
                                         <input
@@ -1259,14 +1440,14 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 </div>
                             )}
 
-                            <div className="mt-6 pt-6 border-t border-zinc-800 flex items-center justify-between gap-4">
+                            <div className="mt-6 pt-6 border-t border-zinc-800 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                                 <p className="text-xs text-zinc-500">
                                     The backend enforces a minimum password length of 12 characters.
                                 </p>
                                 <button
                                     onClick={handleSetup}
                                     disabled={loading}
-                                    className="px-8 py-3 bg-primary text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-2"
+                                    className="w-full xl:w-auto px-8 py-3 bg-primary text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                 >
                                     {loading ? <Loader2 size={14} className="animate-spin" /> : <Server size={14} />}
                                     {loading ? 'Initializing...' : 'Initialize System'}

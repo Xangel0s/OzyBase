@@ -38,6 +38,8 @@ type setupMigrationTablePreview struct {
 	DetectedRows  int                           `json:"detected_rows"`
 	TranslatedSQL string                        `json:"translated_sql"`
 	Columns       []setupMigrationColumnPreview `json:"columns"`
+	SampleRows    []map[string]any              `json:"sample_rows,omitempty"`
+	HasMoreRows   bool                          `json:"has_more_rows,omitempty"`
 	Warnings      []string                      `json:"warnings,omitempty"`
 }
 
@@ -61,6 +63,7 @@ type setupMigrationTablePlan struct {
 	Name          string
 	DisplayName   string
 	Schema        []data.FieldSchema
+	PreviewRows   []map[string]any
 	Rows          []map[string]any
 	DetectedRows  int
 	TranslatedSQL string
@@ -81,6 +84,8 @@ type setupParsedInsert struct {
 }
 
 var blockSQLCommentsPattern = regexp.MustCompile(`(?s)/\*.*?\*/`)
+
+const setupMigrationPreviewRowLimit = 6
 
 func (h *Handler) PreviewSetupMigration(c echo.Context) error {
 	var req setupMigrationRequest
@@ -208,6 +213,7 @@ func buildCSVMigrationPlan(req setupMigrationRequest) (setupMigrationPlan, error
 		Name:         tableName,
 		DisplayName:  buildSetupDisplayName(tableName),
 		Schema:       schema,
+		PreviewRows:  records,
 		DetectedRows: len(records),
 	}
 	if req.ImportRows {
@@ -250,6 +256,7 @@ func buildMongoJSONMigrationPlan(req setupMigrationRequest) (setupMigrationPlan,
 		Name:         tableName,
 		DisplayName:  buildSetupDisplayName(tableName),
 		Schema:       inferSchemaFromRecords(normalizedRecords),
+		PreviewRows:  normalizedRecords,
 		DetectedRows: len(normalizedRecords),
 		Warnings:     warnings,
 	}
@@ -272,6 +279,7 @@ func buildMongoJSONMigrationPlan(req setupMigrationRequest) (setupMigrationPlan,
 func buildSetupMigrationPreviewResponse(plan setupMigrationPlan) setupMigrationPreviewResponse {
 	tables := make([]setupMigrationTablePreview, 0, len(plan.Tables))
 	for _, table := range plan.Tables {
+		sampleRows, hasMoreRows := buildSetupMigrationSampleRows(table.PreviewRows, setupMigrationPreviewRowLimit)
 		columnPreviews := make([]setupMigrationColumnPreview, 0, len(table.Schema))
 		for _, field := range table.Schema {
 			columnPreviews = append(columnPreviews, setupMigrationColumnPreview{
@@ -288,6 +296,8 @@ func buildSetupMigrationPreviewResponse(plan setupMigrationPlan) setupMigrationP
 			DetectedRows:  table.DetectedRows,
 			TranslatedSQL: table.TranslatedSQL,
 			Columns:       columnPreviews,
+			SampleRows:    sampleRows,
+			HasMoreRows:   hasMoreRows,
 			Warnings:      table.Warnings,
 		})
 	}
@@ -392,9 +402,14 @@ func buildSQLMigrationPlan(req setupMigrationRequest) (setupMigrationPlan, error
 			if !exists {
 				order = append(order, table.Name)
 			} else {
+				if remappedRows, ok := remapPositionalRowsToSchema(existing.PreviewRows, existing.Schema, table.Schema); ok {
+					table.PreviewRows = remappedRows
+					table.Warnings = append(table.Warnings, fmt.Sprintf("Aligned positional INSERT rows for %s with the translated CREATE TABLE column order.", table.Name))
+				} else {
+					table.PreviewRows = append(table.PreviewRows, existing.PreviewRows...)
+				}
 				if remappedRows, ok := remapPositionalRowsToSchema(existing.Rows, existing.Schema, table.Schema); ok {
 					table.Rows = remappedRows
-					table.Warnings = append(table.Warnings, fmt.Sprintf("Aligned positional INSERT rows for %s with the translated CREATE TABLE column order.", table.Name))
 				} else {
 					table.Rows = append(table.Rows, existing.Rows...)
 				}
@@ -403,7 +418,12 @@ func buildSQLMigrationPlan(req setupMigrationRequest) (setupMigrationPlan, error
 			}
 			table.Warnings = append(table.Warnings, tableWarnings...)
 			tablePlans[table.Name] = &table
-		case req.ImportRows && strings.HasPrefix(upper, "INSERT INTO"):
+		case strings.HasPrefix(upper, "INSERT INTO"):
+			if !isSetupMigrationValuesInsert(trimmed) {
+				warnings = append(warnings, fmt.Sprintf("Ignored unsupported INSERT statement: %s", summarizeSQLStatement(trimmed)))
+				continue
+			}
+
 			tableName, err := extractSQLInsertTableName(trimmed)
 			if err != nil {
 				return setupMigrationPlan{}, err
@@ -431,10 +451,13 @@ func buildSQLMigrationPlan(req setupMigrationRequest) (setupMigrationPlan, error
 				tablePlans[parsed.TableName] = table
 				order = append(order, parsed.TableName)
 			}
-			table.Rows = append(table.Rows, parsed.Rows...)
+			table.PreviewRows = append(table.PreviewRows, parsed.Rows...)
+			if req.ImportRows {
+				table.Rows = append(table.Rows, parsed.Rows...)
+			}
 			table.DetectedRows += len(parsed.Rows)
 			if len(table.Schema) == 0 && len(parsed.Columns) > 0 {
-				table.Schema = inferSchemaFromInsertColumns(parsed.Columns, table.Rows)
+				table.Schema = inferSchemaFromInsertColumns(parsed.Columns, table.PreviewRows)
 			}
 			table.Warnings = append(table.Warnings, parsed.Warnings...)
 		default:
@@ -449,14 +472,14 @@ func buildSQLMigrationPlan(req setupMigrationRequest) (setupMigrationPlan, error
 			continue
 		}
 		if len(table.Schema) == 0 {
-			if len(table.Rows) == 0 {
+			if len(table.PreviewRows) == 0 {
 				return setupMigrationPlan{}, fmt.Errorf("could not build a schema for %s. provide a CREATE TABLE statement or named INSERT columns", name)
 			}
-			table.Schema = inferSchemaFromRecords(table.Rows)
+			table.Schema = inferSchemaFromRecords(table.PreviewRows)
 			table.Warnings = append(table.Warnings, "Schema was inferred from INSERT statements because no CREATE TABLE statement was provided.")
 		}
 		if table.DetectedRows == 0 {
-			table.DetectedRows = len(table.Rows)
+			table.DetectedRows = len(table.PreviewRows)
 		}
 		if err := finalizeSetupMigrationTable(table); err != nil {
 			return setupMigrationPlan{}, err
@@ -718,6 +741,36 @@ func normalizeBooleanValue(raw any) (any, error) {
 	switch value := raw.(type) {
 	case bool:
 		return value, nil
+	case int:
+		return normalizeBooleanNumeric(float64(value))
+	case int8:
+		return normalizeBooleanNumeric(float64(value))
+	case int16:
+		return normalizeBooleanNumeric(float64(value))
+	case int32:
+		return normalizeBooleanNumeric(float64(value))
+	case int64:
+		return normalizeBooleanNumeric(float64(value))
+	case uint:
+		return normalizeBooleanNumeric(float64(value))
+	case uint8:
+		return normalizeBooleanNumeric(float64(value))
+	case uint16:
+		return normalizeBooleanNumeric(float64(value))
+	case uint32:
+		return normalizeBooleanNumeric(float64(value))
+	case uint64:
+		return normalizeBooleanNumeric(float64(value))
+	case float32:
+		return normalizeBooleanNumeric(float64(value))
+	case float64:
+		return normalizeBooleanNumeric(value)
+	case json.Number:
+		numeric, err := value.Float64()
+		if err != nil {
+			return nil, fmt.Errorf("invalid boolean value %q", value.String())
+		}
+		return normalizeBooleanNumeric(numeric)
 	case string:
 		trimmed := strings.TrimSpace(strings.ToLower(value))
 		switch trimmed {
@@ -732,6 +785,17 @@ func normalizeBooleanValue(raw any) (any, error) {
 		}
 	default:
 		return nil, fmt.Errorf("invalid boolean value %v", raw)
+	}
+}
+
+func normalizeBooleanNumeric(value float64) (any, error) {
+	switch value {
+	case 0:
+		return false, nil
+	case 1:
+		return true, nil
+	default:
+		return nil, fmt.Errorf("invalid boolean value %v", value)
 	}
 }
 
@@ -1083,11 +1147,11 @@ func parseSQLValueTuples(raw string) ([]string, error) {
 	for index, char := range raw {
 		switch char {
 		case '\'':
-			if !inDouble && !inBacktick && !inBracket {
+			if !isBackslashEscaped(raw, index) && !inDouble && !inBacktick && !inBracket {
 				inSingle = !inSingle
 			}
 		case '"':
-			if !inSingle && !inBacktick && !inBracket {
+			if !isBackslashEscaped(raw, index) && !inSingle && !inBacktick && !inBracket {
 				inDouble = !inDouble
 			}
 		case '`':
@@ -1147,11 +1211,24 @@ func parseSQLLiteral(token string) (any, error) {
 	if trimmed == "" || strings.EqualFold(trimmed, "NULL") || strings.EqualFold(trimmed, "DEFAULT") {
 		return nil, nil
 	}
+	if strings.HasPrefix(strings.ToUpper(trimmed), "B'") && strings.HasSuffix(trimmed, "'") && len(trimmed) >= 3 {
+		bits := trimmed[2 : len(trimmed)-1]
+		switch {
+		case bits == "0":
+			return false, nil
+		case bits == "1":
+			return true, nil
+		case allBinaryDigits(bits):
+			if value, err := strconv.ParseInt(bits, 2, 64); err == nil {
+				return value, nil
+			}
+		}
+	}
 	if strings.HasPrefix(strings.ToUpper(trimmed), "N'") && strings.HasSuffix(trimmed, "'") {
 		trimmed = trimmed[1:]
 	}
 	if strings.HasPrefix(trimmed, "'") && strings.HasSuffix(trimmed, "'") && len(trimmed) >= 2 {
-		value := strings.ReplaceAll(trimmed[1:len(trimmed)-1], "''", "'")
+		value := unescapeSQLString(trimmed[1 : len(trimmed)-1])
 		return value, nil
 	}
 	if strings.EqualFold(trimmed, "TRUE") {
@@ -1591,40 +1668,94 @@ func splitSetupMigrationStatements(raw string) []string {
 	inDouble := false
 	inBacktick := false
 	inBracket := false
+	dollarQuote := ""
+	delimiter := ";"
+	lineStart := true
 
-	for _, char := range raw {
-		switch char {
-		case '\'':
-			if !inDouble && !inBacktick && !inBracket {
-				inSingle = !inSingle
+	for index := 0; index < len(raw); {
+		if dollarQuote == "" && !inSingle && !inDouble && !inBacktick && !inBracket {
+			if lineStart {
+				probe := index
+				for probe < len(raw) && (raw[probe] == ' ' || raw[probe] == '\t') {
+					probe++
+				}
+				if strings.HasPrefix(strings.ToUpper(raw[probe:]), "DELIMITER ") {
+					lineEnd := probe
+					for lineEnd < len(raw) && raw[lineEnd] != '\n' && raw[lineEnd] != '\r' {
+						lineEnd++
+					}
+					fields := strings.Fields(raw[probe:lineEnd])
+					if len(fields) >= 2 {
+						delimiter = fields[1]
+					} else {
+						delimiter = ";"
+					}
+					index = lineEnd
+					for index < len(raw) && (raw[index] == '\n' || raw[index] == '\r') {
+						index++
+					}
+					lineStart = true
+					continue
+				}
 			}
-		case '"':
-			if !inSingle && !inBacktick && !inBracket {
-				inDouble = !inDouble
-			}
-		case '`':
-			if !inSingle && !inDouble && !inBracket {
-				inBacktick = !inBacktick
-			}
-		case '[':
-			if !inSingle && !inDouble && !inBacktick {
-				inBracket = true
-			}
-		case ']':
-			if inBracket && !inSingle && !inDouble && !inBacktick {
-				inBracket = false
-			}
-		case ';':
-			if !inSingle && !inDouble && !inBacktick && !inBracket {
+
+			if delimiter != "" && strings.HasPrefix(raw[index:], delimiter) {
 				statement := strings.TrimSpace(current.String())
 				if statement != "" {
 					statements = append(statements, statement)
 				}
 				current.Reset()
+				index += len(delimiter)
+				lineStart = false
 				continue
 			}
+
+			if match := detectSetupMigrationDollarQuote(raw, index); match != "" {
+				dollarQuote = match
+				current.WriteString(match)
+				index += len(match)
+				lineStart = false
+				continue
+			}
+		} else if dollarQuote != "" && strings.HasPrefix(raw[index:], dollarQuote) {
+			current.WriteString(dollarQuote)
+			index += len(dollarQuote)
+			dollarQuote = ""
+			lineStart = false
+			continue
 		}
-		current.WriteRune(char)
+
+		char := raw[index]
+		switch char {
+		case '\'':
+			if dollarQuote == "" && !isBackslashEscaped(raw, index) && !inDouble && !inBacktick && !inBracket {
+				inSingle = !inSingle
+			}
+		case '"':
+			if dollarQuote == "" && !isBackslashEscaped(raw, index) && !inSingle && !inBacktick && !inBracket {
+				inDouble = !inDouble
+			}
+		case '`':
+			if dollarQuote == "" && !inSingle && !inDouble && !inBracket {
+				inBacktick = !inBacktick
+			}
+		case '[':
+			if dollarQuote == "" && !inSingle && !inDouble && !inBacktick {
+				inBracket = true
+			}
+		case ']':
+			if dollarQuote == "" && inBracket && !inSingle && !inDouble && !inBacktick {
+				inBracket = false
+			}
+		}
+
+		current.WriteByte(char)
+		if char == '\n' {
+			lineStart = true
+		} else if char != '\r' {
+			lineStart = false
+		}
+		index++
 	}
 
 	if trailing := strings.TrimSpace(current.String()); trailing != "" {
@@ -1632,6 +1763,103 @@ func splitSetupMigrationStatements(raw string) []string {
 	}
 
 	return statements
+}
+
+func detectSetupMigrationDollarQuote(raw string, start int) string {
+	if start >= len(raw) || raw[start] != '$' {
+		return ""
+	}
+
+	end := start + 1
+	for end < len(raw) && raw[end] != '$' {
+		char := raw[end]
+		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') && (char < '0' || char > '9') && char != '_' {
+			return ""
+		}
+		end++
+	}
+	if end >= len(raw) || raw[end] != '$' {
+		return ""
+	}
+	return raw[start : end+1]
+}
+
+func isBackslashEscaped(raw string, index int) bool {
+	if index <= 0 || index > len(raw) {
+		return false
+	}
+
+	count := 0
+	for cursor := index - 1; cursor >= 0 && raw[cursor] == '\\'; cursor-- {
+		count++
+	}
+	return count%2 == 1
+}
+
+func unescapeSQLString(raw string) string {
+	if raw == "" {
+		return ""
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(raw))
+
+	for index := 0; index < len(raw); index++ {
+		char := raw[index]
+		if char == '\\' && index+1 < len(raw) {
+			index++
+			switch raw[index] {
+			case '0':
+				builder.WriteByte(0)
+			case 'b':
+				builder.WriteByte('\b')
+			case 'n':
+				builder.WriteByte('\n')
+			case 'r':
+				builder.WriteByte('\r')
+			case 't':
+				builder.WriteByte('\t')
+			case 'Z':
+				builder.WriteByte(26)
+			default:
+				builder.WriteByte(raw[index])
+			}
+			continue
+		}
+
+		if char == '\'' && index+1 < len(raw) && raw[index+1] == '\'' {
+			builder.WriteByte('\'')
+			index++
+			continue
+		}
+
+		builder.WriteByte(char)
+	}
+
+	return builder.String()
+}
+
+func allBinaryDigits(raw string) bool {
+	if raw == "" {
+		return false
+	}
+	for _, char := range raw {
+		if char != '0' && char != '1' {
+			return false
+		}
+	}
+	return true
+}
+
+func isSetupMigrationValuesInsert(statement string) bool {
+	trimmed := strings.TrimSpace(strings.TrimSuffix(statement, ";"))
+	upper := strings.ToUpper(trimmed)
+	if !strings.HasPrefix(upper, "INSERT INTO") {
+		return false
+	}
+
+	rest := strings.TrimSpace(trimmed[len("INSERT INTO"):])
+	return indexKeywordOutsideStructured(rest, "VALUES") != -1
 }
 
 func extractParenthesizedSegment(raw string) (string, string, error) {
@@ -1648,11 +1876,11 @@ func extractParenthesizedSegment(raw string) (string, string, error) {
 	for index, char := range raw {
 		switch char {
 		case '\'':
-			if !inDouble && !inBacktick && !inBracket {
+			if !isBackslashEscaped(raw, index) && !inDouble && !inBacktick && !inBracket {
 				inSingle = !inSingle
 			}
 		case '"':
-			if !inSingle && !inBacktick && !inBracket {
+			if !isBackslashEscaped(raw, index) && !inSingle && !inBacktick && !inBracket {
 				inDouble = !inDouble
 			}
 		case '`':
@@ -1696,14 +1924,14 @@ func splitCommaAware(raw string) []string {
 	inBacktick := false
 	inBracket := false
 
-	for _, char := range raw {
+	for index, char := range raw {
 		switch char {
 		case '\'':
-			if !inDouble && !inBacktick && !inBracket {
+			if !isBackslashEscaped(raw, index) && !inDouble && !inBacktick && !inBracket {
 				inSingle = !inSingle
 			}
 		case '"':
-			if !inSingle && !inBacktick && !inBracket {
+			if !isBackslashEscaped(raw, index) && !inSingle && !inBacktick && !inBracket {
 				inDouble = !inDouble
 			}
 		case '`':
@@ -1763,14 +1991,14 @@ func splitDefinitionTokens(raw string) []string {
 		current.Reset()
 	}
 
-	for _, char := range raw {
+	for index, char := range raw {
 		switch char {
 		case '\'':
-			if !inDouble && !inBacktick && !inBracket {
+			if !isBackslashEscaped(raw, index) && !inDouble && !inBacktick && !inBracket {
 				inSingle = !inSingle
 			}
 		case '"':
-			if !inSingle && !inBacktick && !inBracket {
+			if !isBackslashEscaped(raw, index) && !inSingle && !inBacktick && !inBracket {
 				inDouble = !inDouble
 			}
 		case '`':
@@ -1821,11 +2049,11 @@ func indexKeywordOutsideStructured(raw, keyword string) int {
 	for index, char := range upper {
 		switch char {
 		case '\'':
-			if !inDouble && !inBacktick && !inBracket {
+			if !isBackslashEscaped(raw, index) && !inDouble && !inBacktick && !inBracket {
 				inSingle = !inSingle
 			}
 		case '"':
-			if !inSingle && !inBacktick && !inBracket {
+			if !isBackslashEscaped(raw, index) && !inSingle && !inBacktick && !inBracket {
 				inDouble = !inDouble
 			}
 		case '`':
@@ -1872,11 +2100,11 @@ func indexOfRuneOutsideQuoted(raw string, target rune) int {
 	for index, char := range raw {
 		switch char {
 		case '\'':
-			if !inDouble && !inBacktick && !inBracket {
+			if !isBackslashEscaped(raw, index) && !inDouble && !inBacktick && !inBracket {
 				inSingle = !inSingle
 			}
 		case '"':
-			if !inSingle && !inBacktick && !inBracket {
+			if !isBackslashEscaped(raw, index) && !inSingle && !inBacktick && !inBracket {
 				inDouble = !inDouble
 			}
 		case '`':
@@ -2048,6 +2276,27 @@ func uniqueStrings(values []string) []string {
 		result = append(result, trimmed)
 	}
 	return result
+}
+
+func buildSetupMigrationSampleRows(rows []map[string]any, limit int) ([]map[string]any, bool) {
+	if len(rows) == 0 || limit <= 0 {
+		return nil, false
+	}
+
+	if len(rows) < limit {
+		limit = len(rows)
+	}
+
+	sample := make([]map[string]any, 0, limit)
+	for index := 0; index < limit; index++ {
+		cloned := make(map[string]any, len(rows[index]))
+		for key, value := range rows[index] {
+			cloned[key] = value
+		}
+		sample = append(sample, cloned)
+	}
+
+	return sample, len(rows) > limit
 }
 
 func isSQLConstraintKeyword(token string) bool {
