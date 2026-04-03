@@ -17,6 +17,7 @@ import {
     FileJson,
     MousePointerClick,
     TableProperties,
+    X,
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
 
@@ -464,6 +465,140 @@ const MigrationTablePreviewCard: React.FC<{ table: MigrationPreviewTable }> = ({
     );
 };
 
+interface MigrationPreviewModalProps {
+    preview: MigrationPreviewResponse;
+    sourceLabel: string;
+    importRows: boolean;
+    onClose: () => void;
+    onContinue: () => void;
+}
+
+const MigrationPreviewModal: React.FC<MigrationPreviewModalProps> = ({
+    preview,
+    sourceLabel,
+    importRows,
+    onClose,
+    onContinue,
+}) => {
+    const tablesWithWarnings = preview.tables.filter((table) => (table.warnings?.length || 0) > 0).length;
+
+    return (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/75 p-3 backdrop-blur-md sm:p-5">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="migration-preview-modal-title"
+                className="flex h-full w-full max-w-[min(96vw,1480px)] flex-col overflow-hidden rounded-[2rem] border border-zinc-800 bg-[#090909] shadow-[0_40px_160px_-64px_rgba(0,0,0,0.95)]"
+            >
+                <div className="flex flex-col gap-5 border-b border-zinc-800 bg-[linear-gradient(135deg,rgba(254,254,0,0.1),rgba(7,7,7,0.98)_30%,rgba(7,7,7,0.98))] px-5 py-5 sm:px-7 sm:py-6">
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="max-w-4xl">
+                            <div className="mb-3 flex items-center gap-2 text-primary">
+                                <ScanSearch size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-[0.24em]">Migration Review</span>
+                            </div>
+                            <h3 id="migration-preview-modal-title" className="text-2xl font-black tracking-tight text-white sm:text-[2rem]">
+                                Review the translated plan without squeezing the workspace
+                            </h3>
+                            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-400">
+                                The editor stays focused on source preparation. This review layer opens only after analysis so you can inspect tables, sample rows, warnings, and the SQL translation with enough space.
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-zinc-700 bg-black/35 text-zinc-300 transition-all hover:border-primary/35 hover:text-primary"
+                            aria-label="Close migration review"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+                        <div className="rounded-[1.75rem] border border-primary/20 bg-black/30 px-4 py-4 xl:col-span-2">
+                            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Summary</span>
+                            <p className="mt-2 text-sm font-semibold leading-relaxed text-white">{preview.summary}</p>
+                        </div>
+                        <div className="rounded-[1.75rem] border border-zinc-800 bg-black/30 px-4 py-4">
+                            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Source</span>
+                            <span className="mt-2 block text-sm font-semibold text-white">{sourceLabel}</span>
+                        </div>
+                        <div className="rounded-[1.75rem] border border-zinc-800 bg-black/30 px-4 py-4">
+                            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Tables</span>
+                            <span className="mt-2 block text-2xl font-black text-white">{preview.table_count}</span>
+                        </div>
+                        <div className="rounded-[1.75rem] border border-zinc-800 bg-black/30 px-4 py-4">
+                            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Rows</span>
+                            <span className="mt-2 block text-2xl font-black text-white">{preview.row_count}</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                        <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Setup action</span>
+                            <span className="mt-2 block text-sm font-semibold text-white">
+                                {importRows ? 'Create schema and import detected rows' : 'Create translated schema only'}
+                            </span>
+                        </div>
+                        <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Global warnings</span>
+                            <span className="mt-2 block text-sm font-semibold text-white">{preview.warnings?.length || 0} review notes</span>
+                        </div>
+                        <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Table issues</span>
+                            <span className="mt-2 block text-sm font-semibold text-white">{tablesWithWarnings} tables with warnings</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+                    <div className="space-y-5">
+                        {preview.warnings && preview.warnings.length > 0 && (
+                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                                {preview.warnings.map((warning) => (
+                                    <div key={warning} className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm leading-relaxed text-amber-100/85">
+                                        {warning}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="space-y-5">
+                            {preview.tables.map((table) => (
+                                <MigrationTablePreviewCard key={table.name} table={table} />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-zinc-800 bg-[#090909] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-5">
+                    <p className="max-w-3xl text-xs leading-relaxed text-zinc-500">
+                        Close this review to keep editing the source, or continue directly to create the first admin after confirming the translated plan looks correct.
+                    </p>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-5 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary/35 hover:text-primary"
+                        >
+                            Keep editing
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onContinue}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-black transition-all hover:scale-[1.01]"
+                        >
+                            Continue to Admin
+                            <ArrowRight size={14} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     const [step, setStep] = useState<WizardStep>('mode');
     const [mode, setMode] = useState<SetupMode | null>(null);
@@ -488,6 +623,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     });
     const [migrationPreview, setMigrationPreview] = useState<MigrationPreviewResponse | null>(null);
     const [migrationPreviewing, setMigrationPreviewing] = useState(false);
+    const [isMigrationPreviewModalOpen, setIsMigrationPreviewModalOpen] = useState(false);
     const [migrationFileName, setMigrationFileName] = useState('');
     const [migrationDragActive, setMigrationDragActive] = useState(false);
     const migrationFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -564,12 +700,34 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         return () => window.clearInterval(interval);
     }, [loading, selectedMode]);
 
+    useEffect(() => {
+        if (!isMigrationPreviewModalOpen) {
+            return;
+        }
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsMigrationPreviewModalOpen(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isMigrationPreviewModalOpen]);
+
+    useEffect(() => {
+        if (step !== 'prepare' || mode !== 'migrate') {
+            setIsMigrationPreviewModalOpen(false);
+        }
+    }, [mode, step]);
+
     const handleModeSelect = (nextMode: SetupMode) => {
         setMode(nextMode);
         setStep('prepare');
         setError('');
         setServerSummary('');
         setAppliedActions([]);
+        setIsMigrationPreviewModalOpen(false);
         if (nextMode !== 'migrate') {
             setMigrationPreview(null);
             setMigrationPreviewing(false);
@@ -579,6 +737,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     const handleMigrationDraftChange = (updates: Partial<MigrationDraft>) => {
         setMigrationDraft((prev) => ({ ...prev, ...updates }));
         setMigrationPreview(null);
+        setIsMigrationPreviewModalOpen(false);
         setError('');
     };
 
@@ -599,6 +758,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                     : prev.tableName,
             }));
             setMigrationPreview(null);
+            setIsMigrationPreviewModalOpen(false);
             setError('');
         };
         reader.readAsText(file);
@@ -635,6 +795,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         setMigrationPreviewing(true);
         setError('');
         setMigrationPreview(null);
+        setIsMigrationPreviewModalOpen(false);
 
         try {
             const res = await fetchWithAuth('/api/system/setup/migration/preview', {
@@ -654,6 +815,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
             }
 
             setMigrationPreview(data);
+            setIsMigrationPreviewModalOpen(true);
         } catch (err: unknown) {
             setError(getErrorMessage(err, 'Could not analyze the migration plan'));
         } finally {
@@ -749,7 +911,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
 
     return (
         <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/95 p-2 backdrop-blur-sm animate-in fade-in duration-500 sm:p-4 md:items-center">
-            <div className="flex h-full w-full max-w-[min(96vw,1540px)] flex-col overflow-hidden rounded-[2rem] border border-zinc-800 bg-[#0a0a0a] shadow-2xl max-h-[calc(100vh-1rem)] min-h-0 md:h-auto md:max-h-[calc(100vh-2rem)] lg:min-h-[760px] lg:flex-row">
+            <div className="relative flex h-full w-full max-w-[min(96vw,1540px)] flex-col overflow-hidden rounded-[2rem] border border-zinc-800 bg-[#0a0a0a] shadow-2xl max-h-[calc(100vh-1rem)] min-h-0 md:h-auto md:max-h-[calc(100vh-2rem)] lg:min-h-[760px] lg:flex-row">
                 <div className="relative flex max-h-[34vh] w-full flex-col justify-between overflow-y-auto border-b border-zinc-800 bg-zinc-900/50 p-5 sm:p-6 lg:max-h-none lg:w-[22rem] lg:border-b-0 lg:border-r lg:p-8 xl:w-[24rem]">
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-primary/[0.02] to-transparent pointer-events-none" />
 
@@ -1064,16 +1226,29 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             <ScanSearch size={16} />
                                             <span className="text-[10px] font-black uppercase tracking-[0.24em]">Migration Preview</span>
                                         </div>
-                                        <h3 className="text-xl font-black tracking-tight text-white">Review the plan in plain language</h3>
+                                        <h3 className="text-xl font-black tracking-tight text-white">Keep the workspace focused</h3>
                                         <p className="text-sm text-zinc-500 mt-2 leading-relaxed max-w-3xl">
-                                            Focus on what will actually be created: tables, columns, row samples, and warnings. The SQL is still available, but it no longer dominates the screen.
+                                            After analysis, the complete migration review opens in a dedicated modal. This side panel stays lighter so editing the source and understanding next steps do not compete for space.
                                         </p>
                                     </div>
 
                                     {migrationPreview ? (
                                         <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
                                             <div className="rounded-[2rem] border border-primary/20 bg-[linear-gradient(135deg,rgba(254,254,0,0.12),rgba(12,12,12,0.5))] p-5">
-                                                <p className="text-base font-semibold text-white">{migrationPreview.summary}</p>
+                                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                                    <div className="max-w-2xl">
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Analysis ready</span>
+                                                        <p className="mt-3 text-base font-semibold leading-relaxed text-white">{migrationPreview.summary}</p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsMigrationPreviewModalOpen(true)}
+                                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-black/30 px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary hover:text-primary"
+                                                    >
+                                                        Open full review
+                                                        <ArrowRight size={14} />
+                                                    </button>
+                                                </div>
                                                 <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
                                                     <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
                                                         <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Tables</span>
@@ -1096,16 +1271,77 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 </div>
                                             </div>
 
-                                            {migrationPreview.warnings?.map((warning) => (
-                                                <div key={warning} className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-100/85">
-                                                    {warning}
+                                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                                                <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 px-4 py-4">
+                                                    <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Review layer</span>
+                                                    <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+                                                        The heavy inspection now opens in a modal after analysis so you can validate the translated schema without compressing the input workspace.
+                                                    </p>
                                                 </div>
-                                            ))}
+                                                <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 px-4 py-4">
+                                                    <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Attention points</span>
+                                                    <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+                                                        {migrationPreview.warnings?.length || 0} global warnings and {migrationPreview.tables.filter((table) => (table.warnings?.length || 0) > 0).length} tables with specific warnings.
+                                                    </p>
+                                                </div>
+                                            </div>
 
-                                            <div className="space-y-5">
-                                                {migrationPreview.tables.map((table) => (
-                                                    <MigrationTablePreviewCard key={table.name} table={table} />
-                                                ))}
+                                            {migrationPreview.warnings && migrationPreview.warnings.length > 0 && (
+                                                <div className="rounded-[1.75rem] border border-amber-500/20 bg-amber-500/5 px-4 py-4">
+                                                    <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-amber-100/70">Warnings snapshot</span>
+                                                    <div className="mt-3 space-y-2">
+                                                        {migrationPreview.warnings.slice(0, 2).map((warning) => (
+                                                            <div key={warning} className="rounded-xl border border-amber-500/20 bg-black/20 px-3 py-3 text-xs leading-relaxed text-amber-100/85">
+                                                                {warning}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 px-4 py-4">
+                                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                                    <div>
+                                                        <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Detected tables</span>
+                                                        <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+                                                            Quick scan of the first tables. Use the full review modal to inspect sample rows, column mapping, and SQL translation.
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsMigrationPreviewModalOpen(true)}
+                                                        className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary/35 hover:text-primary"
+                                                    >
+                                                        Inspect all tables
+                                                    </button>
+                                                </div>
+                                                <div className="mt-4 grid grid-cols-1 gap-3 2xl:grid-cols-2">
+                                                    {migrationPreview.tables.slice(0, 4).map((table) => (
+                                                        <div key={`compact-${table.name}`} className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-4">
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div className="min-w-0">
+                                                                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">{table.display_name}</p>
+                                                                    <h4 className="mt-1 break-all text-sm font-semibold text-white">{table.name}</h4>
+                                                                </div>
+                                                                <div className="rounded-full border border-zinc-700 bg-black/30 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300">
+                                                                    {table.detected_rows} rows
+                                                                </div>
+                                                            </div>
+                                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                                {table.columns.slice(0, 4).map((column) => (
+                                                                    <span key={`compact-${table.name}-${column.name}`} className="rounded-full border border-zinc-700 bg-black/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-300">
+                                                                        {column.name}
+                                                                    </span>
+                                                                ))}
+                                                                {table.columns.length > 4 && (
+                                                                    <span className="rounded-full border border-zinc-700 bg-black/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">
+                                                                        +{table.columns.length - 4} more
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     ) : (
@@ -1137,7 +1373,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 </div>
                                             </div>
                                             <p className="mt-6 text-sm text-zinc-500 leading-relaxed">
-                                                Analyze the source first so this panel can show every detected table, a row preview, the translated field types, and only then the technical SQL if you actually need to inspect it.
+                                                Analyze the source first. The detailed review opens in a dedicated modal once the plan is ready, while this panel stays focused on status, scope, and the next action.
                                             </p>
                                         </div>
                                     )}
@@ -1456,6 +1692,19 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                         </div>
                     )}
                 </div>
+
+                {isMigrationPreviewModalOpen && migrationPreview && mode === 'migrate' && (
+                    <MigrationPreviewModal
+                        preview={migrationPreview}
+                        sourceLabel={selectedMigrationSource.label}
+                        importRows={migrationDraft.importRows}
+                        onClose={() => setIsMigrationPreviewModalOpen(false)}
+                        onContinue={() => {
+                            setIsMigrationPreviewModalOpen(false);
+                            setStep('account');
+                        }}
+                    />
+                )}
             </div>
         </div>
     );
