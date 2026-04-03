@@ -24,6 +24,7 @@ import { fetchWithAuth } from '../utils/api';
 type SetupMode = 'clean' | 'secure' | 'migrate';
 type WizardStep = 'mode' | 'prepare' | 'account';
 type MigrationSourceKind = 'csv' | 'mongo_json' | 'mysql_sql' | 'sqlite_sql' | 'sqlserver_sql' | 'postgres_sql';
+type MigrationInputMode = 'upload' | 'paste';
 
 interface SetupFormData {
     email: string;
@@ -626,6 +627,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     const [isMigrationPreviewModalOpen, setIsMigrationPreviewModalOpen] = useState(false);
     const [migrationFileName, setMigrationFileName] = useState('');
     const [migrationDragActive, setMigrationDragActive] = useState(false);
+    const [migrationInputMode, setMigrationInputMode] = useState<MigrationInputMode>('upload');
     const migrationFileInputRef = useRef<HTMLInputElement | null>(null);
 
     const selectedMode = useMemo(() => (
@@ -636,9 +638,21 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         migrationSourceOptions.find((option) => option.id === migrationDraft.sourceKind) || migrationSourceOptions[0]
     ), [migrationDraft.sourceKind]);
 
+    const migrationPreviewTableWarningCount = useMemo(() => (
+        migrationPreview?.tables.filter((table) => (table.warnings?.length || 0) > 0).length || 0
+    ), [migrationPreview]);
+
+    const migrationPreviewTableSample = useMemo(() => (
+        migrationPreview?.tables.slice(0, 4) || []
+    ), [migrationPreview]);
+
     const canContinueFromPrepare = mode === 'migrate'
         ? Boolean(migrationPreview) && !migrationPreviewing
         : prepProgress >= (selectedMode?.prepSteps.length || 0);
+
+    const migrationHasInput = migrationInputMode === 'upload'
+        ? migrationFileName.trim() !== ''
+        : migrationDraft.rawInput.trim() !== '';
 
     useEffect(() => {
         setDetectingLoc(true);
@@ -716,7 +730,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     }, [isMigrationPreviewModalOpen]);
 
     useEffect(() => {
-        if (step !== 'prepare' || mode !== 'migrate') {
+        if (mode !== 'migrate' || (step !== 'prepare' && step !== 'account')) {
             setIsMigrationPreviewModalOpen(false);
         }
     }, [mode, step]);
@@ -731,6 +745,8 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         if (nextMode !== 'migrate') {
             setMigrationPreview(null);
             setMigrationPreviewing(false);
+        } else {
+            setMigrationInputMode('upload');
         }
     };
 
@@ -739,6 +755,12 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         setMigrationPreview(null);
         setIsMigrationPreviewModalOpen(false);
         setError('');
+    };
+
+    const handleMigrationRawInputChange = (value: string) => {
+        setMigrationInputMode('paste');
+        setMigrationFileName('');
+        handleMigrationDraftChange({ rawInput: value });
     };
 
     const processMigrationFile = (file: File) => {
@@ -750,6 +772,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
             }
 
             setMigrationFileName(file.name);
+            setMigrationInputMode('upload');
             setMigrationDraft((prev) => ({
                 ...prev,
                 rawInput: text,
@@ -783,6 +806,10 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     };
 
     const handleAnalyzeMigration = async () => {
+        if (migrationInputMode === 'upload' && migrationFileName.trim() === '') {
+            setError('Load a file first or switch to paste mode');
+            return;
+        }
         if (migrationDraft.rawInput.trim() === '') {
             setError('Paste or upload the migration input first');
             return;
@@ -1081,12 +1108,182 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                         </div>
                                         <div>
                                             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500 mb-1">Step 1 · Source</p>
-                                            <h3 className="text-lg font-bold text-white">Upload the dataset you want to migrate</h3>
-                                            <p className="text-xs text-zinc-500">Pick the source format, drop the file, or paste the raw content. OzyBase will translate it before the first admin is created.</p>
+                                            <h3 className="text-lg font-bold text-white">Choose the source, load it, then analyze</h3>
+                                            <p className="text-xs text-zinc-500">This step only prepares the migration. The detailed review opens after analysis so the workspace stays lighter.</p>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
+                                    <div className="mb-6 grid grid-cols-1 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Step 1 · Source format</label>
+                                            <select
+                                                value={migrationDraft.sourceKind}
+                                                onChange={(event) => handleMigrationDraftChange({ sourceKind: event.target.value as MigrationSourceKind })}
+                                                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white transition-all focus:border-primary/50 focus:outline-none"
+                                            >
+                                                {migrationSourceOptions.map((source) => (
+                                                    <option key={source.id} value={source.id}>
+                                                        {source.title}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
+                                            <div className="flex items-start gap-4">
+                                                <div className="rounded-2xl border border-white/5 bg-black/30 p-3">
+                                                    <selectedMigrationSource.icon size={18} className="text-primary" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">{selectedMigrationSource.label}</span>
+                                                        <span className="rounded-full border border-zinc-700 bg-black/30 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+                                                            {selectedMigrationSource.accept}
+                                                        </span>
+                                                    </div>
+                                                    <h4 className="mt-2 text-sm font-semibold text-white">{selectedMigrationSource.title}</h4>
+                                                    <p className="mt-2 text-xs leading-relaxed text-zinc-500">{selectedMigrationSource.hint}</p>
+                                                    <p className="mt-3 text-xs text-zinc-400">
+                                                        {selectedMigrationSource.requiresTableName
+                                                            ? 'This format needs one target table name before analysis.'
+                                                            : 'This format can reuse table names from the dump automatically.'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {selectedMigrationSource.requiresTableName ? (
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Target table name</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-white transition-all focus:border-primary/50 focus:outline-none"
+                                                    placeholder="legacy_users"
+                                                    value={migrationDraft.tableName}
+                                                    onChange={(e) => handleMigrationDraftChange({ tableName: sanitizeImportedTableName(e.target.value) })}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <details className="rounded-[1.5rem] border border-zinc-800 bg-black/15">
+                                                <summary className="cursor-pointer list-none px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">
+                                                    Optional table-name override
+                                                </summary>
+                                                <div className="border-t border-zinc-800 px-4 py-4">
+                                                    <input
+                                                        type="text"
+                                                        className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-white transition-all focus:border-primary/50 focus:outline-none"
+                                                        placeholder="Leave empty to keep names from the dump"
+                                                        value={migrationDraft.tableName}
+                                                        onChange={(e) => handleMigrationDraftChange({ tableName: sanitizeImportedTableName(e.target.value) })}
+                                                    />
+                                                </div>
+                                            </details>
+                                        )}
+
+                                        <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
+                                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                                <div>
+                                                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500 mb-2">Step 2 · Provide the source</p>
+                                                    <h4 className="text-sm font-semibold text-white">Choose one input method</h4>
+                                                    <p className="mt-2 max-w-2xl text-xs leading-relaxed text-zinc-500">
+                                                        Use a file when you already have a dump ready. Use paste when you want to test a snippet quickly without leaving the browser.
+                                                    </p>
+                                                </div>
+                                                <div className="inline-flex rounded-xl border border-zinc-800 bg-zinc-950/70 p-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setMigrationInputMode('upload')}
+                                                        className={`rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] transition-all ${migrationInputMode === 'upload' ? 'bg-primary text-black' : 'text-zinc-400 hover:text-white'}`}
+                                                    >
+                                                        Upload file
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setMigrationInputMode('paste')}
+                                                        className={`rounded-lg px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] transition-all ${migrationInputMode === 'paste' ? 'bg-primary text-black' : 'text-zinc-400 hover:text-white'}`}
+                                                    >
+                                                        Paste text
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-4">
+                                                {migrationInputMode === 'upload' ? (
+                                                    <div
+                                                        onDragOver={(event) => {
+                                                            event.preventDefault();
+                                                            setMigrationDragActive(true);
+                                                        }}
+                                                        onDragEnter={(event) => {
+                                                            event.preventDefault();
+                                                            setMigrationDragActive(true);
+                                                        }}
+                                                        onDragLeave={(event) => {
+                                                            event.preventDefault();
+                                                            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                                                                setMigrationDragActive(false);
+                                                            }
+                                                        }}
+                                                        onDrop={handleMigrationDrop}
+                                                        className={`rounded-2xl border border-dashed p-4 transition-all ${migrationDragActive ? 'border-primary bg-primary/8' : 'border-zinc-700 bg-black/20'}`}
+                                                    >
+                                                        <input
+                                                            ref={migrationFileInputRef}
+                                                            type="file"
+                                                            accept={selectedMigrationSource.accept}
+                                                            onChange={handleMigrationFileUpload}
+                                                            className="hidden"
+                                                        />
+
+                                                        <div className="flex flex-col gap-4">
+                                                            <div className="flex items-start gap-4">
+                                                                <div className="rounded-2xl border border-white/5 bg-black/30 p-3">
+                                                                    <selectedMigrationSource.icon size={18} className="text-primary" />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-sm font-semibold text-white">Drop your {selectedMigrationSource.label} file here</p>
+                                                                    <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                                                                        Accepted formats: {selectedMigrationSource.accept}. The file content will be analyzed inside the setup flow.
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                                                <div className="rounded-xl border border-zinc-800 bg-black/30 px-3 py-3 text-xs">
+                                                                    <span className="mb-1 block text-[10px] uppercase tracking-widest text-zinc-500">Loaded file</span>
+                                                                    <span className="break-all font-medium text-white">{migrationFileName || 'No file loaded yet'}</span>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => migrationFileInputRef.current?.click()}
+                                                                    className="flex items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary/40 hover:text-primary"
+                                                                >
+                                                                    <MousePointerClick size={14} />
+                                                                    Browse file
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Paste schema or data</label>
+                                                        <textarea
+                                                            className="min-h-[320px] w-full resize-y rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-4 text-sm text-white transition-all focus:border-primary/50 focus:outline-none"
+                                                            placeholder={selectedMigrationSource.id === 'csv'
+                                                                ? 'id,name,email\n1,Ana,ana@example.com'
+                                                                : selectedMigrationSource.id === 'mongo_json'
+                                                                    ? '[{\"name\":\"Ana\",\"email\":\"ana@example.com\"}]'
+                                                                    : 'CREATE TABLE users (...);\nINSERT INTO users VALUES (...);'}
+                                                            value={migrationDraft.rawInput}
+                                                            onChange={(e) => handleMigrationRawInputChange(e.target.value)}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="hidden">
                                         {migrationSourceOptions.map((source) => (
                                             <button
                                                 key={source.id}
@@ -1106,7 +1303,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                         ))}
                                     </div>
 
-                                    <div className="grid grid-cols-1 gap-4">
+                                    <div className="hidden">
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                                                 {selectedMigrationSource.requiresTableName ? 'Target Table Name' : 'Target Table Name (Optional Override)'}
@@ -1192,7 +1389,54 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                         </div>
                                     </div>
 
-                                    <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-zinc-800 bg-black/25 p-4">
+                                    <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-zinc-800 bg-black/30 p-4 shadow-[0_20px_70px_-48px_rgba(0,0,0,0.85)]">
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div>
+                                                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">Step 3 · Analyze</p>
+                                                <p className="mt-2 text-sm text-zinc-300">Generate the translated plan and open the detailed review only when the source is ready.</p>
+                                            </div>
+                                            <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${migrationHasInput ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200/80' : 'border-zinc-700 bg-black/30 text-zinc-400'}`}>
+                                                {migrationHasInput ? 'Ready to analyze' : 'Waiting for source input'}
+                                            </span>
+                                        </div>
+                                        <label className="flex items-start gap-3 text-sm text-zinc-300">
+                                            <input
+                                                type="checkbox"
+                                                checked={migrationDraft.importRows}
+                                                onChange={(e) => handleMigrationDraftChange({ importRows: e.target.checked })}
+                                                className="mt-0.5 accent-[var(--color-primary)]"
+                                            />
+                                            <span>
+                                                Import detected rows during setup.
+                                                <span className="mt-1 block text-xs text-zinc-500">
+                                                    Disable this if you only want the PostgreSQL schema translated now and plan to load data later.
+                                                </span>
+                                            </span>
+                                        </label>
+
+                                        <div className="flex flex-col gap-3 sm:flex-row">
+                                            <button
+                                                onClick={handleAnalyzeMigration}
+                                                disabled={migrationPreviewing}
+                                                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-[10px] font-black uppercase tracking-widest text-black transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
+                                            >
+                                                {migrationPreviewing ? <Loader2 size={14} className="animate-spin" /> : <ScanSearch size={14} />}
+                                                {migrationPreviewing ? 'Analyzing...' : 'Analyze migration plan'}
+                                            </button>
+                                            {migrationPreview && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsMigrationPreviewModalOpen(true)}
+                                                    className="flex items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 px-6 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary/35 hover:text-primary"
+                                                >
+                                                    Reopen review
+                                                    <ArrowRight size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="hidden">
                                         <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">Step 3 · Analyze</p>
                                         <label className="flex items-start gap-3 text-sm text-zinc-300">
                                             <input
@@ -1273,15 +1517,15 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
 
                                             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                                                 <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 px-4 py-4">
-                                                    <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Review layer</span>
+                                                    <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Next step</span>
                                                     <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-                                                        The heavy inspection now opens in a modal after analysis so you can validate the translated schema without compressing the input workspace.
+                                                        Open the full review only if you want to inspect sample rows and SQL. Otherwise you can continue with the admin and let setup run the plan as summarized here.
                                                     </p>
                                                 </div>
                                                 <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 px-4 py-4">
                                                     <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Attention points</span>
                                                     <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-                                                        {migrationPreview.warnings?.length || 0} global warnings and {migrationPreview.tables.filter((table) => (table.warnings?.length || 0) > 0).length} tables with specific warnings.
+                                                        {migrationPreview.warnings?.length || 0} global warnings and {migrationPreviewTableWarningCount} tables with table-level warnings need a quick check before bootstrap.
                                                     </p>
                                                 </div>
                                             </div>
@@ -1302,9 +1546,9 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 px-4 py-4">
                                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                                     <div>
-                                                        <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Detected tables</span>
+                                                        <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Quick table scan</span>
                                                         <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-                                                            Quick scan of the first tables. Use the full review modal to inspect sample rows, column mapping, and SQL translation.
+                                                            Keep this step light: review just the first tables here, then open the modal only if you need deeper inspection.
                                                         </p>
                                                     </div>
                                                     <button
@@ -1316,7 +1560,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     </button>
                                                 </div>
                                                 <div className="mt-4 grid grid-cols-1 gap-3 2xl:grid-cols-2">
-                                                    {migrationPreview.tables.slice(0, 4).map((table) => (
+                                                    {migrationPreviewTableSample.map((table) => (
                                                         <div key={`compact-${table.name}`} className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-4">
                                                             <div className="flex items-start justify-between gap-3">
                                                                 <div className="min-w-0">
@@ -1342,6 +1586,11 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                         </div>
                                                     ))}
                                                 </div>
+                                                {migrationPreview.table_count > migrationPreviewTableSample.length && (
+                                                    <p className="mt-4 text-xs text-zinc-500">
+                                                        {migrationPreview.table_count - migrationPreviewTableSample.length} more tables are available in the full review.
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                     ) : (
@@ -1557,49 +1806,61 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                     )}
 
                                     {mode === 'migrate' && (
-                                        <div className="mt-5 p-4 bg-blue-500/5 border border-blue-500/20 rounded-2xl text-xs text-blue-100/80 leading-relaxed space-y-3">
-                                            <p>
-                                                Setup will run the migration plan you reviewed in the previous step, create the translated PostgreSQL tables, and register them inside OzyBase metadata during the first bootstrap.
-                                            </p>
-                                            {migrationPreview && (
-                                                <div className="grid grid-cols-2 gap-3 text-xs">
-                                                    <div className="rounded-xl border border-blue-500/20 bg-black/20 px-3 py-3">
-                                                        <span className="block text-blue-200/60 uppercase tracking-widest text-[10px] mb-1">Tables</span>
-                                                        <span className="text-white text-base font-black">{migrationPreview.table_count}</span>
-                                                    </div>
-                                                    <div className="rounded-xl border border-blue-500/20 bg-black/20 px-3 py-3">
-                                                        <span className="block text-blue-200/60 uppercase tracking-widest text-[10px] mb-1">Rows</span>
-                                                        <span className="text-white text-base font-black">{migrationPreview.row_count}</span>
-                                                    </div>
+                                        <div className="mt-5 rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 text-xs leading-relaxed text-blue-100/80">
+                                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                                <div className="max-w-2xl">
+                                                    <span className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200/60">Migration summary</span>
+                                                    <p className="mt-2">
+                                                        Setup will run the reviewed migration plan after the first admin is created, then register the translated tables inside OzyBase metadata.
+                                                    </p>
                                                 </div>
-                                            )}
+                                                {migrationPreview && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsMigrationPreviewModalOpen(true)}
+                                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-500/20 bg-black/20 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary/35 hover:text-primary"
+                                                    >
+                                                        Open reviewed plan
+                                                        <ArrowRight size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
                                             {migrationPreview && (
-                                                <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-                                                    {migrationPreview.tables.map((table) => (
-                                                        <div key={`account-${table.name}`} className="rounded-2xl border border-blue-500/20 bg-black/25 px-4 py-4">
-                                                            <div className="flex items-start justify-between gap-3">
-                                                                <div className="min-w-0">
-                                                                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200/60">{table.display_name}</p>
-                                                                    <h4 className="mt-1 text-sm font-semibold text-white break-all">{table.name}</h4>
-                                                                </div>
-                                                                <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-blue-100/80">
-                                                                    {table.detected_rows} rows
-                                                                </span>
-                                                            </div>
-                                                            <div className="mt-3 flex flex-wrap gap-2">
-                                                                {table.columns.slice(0, 4).map((column) => (
-                                                                    <span key={`account-${table.name}-${column.name}`} className="rounded-full border border-zinc-700 bg-zinc-900/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-300">
-                                                                        {column.name}
-                                                                    </span>
-                                                                ))}
-                                                                {table.columns.length > 4 && (
-                                                                    <span className="rounded-full border border-zinc-700 bg-zinc-900/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">
-                                                                        +{table.columns.length - 4} more
-                                                                    </span>
-                                                                )}
-                                                            </div>
+                                                <div className="mt-4 space-y-4">
+                                                    <div className="grid grid-cols-2 gap-3 text-xs xl:grid-cols-4">
+                                                        <div className="rounded-xl border border-blue-500/20 bg-black/20 px-3 py-3">
+                                                            <span className="mb-1 block text-[10px] uppercase tracking-widest text-blue-200/60">Tables</span>
+                                                            <span className="text-base font-black text-white">{migrationPreview.table_count}</span>
                                                         </div>
-                                                    ))}
+                                                        <div className="rounded-xl border border-blue-500/20 bg-black/20 px-3 py-3">
+                                                            <span className="mb-1 block text-[10px] uppercase tracking-widest text-blue-200/60">Rows</span>
+                                                            <span className="text-base font-black text-white">{migrationPreview.row_count}</span>
+                                                        </div>
+                                                        <div className="rounded-xl border border-blue-500/20 bg-black/20 px-3 py-3">
+                                                            <span className="mb-1 block text-[10px] uppercase tracking-widest text-blue-200/60">Source</span>
+                                                            <span className="text-sm font-semibold text-white">{selectedMigrationSource.label}</span>
+                                                        </div>
+                                                        <div className="rounded-xl border border-blue-500/20 bg-black/20 px-3 py-3">
+                                                            <span className="mb-1 block text-[10px] uppercase tracking-widest text-blue-200/60">Warnings</span>
+                                                            <span className="text-sm font-semibold text-white">{(migrationPreview.warnings?.length || 0) + migrationPreviewTableWarningCount}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="rounded-xl border border-blue-500/20 bg-black/20 px-4 py-4">
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200/60">Included tables</span>
+                                                        <div className="mt-3 flex flex-wrap gap-2">
+                                                            {migrationPreviewTableSample.map((table) => (
+                                                                <span key={`account-summary-${table.name}`} className="rounded-full border border-zinc-700 bg-zinc-900/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-300">
+                                                                    {table.name}
+                                                                </span>
+                                                            ))}
+                                                            {migrationPreview.table_count > migrationPreviewTableSample.length && (
+                                                                <span className="rounded-full border border-zinc-700 bg-zinc-900/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">
+                                                                    +{migrationPreview.table_count - migrationPreviewTableSample.length} more
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
