@@ -339,6 +339,22 @@ This override binds the app only to `127.0.0.1:8090`, not `0.0.0.0`, so the serv
 
 If you deploy OzyBase through Coolify's Docker Compose build pack, do not assume Coolify will merge arbitrary extra Compose files automatically. Coolify's Docker Compose location points to a single compose file path, so use this override for manual host-side Docker workflows unless you explicitly configure your deployment process to include both files.
 
+### 11.2 Coolify + Cloudflare Tunnel Single-File Variant
+If Coolify is configured to read a single compose file path, use `docker-compose.coolify.tunnel.yml` instead of the partial override file.
+
+This file is a complete Coolify compose definition plus a localhost-only port bind:
+```yaml
+ports:
+  - "127.0.0.1:${TUNNEL_BIND_PORT:-8090}:8090"
+```
+
+Use this file in Coolify's compose path when:
+- Coolify deploys the stack
+- `cloudflared` runs on the same host machine
+- the tunnel origin is `http://127.0.0.1:8090`
+
+Do not point Coolify at `docker-compose.tunnel.override.yml` by itself. That file only contains the extra `ports` section and is invalid as a standalone compose project.
+
 ## 12. Install-to-Play Deployment (DB + App Together)
 Use `docker-compose.install.yml` when you want OzyBase + Postgres in one stack.
 
