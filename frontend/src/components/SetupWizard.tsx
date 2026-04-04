@@ -1467,7 +1467,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 </p>
                                 <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-2">{selectedMode.prepTitle}</h2>
                                 <p className="text-zinc-500 text-sm max-w-3xl">
-                                    Pick the source, load the dump, run the quick analysis, and finish with a compact review modal.
+                                    First choose which database you are importing. Then load the dump, analyze it, and review the result in the modal.
                                 </p>
                             </div>
 
@@ -1502,7 +1502,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 })}
                             </div>
 
-                            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(440px,0.95fr)_minmax(320px,0.8fr)] pb-2">
+                            <div className="pb-2">
                                 <div className="rounded-[2rem] border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col">
                                     <div className="flex items-center gap-3 mb-5">
                                         <div className={`p-3 rounded-2xl ${selectedMode.iconPanelClass}`}>
@@ -1518,14 +1518,14 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             </p>
                                             <h3 className="text-lg font-bold text-white">
                                                 {migrationStage === 'source'
-                                                    ? 'Choose the database engine first'
+                                                    ? 'Which database are you importing?'
                                                     : migrationStage === 'upload'
                                                         ? `Load the ${selectedMigrationSource.label} dump`
                                                         : 'Confirm the analysis'}
                                             </h3>
                                             <p className="text-xs text-zinc-500">
                                                 {migrationStage === 'source'
-                                                    ? 'Choosing a source immediately switches this panel to the matching upload step.'
+                                                    ? 'This choice defines the rest of the flow, so start by selecting the correct source engine.'
                                                     : migrationStage === 'upload'
                                                         ? 'This step is only for loading the selected source. The next one runs the analysis.'
                                                         : 'Review the quick status here. The deeper inspection stays inside the modal.'}
@@ -1708,12 +1708,12 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                         </div>
                                     </div>
 
-                                    <div className={migrationStage === 'source' ? 'grid grid-cols-1 gap-4 2xl:grid-cols-2' : 'hidden'}>
+                                    <div className={migrationStage === 'source' ? 'grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3' : 'hidden'}>
                                         {migrationSourceOptions.map((source) => (
                                             <button
                                                 key={source.id}
                                                 onClick={() => handleMigrationSourceSelect(source.id)}
-                                                className={`rounded-2xl border p-4 text-left transition-all ${migrationDraft.sourceKind === source.id ? 'border-primary/40 bg-primary/8 shadow-[0_0_0_1px_rgba(254,254,0,0.08)]' : source.accentClass}`}
+                                                className={`rounded-2xl border p-5 text-left transition-all hover:scale-[1.01] ${migrationDraft.sourceKind === source.id ? 'border-primary/40 bg-primary/8 shadow-[0_0_0_1px_rgba(254,254,0,0.08)]' : source.accentClass}`}
                                             >
                                                 <div className="flex items-start justify-between gap-3 mb-3">
                                                     <div className="p-3 rounded-2xl bg-black/30 border border-white/5">
@@ -1859,6 +1859,108 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 </button>
                                             )}
                                         </div>
+
+                                        {migrationPreview && (
+                                            <div className="rounded-[1.75rem] border border-primary/20 bg-[linear-gradient(135deg,rgba(254,254,0,0.12),rgba(12,12,12,0.45))] p-4">
+                                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                                    <div className="max-w-2xl">
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">Result ready</span>
+                                                        <p className="mt-2 text-sm font-semibold leading-relaxed text-white">{migrationPreview.summary}</p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsMigrationPreviewModalOpen(true)}
+                                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-black/25 px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary hover:text-primary"
+                                                    >
+                                                        Open result modal
+                                                        <ArrowRight size={14} />
+                                                    </button>
+                                                </div>
+
+                                                <div className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
+                                                    <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Tables</span>
+                                                        <span className="mt-1 block text-2xl font-black text-white">{migrationPreview.table_count}</span>
+                                                    </div>
+                                                    <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Rows</span>
+                                                        <span className="mt-1 block text-2xl font-black text-white">{migrationPreview.row_count}</span>
+                                                    </div>
+                                                    <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Source</span>
+                                                        <span className="mt-1 block text-sm font-semibold text-zinc-100">{selectedMigrationSource.label}</span>
+                                                    </div>
+                                                    <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Warnings</span>
+                                                        <span className="mt-1 block text-sm font-semibold text-zinc-100">{(migrationPreview.warnings?.length || 0) + migrationPreviewTableWarningCount}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-6 border-t border-zinc-800 pt-5 flex flex-col gap-4">
+                                        {error && (
+                                            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium rounded-xl flex items-start gap-2">
+                                                <Shield size={14} className="shrink-0 mt-0.5" />
+                                                <span>{error}</span>
+                                            </div>
+                                        )}
+
+                                        {migrationStage === 'source' && (
+                                            <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-4">
+                                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">Start here</p>
+                                                <p className="mt-2 text-sm text-zinc-200">
+                                                    Choose the source database first. The next step changes to match that engine automatically.
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        <p className="text-xs text-zinc-500 leading-relaxed">
+                                            {selectedMode.footnote}
+                                        </p>
+
+                                        {migrationStage === 'upload' && (
+                                            <div className="flex flex-col gap-3 sm:flex-row">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setMigrationStage('source')}
+                                                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-5 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary/35 hover:text-primary"
+                                                >
+                                                    Change database
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleMigrationContinueToAnalysis}
+                                                    disabled={!migrationCanEnterAnalysis}
+                                                    className="w-full rounded-xl bg-primary px-5 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-black transition-all hover:scale-[1.01] disabled:opacity-50 disabled:hover:scale-100"
+                                                >
+                                                    Continue to Analysis
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {migrationStage === 'analysis' && (
+                                            <div className="flex flex-col gap-3">
+                                                {migrationPreview && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsMigrationPreviewModalOpen(true)}
+                                                        className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-5 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary/35 hover:text-primary"
+                                                    >
+                                                        Open Result Modal
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => setStep('account')}
+                                                    disabled={!canContinueFromPrepare}
+                                                    className="w-full px-6 py-3 bg-primary text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.01] transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
+                                                >
+                                                    Continue to Admin
+                                                    <ArrowRight size={14} />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="hidden">
@@ -1889,7 +1991,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                     </div>
                                 </div>
 
-                                <div className="rounded-[2rem] border border-zinc-800 bg-[#0c0c0c] flex flex-col">
+                                <div className="hidden rounded-[2rem] border border-zinc-800 bg-[#0c0c0c] flex flex-col">
                                     <div className="px-6 pt-6 pb-5 border-b border-zinc-800">
                                         <div className="flex items-center gap-2 text-primary mb-2">
                                             {migrationStage === 'source' ? <Database size={16} /> : <ScanSearch size={16} />}
