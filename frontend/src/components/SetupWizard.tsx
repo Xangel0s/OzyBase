@@ -26,6 +26,7 @@ type WizardStep = 'mode' | 'prepare' | 'account';
 type MigrationSourceKind = 'csv' | 'mongo_json' | 'mysql_sql' | 'sqlite_sql' | 'sqlserver_sql' | 'postgres_sql';
 type MigrationInputMode = 'upload' | 'paste';
 type MigrationPrepareStage = 'source' | 'upload' | 'analysis';
+type MigrationReviewView = 'overview' | 'alerts' | 'preview' | 'sql';
 
 interface SetupFormData {
     email: string;
@@ -360,7 +361,7 @@ const describeMigrationColumn = (column: MigrationPreviewColumn): string => {
     return parts.join(' • ');
 };
 
-const MigrationTablePreviewCard: React.FC<{ table: MigrationPreviewTable }> = ({ table }) => {
+const MigrationTablePreviewCard: React.FC<{ table: MigrationPreviewTable; showSql?: boolean }> = ({ table, showSql = true }) => {
     const sampleRows = table.sample_rows || [];
 
     return (
@@ -465,14 +466,16 @@ const MigrationTablePreviewCard: React.FC<{ table: MigrationPreviewTable }> = ({
                 </div>
             )}
 
-            <details className="rounded-[1.5rem] border border-zinc-800 bg-black/30">
-                <summary className="cursor-pointer list-none px-4 py-3 text-xs font-black uppercase tracking-[0.24em] text-zinc-400">
-                    Technical SQL Translation
-                </summary>
-                <div className="border-t border-zinc-800 px-4 py-4">
-                    <pre className="overflow-x-auto whitespace-pre-wrap text-[11px] leading-relaxed text-zinc-300">{table.translated_sql}</pre>
-                </div>
-            </details>
+            {showSql && (
+                <details className="rounded-[1.5rem] border border-zinc-800 bg-black/30">
+                    <summary className="cursor-pointer list-none px-4 py-3 text-xs font-black uppercase tracking-[0.24em] text-zinc-400">
+                        Technical SQL Translation
+                    </summary>
+                    <div className="border-t border-zinc-800 px-4 py-4">
+                        <pre className="overflow-x-auto whitespace-pre-wrap text-[11px] leading-relaxed text-zinc-300">{table.translated_sql}</pre>
+                    </div>
+                </details>
+            )}
         </div>
     );
 };
@@ -485,6 +488,354 @@ interface MigrationPreviewModalProps {
     onContinue: () => void;
 }
 
+interface MigrationPreviewWorkspaceProps {
+    preview: MigrationPreviewResponse;
+    sourceLabel: string;
+    importRows: boolean;
+}
+
+const MigrationPreviewWorkspace: React.FC<MigrationPreviewWorkspaceProps> = ({
+    preview,
+    sourceLabel,
+    importRows,
+}) => {
+    const [activeView, setActiveView] = useState<MigrationReviewView>('overview');
+    const [selectedTableName, setSelectedTableName] = useState(preview.tables[0]?.name || '');
+    const tablesWithWarnings = preview.tables.filter((table) => (table.warnings?.length || 0) > 0).length;
+    const selectedTable = preview.tables.find((table) => table.name === selectedTableName) || preview.tables[0];
+    const selectedTableWarnings = selectedTable?.warnings || [];
+    const selectedTableSampleRows = selectedTable?.sample_rows || [];
+    const reviewViews: Array<{ id: MigrationReviewView; label: string; hint: string }> = [
+        { id: 'overview', label: 'Overview', hint: 'Scope and next step' },
+        { id: 'alerts', label: 'Alerts', hint: 'Warnings and risks' },
+        { id: 'preview', label: 'Visual Preview', hint: 'How it will look' },
+        { id: 'sql', label: 'SQL', hint: 'Exact translated code' },
+    ];
+
+    useEffect(() => {
+        if (!preview.tables.length) {
+            setSelectedTableName('');
+            return;
+        }
+
+        if (!preview.tables.some((table) => table.name === selectedTableName)) {
+            setSelectedTableName(preview.tables[0].name);
+        }
+    }, [preview.tables, selectedTableName]);
+
+    return (
+        <div className="flex-1 overflow-hidden px-5 py-5 sm:px-7 sm:py-6">
+            <div className="flex flex-wrap gap-2">
+                {reviewViews.map((view) => (
+                    <button
+                        key={view.id}
+                        type="button"
+                        onClick={() => setActiveView(view.id)}
+                        className={`rounded-full border px-4 py-2 text-left transition-all ${activeView === view.id ? 'border-primary/35 bg-primary text-black' : 'border-zinc-700 bg-black/25 text-zinc-300 hover:border-primary/30 hover:text-white'}`}
+                    >
+                        <span className={`block text-[10px] font-black uppercase tracking-[0.2em] ${activeView === view.id ? 'text-black/70' : 'text-zinc-500'}`}>
+                            {view.label}
+                        </span>
+                        <span className="mt-1 block text-xs font-medium">{view.hint}</span>
+                    </button>
+                ))}
+            </div>
+
+            <div className="mt-4 grid h-[calc(100%-72px)] min-h-0 gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+                <aside className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-4 min-h-0 overflow-hidden">
+                    <div className="mb-4">
+                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Tables</span>
+                        <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                            Select one table to inspect warnings, visual samples, and the translated SQL without a giant scroll.
+                        </p>
+                    </div>
+
+                    <div className="h-[calc(100%-76px)] overflow-y-auto pr-1 space-y-2">
+                        {preview.tables.map((table) => (
+                            <button
+                                key={table.name}
+                                type="button"
+                                onClick={() => setSelectedTableName(table.name)}
+                                className={`w-full rounded-2xl border px-3 py-3 text-left transition-all ${selectedTable?.name === table.name ? 'border-primary/35 bg-primary/10' : 'border-zinc-800 bg-zinc-950/70 hover:border-primary/20'}`}
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <span className="block truncate text-sm font-semibold text-white">{table.name}</span>
+                                        <span className="mt-1 block text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+                                            {table.column_count} cols · {table.detected_rows} rows
+                                        </span>
+                                    </div>
+                                    {(table.warnings?.length || 0) > 0 && (
+                                        <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-100/80">
+                                            {table.warnings?.length} warn
+                                        </span>
+                                    )}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </aside>
+
+                <div className="min-h-0 overflow-y-auto pr-1">
+                    {activeView === 'overview' && (
+                        <div className="space-y-4">
+                            <div className="rounded-[1.75rem] border border-primary/20 bg-[linear-gradient(135deg,rgba(254,254,0,0.12),rgba(12,12,12,0.5))] p-5">
+                                <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-primary">Overview</span>
+                                <p className="mt-3 text-lg font-semibold leading-relaxed text-white">{preview.summary}</p>
+                                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                                    <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Warnings</span>
+                                        <span className="mt-2 block text-sm font-semibold text-white">
+                                            {(preview.warnings?.length || 0) + tablesWithWarnings} review points
+                                        </span>
+                                    </div>
+                                    <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Selected table</span>
+                                        <span className="mt-2 block text-sm font-semibold text-white">{selectedTable?.name || 'No table detected'}</span>
+                                    </div>
+                                    <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
+                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Setup action</span>
+                                        <span className="mt-2 block text-sm font-semibold text-white">
+                                            {importRows ? 'Create schema and import detected rows' : 'Create translated schema only'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {selectedTable && (
+                                <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
+                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                        <div className="max-w-2xl">
+                                            <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Visual example</span>
+                                            <h4 className="mt-2 text-lg font-semibold text-white">{selectedTable.display_name}</h4>
+                                            <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                                                This is a quick visual sample of how the translated structure will look before you open the deeper preview or SQL modules.
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveView('preview')}
+                                            className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary/35 hover:text-primary"
+                                        >
+                                            Open visual preview
+                                        </button>
+                                    </div>
+
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        {selectedTable.columns.slice(0, 6).map((column) => (
+                                            <span key={`overview-column-${selectedTable.name}-${column.name}`} className="rounded-full border border-zinc-700 bg-zinc-950/70 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-200">
+                                                {column.name}
+                                            </span>
+                                        ))}
+                                        {selectedTable.columns.length > 6 && (
+                                            <span className="rounded-full border border-zinc-700 bg-zinc-950/70 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">
+                                                +{selectedTable.columns.length - 6} more
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {selectedTableSampleRows.length > 0 && (
+                                        <div className="mt-4 overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-950/60">
+                                            <table className="min-w-full text-left">
+                                                <thead className="border-b border-zinc-800 bg-black/30">
+                                                    <tr>
+                                                        {selectedTable.columns.slice(0, 5).map((column) => (
+                                                            <th key={`overview-head-${selectedTable.name}-${column.name}`} className="px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+                                                                {column.name}
+                                                            </th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {selectedTableSampleRows.slice(0, 2).map((row, rowIndex) => (
+                                                        <tr key={`overview-row-${selectedTable.name}-${rowIndex}`} className="border-t border-zinc-800/90">
+                                                            {selectedTable.columns.slice(0, 5).map((column) => (
+                                                                <td key={`overview-cell-${selectedTable.name}-${rowIndex}-${column.name}`} className="px-4 py-3 text-sm text-zinc-200">
+                                                                    <span className="block truncate" title={formatMigrationPreviewValue(row[column.name], column.type)}>
+                                                                        {formatMigrationPreviewValue(row[column.name], column.type)}
+                                                                    </span>
+                                                                </td>
+                                                            ))}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeView === 'alerts' && (
+                        <div className="space-y-4">
+                            {(preview.warnings?.length || 0) === 0 && tablesWithWarnings === 0 ? (
+                                <div className="rounded-[1.75rem] border border-emerald-500/20 bg-emerald-500/5 p-5">
+                                    <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100/80">No warnings</span>
+                                    <p className="mt-3 text-sm leading-relaxed text-zinc-200">
+                                        This migration plan does not report global warnings or table-level issues in the preview stage.
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    {preview.warnings && preview.warnings.length > 0 && (
+                                        <div className="rounded-[1.75rem] border border-amber-500/20 bg-amber-500/5 p-5">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-amber-100/70">Global alerts</span>
+                                                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-100/70">
+                                                    {preview.warnings.length} notes
+                                                </span>
+                                            </div>
+                                            <div className="mt-4 space-y-2">
+                                                {preview.warnings.map((warning) => (
+                                                    <div key={warning} className="rounded-xl border border-amber-500/20 bg-black/20 px-3 py-3 text-sm leading-relaxed text-amber-100/85">
+                                                        {warning}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Table alerts</span>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+                                                {tablesWithWarnings} tables
+                                            </span>
+                                        </div>
+                                        <div className="mt-4 space-y-3">
+                                            {preview.tables.filter((table) => (table.warnings?.length || 0) > 0).map((table) => (
+                                                <div key={`table-warning-${table.name}`} className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
+                                                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                                        <div className="min-w-0">
+                                                            <h4 className="text-sm font-semibold text-white">{table.name}</h4>
+                                                            <div className="mt-2 space-y-2">
+                                                                {table.warnings?.map((warning) => (
+                                                                    <div key={`${table.name}-${warning}`} className="text-xs leading-relaxed text-zinc-400">
+                                                                        {warning}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSelectedTableName(table.name);
+                                                                    setActiveView('preview');
+                                                                }}
+                                                                className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-black/20 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white transition-all hover:border-primary/35 hover:text-primary"
+                                                            >
+                                                                Open preview
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSelectedTableName(table.name);
+                                                                    setActiveView('sql');
+                                                                }}
+                                                                className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-black/20 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white transition-all hover:border-primary/35 hover:text-primary"
+                                                            >
+                                                                Open SQL
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {activeView === 'preview' && (
+                        <div className="space-y-4">
+                            {selectedTable ? (
+                                <>
+                                    <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
+                                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                            <div className="max-w-2xl">
+                                                <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-primary">Visual preview</span>
+                                                <h4 className="mt-2 text-lg font-semibold text-white">{selectedTable.name}</h4>
+                                                <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                                                    This module shows one table at a time so the migration stays readable. Use the table rail on the left to switch examples.
+                                                </p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setActiveView('sql')}
+                                                className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary/35 hover:text-primary"
+                                            >
+                                                View translated SQL
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <MigrationTablePreviewCard table={selectedTable} showSql={false} />
+                                </>
+                            ) : (
+                                <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5 text-sm text-zinc-400">
+                                    No table preview is available for this migration.
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeView === 'sql' && (
+                        <div className="space-y-4">
+                            {selectedTable ? (
+                                <>
+                                    <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
+                                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                            <div className="max-w-2xl">
+                                                <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-primary">Translated SQL</span>
+                                                <h4 className="mt-2 text-lg font-semibold text-white">{selectedTable.name}</h4>
+                                                <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                                                    This is the exact SQL generated for the selected table. It stays isolated here so code review does not compete with warnings and data previews.
+                                                </p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setActiveView('alerts')}
+                                                className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary/35 hover:text-primary"
+                                            >
+                                                View alerts
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {selectedTableWarnings.length > 0 && (
+                                        <div className="rounded-[1.5rem] border border-amber-500/20 bg-amber-500/5 px-4 py-4">
+                                            <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-amber-100/70">Related alerts</span>
+                                            <div className="mt-3 space-y-2">
+                                                {selectedTableWarnings.map((warning) => (
+                                                    <div key={`sql-warning-${selectedTable.name}-${warning}`} className="text-xs leading-relaxed text-amber-100/85">
+                                                        {warning}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="overflow-hidden rounded-[1.75rem] border border-zinc-800 bg-zinc-950/70">
+                                        <div className="border-b border-zinc-800 px-4 py-3">
+                                            <span className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">SQL code</span>
+                                        </div>
+                                        <pre className="max-h-[52vh] overflow-auto px-4 py-4 text-[12px] leading-relaxed text-zinc-300">{selectedTable.translated_sql}</pre>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5 text-sm text-zinc-400">
+                                    No translated SQL is available for this migration.
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const MigrationPreviewModal: React.FC<MigrationPreviewModalProps> = ({
     preview,
     sourceLabel,
@@ -492,15 +843,13 @@ const MigrationPreviewModal: React.FC<MigrationPreviewModalProps> = ({
     onClose,
     onContinue,
 }) => {
-    const tablesWithWarnings = preview.tables.filter((table) => (table.warnings?.length || 0) > 0).length;
-
     return (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/75 p-3 backdrop-blur-md sm:p-5">
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="migration-preview-modal-title"
-                className="flex h-full w-full max-w-[min(96vw,1480px)] flex-col overflow-hidden rounded-[2rem] border border-zinc-800 bg-[#090909] shadow-[0_40px_160px_-64px_rgba(0,0,0,0.95)]"
+                className="flex h-[min(92vh,940px)] w-full max-w-[min(96vw,1360px)] flex-col overflow-hidden rounded-[2rem] border border-zinc-800 bg-[#090909] shadow-[0_40px_160px_-64px_rgba(0,0,0,0.95)]"
             >
                 <div className="flex flex-col gap-5 border-b border-zinc-800 bg-[linear-gradient(135deg,rgba(254,254,0,0.1),rgba(7,7,7,0.98)_30%,rgba(7,7,7,0.98))] px-5 py-5 sm:px-7 sm:py-6">
                     <div className="flex items-start justify-between gap-4">
@@ -527,62 +876,27 @@ const MigrationPreviewModal: React.FC<MigrationPreviewModalProps> = ({
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
-                        <div className="rounded-[1.75rem] border border-primary/20 bg-black/30 px-4 py-4 xl:col-span-2">
+                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                        <div className="rounded-[1.5rem] border border-primary/20 bg-black/30 px-4 py-4 xl:col-span-2">
                             <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Summary</span>
                             <p className="mt-2 text-sm font-semibold leading-relaxed text-white">{preview.summary}</p>
                         </div>
-                        <div className="rounded-[1.75rem] border border-zinc-800 bg-black/30 px-4 py-4">
+                        <div className="rounded-[1.5rem] border border-zinc-800 bg-black/30 px-4 py-4">
                             <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Source</span>
                             <span className="mt-2 block text-sm font-semibold text-white">{sourceLabel}</span>
                         </div>
-                        <div className="rounded-[1.75rem] border border-zinc-800 bg-black/30 px-4 py-4">
+                        <div className="rounded-[1.5rem] border border-zinc-800 bg-black/30 px-4 py-4">
                             <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Tables</span>
                             <span className="mt-2 block text-2xl font-black text-white">{preview.table_count}</span>
                         </div>
-                        <div className="rounded-[1.75rem] border border-zinc-800 bg-black/30 px-4 py-4">
+                        <div className="rounded-[1.5rem] border border-zinc-800 bg-black/30 px-4 py-4">
                             <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Rows</span>
                             <span className="mt-2 block text-2xl font-black text-white">{preview.row_count}</span>
                         </div>
                     </div>
-
-                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                        <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
-                            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Setup action</span>
-                            <span className="mt-2 block text-sm font-semibold text-white">
-                                {importRows ? 'Create schema and import detected rows' : 'Create translated schema only'}
-                            </span>
-                        </div>
-                        <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
-                            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Global warnings</span>
-                            <span className="mt-2 block text-sm font-semibold text-white">{preview.warnings?.length || 0} review notes</span>
-                        </div>
-                        <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
-                            <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Table issues</span>
-                            <span className="mt-2 block text-sm font-semibold text-white">{tablesWithWarnings} tables with warnings</span>
-                        </div>
-                    </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
-                    <div className="space-y-5">
-                        {preview.warnings && preview.warnings.length > 0 && (
-                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                                {preview.warnings.map((warning) => (
-                                    <div key={warning} className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm leading-relaxed text-amber-100/85">
-                                        {warning}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        <div className="space-y-5">
-                            {preview.tables.map((table) => (
-                                <MigrationTablePreviewCard key={table.name} table={table} />
-                            ))}
-                        </div>
-                    </div>
-                </div>
+                <MigrationPreviewWorkspace preview={preview} sourceLabel={sourceLabel} importRows={importRows} />
 
                 <div className="flex flex-col gap-3 border-t border-zinc-800 bg-[#090909] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-5">
                     <p className="max-w-3xl text-xs leading-relaxed text-zinc-500">
