@@ -199,20 +199,20 @@ const modeDetails: Record<SetupMode, ModeDescriptor> = {
         ],
         prepEyebrow: 'Migration studio',
         prepTitle: 'Prepare the migration plan',
-        prepDescription: 'Choose the source format, review the translated PostgreSQL output, and confirm whether the first dataset should be imported during setup.',
+        prepDescription: 'Pick the source, load the dump, run a quick check, and review the result in a compact modal.',
         prepSteps: [
-            'Analyzing source schema and inferring PostgreSQL types',
-            'Building the translated migration plan',
-            'Preparing setup to create tables and import initial rows',
+            'Checking the source shape',
+            'Building the PostgreSQL plan',
+            'Getting setup ready to run it',
         ],
-        accountTitle: 'Migration plan is ready to run',
-        accountDescription: 'After you register the first admin, OzyBase will create the translated tables, register their metadata, and import the initial rows included in the plan.',
+        accountTitle: 'Migration is ready to run',
+        accountDescription: 'After the first admin is created, OzyBase will create the translated tables and optionally load the detected rows.',
         accountBullets: [
-            'The schema is translated into native PostgreSQL tables.',
-            'CSV and Mongo-like payloads can import rows immediately.',
-            'A migration audit marker is recorded for traceability.',
+            'Schema is created in PostgreSQL.',
+            'Rows can be imported during setup.',
+            'A migration audit marker is saved.',
         ],
-        footnote: 'Migration Studio performs real schema translation and setup-time ETL for the sources analyzed below.',
+        footnote: 'Migration Studio translates the source and can import the first rows during setup.',
     },
 };
 
@@ -221,7 +221,7 @@ const migrationSourceOptions: MigrationSourceDescriptor[] = [
         id: 'csv',
         label: 'CSV',
         title: 'CSV dataset',
-        hint: 'Infer one PostgreSQL table from headers and sampled rows.',
+        hint: 'Create one table from headers and sample rows.',
         accept: '.csv,.txt',
         requiresTableName: true,
         icon: FileSpreadsheet,
@@ -231,7 +231,7 @@ const migrationSourceOptions: MigrationSourceDescriptor[] = [
         id: 'mongo_json',
         label: 'Mongo JSON',
         title: 'Mongo-like JSON',
-        hint: 'Map document arrays or { documents: [] } payloads into a relational table.',
+        hint: 'Map document arrays into one relational table.',
         accept: '.json,.txt',
         requiresTableName: true,
         icon: FileJson,
@@ -241,7 +241,7 @@ const migrationSourceOptions: MigrationSourceDescriptor[] = [
         id: 'mysql_sql',
         label: 'MySQL SQL',
         title: 'MySQL schema dump',
-        hint: 'Translate CREATE TABLE and INSERT statements from MySQL.',
+        hint: 'Translate MySQL CREATE TABLE and INSERT statements.',
         accept: '.sql,.txt',
         requiresTableName: false,
         icon: Database,
@@ -251,7 +251,7 @@ const migrationSourceOptions: MigrationSourceDescriptor[] = [
         id: 'sqlite_sql',
         label: 'SQLite SQL',
         title: 'SQLite schema dump',
-        hint: 'Translate SQLite DDL/INSERT statements into PostgreSQL.',
+        hint: 'Translate SQLite DDL and INSERT statements.',
         accept: '.sql,.txt',
         requiresTableName: false,
         icon: TableProperties,
@@ -261,7 +261,7 @@ const migrationSourceOptions: MigrationSourceDescriptor[] = [
         id: 'sqlserver_sql',
         label: 'SQL Server',
         title: 'SQL Server schema dump',
-        hint: 'Translate SQL Server table definitions and INSERT batches.',
+        hint: 'Translate SQL Server tables and INSERT batches.',
         accept: '.sql,.txt',
         requiresTableName: false,
         icon: Server,
@@ -271,7 +271,7 @@ const migrationSourceOptions: MigrationSourceDescriptor[] = [
         id: 'postgres_sql',
         label: 'Postgres SQL',
         title: 'Postgres DDL',
-        hint: 'Bootstrap existing Postgres DDL into OzyBase metadata and setup-time imports.',
+        hint: 'Register Postgres DDL and optional setup-time imports.',
         accept: '.sql,.txt',
         requiresTableName: false,
         icon: Database,
@@ -290,9 +290,9 @@ const migrationPrepareStages: Array<{
     label: string;
     hint: string;
 }> = [
-    { id: 'source', label: 'Choose Database', hint: 'Select the source engine first.' },
-    { id: 'upload', label: 'Load Source', hint: 'Upload or paste the selected dump.' },
-    { id: 'analysis', label: 'Basic Analysis', hint: 'Review the translated scope before the modal.' },
+    { id: 'source', label: 'Choose Database', hint: 'Pick the source engine.' },
+    { id: 'upload', label: 'Load Source', hint: 'Upload or paste the dump.' },
+    { id: 'analysis', label: 'Analyze', hint: 'Confirm the quick result before the modal.' },
 ];
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
@@ -506,10 +506,10 @@ const MigrationPreviewWorkspace: React.FC<MigrationPreviewWorkspaceProps> = ({
     const selectedTableWarnings = selectedTable?.warnings || [];
     const selectedTableSampleRows = selectedTable?.sample_rows || [];
     const reviewViews: Array<{ id: MigrationReviewView; label: string; hint: string }> = [
-        { id: 'overview', label: 'Overview', hint: 'Scope and next step' },
-        { id: 'alerts', label: 'Alerts', hint: 'Warnings and risks' },
-        { id: 'preview', label: 'Visual Preview', hint: 'How it will look' },
-        { id: 'sql', label: 'SQL', hint: 'Exact translated code' },
+        { id: 'overview', label: 'Overview', hint: 'Summary' },
+        { id: 'alerts', label: 'Alerts', hint: 'Warnings' },
+        { id: 'preview', label: 'Preview', hint: 'Sample rows' },
+        { id: 'sql', label: 'SQL', hint: 'Code' },
     ];
 
     useEffect(() => {
@@ -546,7 +546,7 @@ const MigrationPreviewWorkspace: React.FC<MigrationPreviewWorkspaceProps> = ({
                     <div className="mb-4">
                         <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Tables</span>
                         <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                            Select one table to inspect warnings, visual samples, and the translated SQL without a giant scroll.
+                            Pick one table to inspect the result.
                         </p>
                     </div>
 
@@ -590,8 +590,8 @@ const MigrationPreviewWorkspace: React.FC<MigrationPreviewWorkspaceProps> = ({
                                         </span>
                                     </div>
                                     <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
-                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Selected table</span>
-                                        <span className="mt-2 block text-sm font-semibold text-white">{selectedTable?.name || 'No table detected'}</span>
+                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Source</span>
+                                        <span className="mt-2 block text-sm font-semibold text-white">{sourceLabel}</span>
                                     </div>
                                     <div className="rounded-2xl border border-zinc-800 bg-black/25 px-4 py-4">
                                         <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Setup action</span>
@@ -609,7 +609,7 @@ const MigrationPreviewWorkspace: React.FC<MigrationPreviewWorkspaceProps> = ({
                                             <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Visual example</span>
                                             <h4 className="mt-2 text-lg font-semibold text-white">{selectedTable.display_name}</h4>
                                             <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                                                This is a quick visual sample of how the translated structure will look before you open the deeper preview or SQL modules.
+                                                Quick sample before opening the deeper preview or SQL.
                                             </p>
                                         </div>
                                         <button
@@ -673,7 +673,7 @@ const MigrationPreviewWorkspace: React.FC<MigrationPreviewWorkspaceProps> = ({
                                 <div className="rounded-[1.75rem] border border-emerald-500/20 bg-emerald-500/5 p-5">
                                     <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100/80">No warnings</span>
                                     <p className="mt-3 text-sm leading-relaxed text-zinc-200">
-                                        This migration plan does not report global warnings or table-level issues in the preview stage.
+                                        This migration plan does not report warnings in the preview stage.
                                     </p>
                                 </div>
                             ) : (
@@ -758,7 +758,7 @@ const MigrationPreviewWorkspace: React.FC<MigrationPreviewWorkspaceProps> = ({
                                                 <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-primary">Visual preview</span>
                                                 <h4 className="mt-2 text-lg font-semibold text-white">{selectedTable.name}</h4>
                                                 <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                                                    This module shows one table at a time so the migration stays readable. Use the table rail on the left to switch examples.
+                                                    One table at a time so the review stays readable.
                                                 </p>
                                             </div>
                                             <button
@@ -790,7 +790,7 @@ const MigrationPreviewWorkspace: React.FC<MigrationPreviewWorkspaceProps> = ({
                                                 <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-primary">Translated SQL</span>
                                                 <h4 className="mt-2 text-lg font-semibold text-white">{selectedTable.name}</h4>
                                                 <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                                                    This is the exact SQL generated for the selected table. It stays isolated here so code review does not compete with warnings and data previews.
+                                                    Exact SQL for the selected table.
                                                 </p>
                                             </div>
                                             <button
@@ -849,20 +849,20 @@ const MigrationPreviewModal: React.FC<MigrationPreviewModalProps> = ({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="migration-preview-modal-title"
-                className="flex h-[min(92vh,940px)] w-full max-w-[min(96vw,1360px)] flex-col overflow-hidden rounded-[2rem] border border-zinc-800 bg-[#090909] shadow-[0_40px_160px_-64px_rgba(0,0,0,0.95)]"
+                className="flex max-h-[min(92vh,860px)] w-full max-w-[min(94vw,1080px)] flex-col overflow-hidden rounded-[2rem] border border-zinc-800 bg-[#090909] shadow-[0_40px_160px_-64px_rgba(0,0,0,0.95)]"
             >
                 <div className="flex flex-col gap-5 border-b border-zinc-800 bg-[linear-gradient(135deg,rgba(254,254,0,0.1),rgba(7,7,7,0.98)_30%,rgba(7,7,7,0.98))] px-5 py-5 sm:px-7 sm:py-6">
                     <div className="flex items-start justify-between gap-4">
-                        <div className="max-w-4xl">
+                        <div className="max-w-3xl">
                             <div className="mb-3 flex items-center gap-2 text-primary">
                                 <ScanSearch size={16} />
-                                <span className="text-[10px] font-black uppercase tracking-[0.24em]">Migration Review</span>
+                                <span className="text-[10px] font-black uppercase tracking-[0.24em]">Migration Result</span>
                             </div>
                             <h3 id="migration-preview-modal-title" className="text-2xl font-black tracking-tight text-white sm:text-[2rem]">
-                                Review the translated plan without squeezing the workspace
+                                Quick review before you continue
                             </h3>
-                            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-400">
-                                The editor stays focused on source preparation. This review layer opens only after analysis so you can inspect tables, sample rows, warnings, and the SQL translation with enough space.
+                            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
+                                Validate the summary, scan the detected tables, and open SQL only if you need a technical check.
                             </p>
                         </div>
 
@@ -876,8 +876,8 @@ const MigrationPreviewModal: React.FC<MigrationPreviewModalProps> = ({
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-                        <div className="rounded-[1.5rem] border border-primary/20 bg-black/30 px-4 py-4 xl:col-span-2">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <div className="rounded-[1.5rem] border border-primary/20 bg-black/30 px-4 py-4 sm:col-span-2">
                             <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Summary</span>
                             <p className="mt-2 text-sm font-semibold leading-relaxed text-white">{preview.summary}</p>
                         </div>
@@ -899,8 +899,8 @@ const MigrationPreviewModal: React.FC<MigrationPreviewModalProps> = ({
                 <MigrationPreviewWorkspace preview={preview} sourceLabel={sourceLabel} importRows={importRows} />
 
                 <div className="flex flex-col gap-3 border-t border-zinc-800 bg-[#090909] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-5">
-                    <p className="max-w-3xl text-xs leading-relaxed text-zinc-500">
-                        Close this review to keep editing the source, or continue directly to create the first admin after confirming the translated plan looks correct.
+                    <p className="max-w-2xl text-xs leading-relaxed text-zinc-500">
+                        Close this modal to edit the source, or continue if the migration result looks correct.
                     </p>
                     <div className="flex flex-col gap-3 sm:flex-row">
                         <button
@@ -915,7 +915,7 @@ const MigrationPreviewModal: React.FC<MigrationPreviewModalProps> = ({
                             onClick={onContinue}
                             className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-black transition-all hover:scale-[1.01]"
                         >
-                            Continue to Admin
+                            Continue
                             <ArrowRight size={14} />
                         </button>
                     </div>
@@ -1453,7 +1453,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                     )}
 
                     {step === 'prepare' && selectedMode && mode === 'migrate' && (
-                        <div className="animate-in slide-in-from-right duration-500 h-full min-h-0 flex flex-col overflow-hidden">
+                        <div className="animate-in slide-in-from-right duration-500 flex-1 min-h-0 overflow-y-auto pr-1">
                             <button
                                 onClick={() => setStep('mode')}
                                 className="text-xs text-zinc-500 hover:text-white mb-4 flex items-center gap-1"
@@ -1467,7 +1467,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 </p>
                                 <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-2">{selectedMode.prepTitle}</h2>
                                 <p className="text-zinc-500 text-sm max-w-3xl">
-                                    Select the source engine first, then load that database dump, continue to a basic analysis, and leave the detailed review for the final modal.
+                                    Pick the source, load the dump, run the quick analysis, and finish with a compact review modal.
                                 </p>
                             </div>
 
@@ -1502,8 +1502,8 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 })}
                             </div>
 
-                            <div className="grid grid-cols-1 xl:grid-cols-[minmax(420px,0.82fr)_minmax(0,1.18fr)] gap-6 flex-1 min-h-0 overflow-hidden">
-                                <div className="rounded-[2rem] border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col min-h-0 overflow-y-auto pr-1">
+                            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(440px,0.95fr)_minmax(320px,0.8fr)] pb-2">
+                                <div className="rounded-[2rem] border border-zinc-800 bg-zinc-900/30 p-6 flex flex-col">
                                     <div className="flex items-center gap-3 mb-5">
                                         <div className={`p-3 rounded-2xl ${selectedMode.iconPanelClass}`}>
                                             <selectedMode.icon size={20} className={selectedMode.iconClass} />
@@ -1521,14 +1521,14 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     ? 'Choose the database engine first'
                                                     : migrationStage === 'upload'
                                                         ? `Load the ${selectedMigrationSource.label} dump`
-                                                        : 'Run the first analysis before the final review'}
+                                                        : 'Confirm the analysis'}
                                             </h3>
                                             <p className="text-xs text-zinc-500">
                                                 {migrationStage === 'source'
-                                                    ? 'Selecting a source moves you directly to the upload step so the next screen is adapted to that engine.'
+                                                    ? 'Choosing a source immediately switches this panel to the matching upload step.'
                                                     : migrationStage === 'upload'
-                                                        ? 'This stage is only for loading the selected source. The next stage runs the analysis and opens the final modal review.'
-                                                        : 'Keep this step focused on the first analysis. The deeper SQL review stays in the modal at the end.'}
+                                                        ? 'This step is only for loading the selected source. The next one runs the analysis.'
+                                                        : 'Review the quick status here. The deeper inspection stays inside the modal.'}
                                             </p>
                                         </div>
                                         <div className="hidden">
@@ -1570,8 +1570,8 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     <p className="mt-2 text-xs leading-relaxed text-zinc-500">{selectedMigrationSource.hint}</p>
                                                     <p className="mt-3 text-xs text-zinc-400">
                                                         {selectedMigrationSource.requiresTableName
-                                                            ? 'This format needs one target table name before analysis.'
-                                                            : 'This format can reuse table names from the dump automatically.'}
+                                                            ? 'Needs one target table before analysis.'
+                                                            : 'Can keep table names from the dump.'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -1611,7 +1611,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500 mb-2">Step 2 · Provide the source</p>
                                                     <h4 className="text-sm font-semibold text-white">Choose one input method</h4>
                                                     <p className="mt-2 max-w-2xl text-xs leading-relaxed text-zinc-500">
-                                                        Use a file when you already have a dump ready. Use paste when you want to test a snippet quickly without leaving the browser.
+                                                        Upload a dump file or paste a quick sample.
                                                     </p>
                                                 </div>
                                                 <div className="inline-flex rounded-xl border border-zinc-800 bg-zinc-950/70 p-1">
@@ -1668,7 +1668,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                                 <div className="min-w-0">
                                                                     <p className="text-sm font-semibold text-white">Drop your {selectedMigrationSource.label} file here</p>
                                                                     <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                                                                        Accepted formats: {selectedMigrationSource.accept}. The file content will be analyzed inside the setup flow.
+                                                                        Accepted: {selectedMigrationSource.accept}
                                                                     </p>
                                                                 </div>
                                                             </div>
@@ -1818,7 +1818,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div>
                                                 <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">Step 3 · Analyze</p>
-                                                <p className="mt-2 text-sm text-zinc-300">Generate the translated plan and open the detailed review only when the source is ready.</p>
+                                                <p className="mt-2 text-sm text-zinc-300">Run the quick check, then open the result modal.</p>
                                             </div>
                                             <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${migrationHasInput ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200/80' : 'border-zinc-700 bg-black/30 text-zinc-400'}`}>
                                                 {migrationHasInput ? 'Ready to analyze' : 'Waiting for source input'}
@@ -1834,7 +1834,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             <span>
                                                 Import detected rows during setup.
                                                 <span className="mt-1 block text-xs text-zinc-500">
-                                                    Disable this if you only want the PostgreSQL schema translated now and plan to load data later.
+                                                    Disable this if you only want the translated schema for now.
                                                 </span>
                                             </span>
                                         </label>
@@ -1889,7 +1889,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                     </div>
                                 </div>
 
-                                <div className="rounded-[2rem] border border-zinc-800 bg-[#0c0c0c] flex flex-col min-h-0 overflow-hidden">
+                                <div className="rounded-[2rem] border border-zinc-800 bg-[#0c0c0c] flex flex-col">
                                     <div className="px-6 pt-6 pb-5 border-b border-zinc-800">
                                         <div className="flex items-center gap-2 text-primary mb-2">
                                             {migrationStage === 'source' ? <Database size={16} /> : <ScanSearch size={16} />}
@@ -1905,20 +1905,24 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             {migrationStage === 'source'
                                                 ? 'Select first, then upload'
                                                 : migrationStage === 'upload'
-                                                    ? 'Make sure the selected source is ready'
-                                                    : 'Keep the workspace focused'}
+                                                    ? 'Source ready?'
+                                                    : migrationPreviewing
+                                                        ? 'Analyzing source'
+                                                        : 'Quick result'}
                                         </h3>
                                         <p className="text-sm text-zinc-500 mt-2 leading-relaxed max-w-3xl">
                                             {migrationStage === 'source'
-                                                ? 'The migration wizard is easier to follow when it asks for the engine first. After you choose it, the next step adapts to that database format.'
+                                                ? 'Choose the engine first so the next step matches that source.'
                                                 : migrationStage === 'upload'
-                                                    ? 'This side stays focused on readiness: selected source, what the basic analysis will check, and the next move into analysis.'
-                                                    : 'After analysis, the complete migration review opens in a dedicated modal. This side panel stays lighter so editing the source and understanding next steps do not compete for space.'}
+                                                    ? 'Check the selected source, the input status, and move to analysis.'
+                                                    : migrationPreviewing
+                                                        ? 'We are translating the source and building the preview.'
+                                                        : 'Keep this page compact. Open the modal only for the final review.'}
                                         </p>
                                     </div>
 
                                     {migrationStage === 'source' ? (
-                                        <div className="flex-1 min-h-0 overflow-y-auto p-6">
+                                        <div className="p-6">
                                             <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
                                                 <div className="flex items-start gap-4">
                                                     <div className="rounded-2xl bg-black/30 border border-white/5 p-3">
@@ -1928,7 +1932,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                         <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary mb-2">Minimal flow</p>
                                                         <h4 className="text-sm font-semibold text-white">Choose the engine and move on</h4>
                                                         <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                                                            Pick the source here. The upload screen adapts automatically, and the detailed review stays reserved for the final modal.
+                                                            Pick the source here. The upload step adapts automatically, and the detailed review stays for the modal.
                                                         </p>
                                                         <div className="mt-4 flex flex-wrap gap-2">
                                                             {migrationPrepareStages.map((stage, index) => (
@@ -1945,7 +1949,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             </div>
                                         </div>
                                     ) : migrationStage === 'upload' ? (
-                                        <div className="flex-1 min-h-0 overflow-y-auto p-6">
+                                        <div className="p-6">
                                             <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
                                                 <div className="flex items-center gap-2 text-primary mb-3">
                                                     <CheckCircle size={16} />
@@ -1972,12 +1976,12 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     </div>
                                                 </div>
                                                 <p className="mt-4 text-sm leading-relaxed text-zinc-400">
-                                                    When these three are ready, continue to the basic analysis. The detailed SQL review stays outside this page in the modal.
+                                                    When these three are ready, continue to analysis.
                                                 </p>
                                             </div>
                                         </div>
                                     ) : migrationPreview ? (
-                                        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+                                        <div className="p-6 space-y-4">
                                             <div className="rounded-[2rem] border border-primary/20 bg-[linear-gradient(135deg,rgba(254,254,0,0.12),rgba(12,12,12,0.5))] p-5">
                                                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                                     <div className="max-w-2xl">
@@ -1989,7 +1993,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                         onClick={() => setIsMigrationPreviewModalOpen(true)}
                                                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-black/30 px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary hover:text-primary"
                                                     >
-                                                        Open full review
+                                                        Open result modal
                                                         <ArrowRight size={14} />
                                                     </button>
                                                 </div>
@@ -2038,7 +2042,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     <div>
                                                         <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Preview tables</span>
                                                         <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-                                                            Keep this page minimal: scan the first tables here and use the modal for full SQL and sample rows.
+                                                            Scan the quick result here and use the modal for the full review.
                                                         </p>
                                                     </div>
                                                     <button
@@ -2046,7 +2050,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                         onClick={() => setIsMigrationPreviewModalOpen(true)}
                                                         className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary/35 hover:text-primary"
                                                     >
-                                                        Open modal review
+                                                        Open modal
                                                     </button>
                                                 </div>
                                                 <div className="mt-4 flex flex-wrap gap-2">
@@ -2064,22 +2068,33 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex-1 min-h-0 overflow-y-auto p-6">
+                                        <div className="p-6">
                                             <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
                                                 <div className="flex items-start gap-4">
                                                     <div className="rounded-2xl bg-black/30 border border-white/5 p-3">
                                                         {migrationPreviewing ? <Loader2 size={18} className="text-primary animate-spin" /> : <selectedMigrationSource.icon size={18} className="text-primary" />}
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary mb-2">Before analysis</p>
-                                                        <h4 className="text-sm font-semibold text-white">{selectedMigrationSource.title}</h4>
+                                                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary mb-2">
+                                                            {migrationPreviewing ? 'Analyzing now' : 'Before analysis'}
+                                                        </p>
+                                                        <h4 className="text-sm font-semibold text-white">
+                                                            {migrationPreviewing ? `Building the ${selectedMigrationSource.label} preview` : selectedMigrationSource.title}
+                                                        </h4>
                                                         <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                                                            Run the basic analysis first. The page stays compact here, and the detailed inspection opens in the modal only when the preview is ready.
+                                                            {migrationPreviewing
+                                                                ? 'Please wait while OzyBase translates the source, checks columns, and prepares the result modal.'
+                                                                : 'Run the analysis first. The detailed inspection opens in the modal only when the preview is ready.'}
                                                         </p>
                                                         <div className="mt-4 space-y-2">
                                                             {selectedMode.prepSteps.map((prepStep) => (
-                                                                <div key={`analysis-prestep-${prepStep}`} className="text-sm text-zinc-500">
-                                                                    {prepStep}
+                                                                <div key={`analysis-prestep-${prepStep}`} className="flex items-center gap-2 text-sm text-zinc-500">
+                                                                    {migrationPreviewing ? (
+                                                                        <Loader2 size={12} className="text-primary animate-spin shrink-0" />
+                                                                    ) : (
+                                                                        <Sparkles size={12} className="text-primary shrink-0" />
+                                                                    )}
+                                                                    <span>{prepStep}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -2101,7 +2116,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                         </p>
                                         {migrationStage === 'source' && (
                                             <p className="text-xs text-zinc-400 leading-relaxed">
-                                                Selecting any database card moves you directly to the source-loading step.
+                                                Selecting a database moves you directly to the upload step.
                                             </p>
                                         )}
                                         {migrationStage === 'upload' && (
@@ -2119,7 +2134,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                     disabled={!migrationCanEnterAnalysis}
                                                     className="w-full rounded-xl bg-primary px-5 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-black transition-all hover:scale-[1.01] disabled:opacity-50 disabled:hover:scale-100"
                                                 >
-                                                    Continue to Basic Analysis
+                                                    Continue to Analysis
                                                 </button>
                                             </div>
                                         )}
@@ -2131,7 +2146,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                         onClick={() => setIsMigrationPreviewModalOpen(true)}
                                                         className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-5 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary/35 hover:text-primary"
                                                     >
-                                                        Open Final Modal Review
+                                                        Open Result Modal
                                                     </button>
                                                 )}
                                                 <button
