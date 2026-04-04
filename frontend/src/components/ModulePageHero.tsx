@@ -36,6 +36,7 @@ const PILL_TONE_CLASS: Record<HeroTone, string> = {
 const ModulePageHero: React.FC<ModulePageHeroProps> = ({
   eyebrow,
   title,
+  description,
   icon: Icon,
   pills = [],
   stats = [],
@@ -63,6 +64,9 @@ const ModulePageHero: React.FC<ModulePageHeroProps> = ({
                 <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
                   {title}
                 </h1>
+                <p className="mt-4 max-w-3xl text-sm leading-relaxed text-zinc-400">
+                  {description}
+                </p>
               </div>
             </div>
 
@@ -90,7 +94,7 @@ const ModulePageHero: React.FC<ModulePageHeroProps> = ({
         </div>
 
         {stats.length > 0 ? (
-          <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {stats.map((stat) => (
               <div
                 key={stat.label}

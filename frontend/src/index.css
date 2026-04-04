@@ -14,6 +14,10 @@
     body {
         @apply bg-[#171717] text-zinc-100 font-sans;
     }
+
+    #root {
+        min-height: 100vh;
+    }
 }
 
 :root {
@@ -24,6 +28,11 @@
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
+}
+
+.custom-scrollbar,
+[data-module-scroll-root] {
+    scrollbar-gutter: stable both-edges;
 }
 
 ::-webkit-scrollbar-track {

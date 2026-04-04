@@ -14,6 +14,14 @@ import {
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
 import ModulePageHero from './ModulePageHero';
+import ModuleScrollContainer from './ModuleScrollContainer';
+import ModuleSegmentedNav from './ModuleSegmentedNav';
+
+const WORKSPACE_MANAGER_TABS = [
+    { id: 'wm_overview', label: 'My Projects', hint: 'Create, search, and open your main workspaces.' },
+    { id: 'wm_shared', label: 'Shared With Me', hint: 'Projects where you collaborate but are not the owner.' },
+    { id: 'wm_templates', label: 'Quick Seeds', hint: 'Start from a naming seed instead of a blank title.' },
+] as const;
 
 const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview' }: any) => {
     const [workspaces, setWorkspaces] = useState<any[]>([]);
@@ -206,8 +214,8 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
     };
 
     return (
-        <div className="flex flex-col h-full bg-[#050505] p-10 overflow-y-auto custom-scrollbar">
-            <div className="mb-12">
+        <ModuleScrollContainer width="7xl" innerClassName="animate-in fade-in duration-500 pb-16">
+            <div className="space-y-6">
                 <ModulePageHero
                     eyebrow="Projects"
                     title="Projects"
@@ -245,13 +253,18 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
                         </button>
                     }
                 />
-            </div>
 
-            {/* View Content */}
-            {view === 'wm_overview' && (
-            <>
-                {/* Search and Filters */}
-                <div className="mb-8">
+                <ModuleSegmentedNav
+                    items={WORKSPACE_MANAGER_TABS}
+                    activeId={view}
+                    onSelect={(nextView) => onViewSelect?.(nextView)}
+                />
+
+                {/* View Content */}
+                {view === 'wm_overview' && (
+                <>
+                    {/* Search and Filters */}
+                    <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div className="bg-[#0a0a0a] border border-[#2e2e2e] rounded-2xl p-4">
                             <p className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.18em] mb-2">Total Projects</p>
@@ -292,207 +305,208 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
                             Automatic Postgres schema provisioning, dedicated storage buckets, and region presets are still pending.
                         </p>
                     </div>
-                </div>
-
-                {/* Grid of Projects */}
-                {loading ? (
-                    <div className="flex-1 flex flex-col items-center justify-center gap-4">
-                        <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                        <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Synching Projects...</span>
                     </div>
-                ) : filteredWorkspaces.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0a0a] border border-dashed border-[#2e2e2e] rounded-3xl p-20 text-center">
-                        <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
-                            <Briefcase size={40} className="text-zinc-700" />
+
+                    {/* Grid of Projects */}
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center gap-4 rounded-[2rem] border border-zinc-800 bg-[#0a0a0a] py-20">
+                            <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Synching Projects...</span>
                         </div>
-                        <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">No projects found</h2>
-                        <p className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest mb-8 max-w-xs">
-                            Start by creating your first scoped workspace to manage membership and dashboard context.
-                        </p>
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="px-8 py-3 bg-white text-black font-black uppercase text-xs tracking-[0.2em] rounded-xl hover:bg-zinc-200 transition-colors"
-                        >
-                            Create Project
-                        </button>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {enrichedWorkspaces.map((w: any) => {
-                            const icon = getWorkspaceIcon(w.name);
-                            return (
-                                <div 
-                                    key={w.id}
-                                    className="group relative bg-[#0a0a0a] border border-[#2e2e2e] rounded-3xl p-6 hover:border-primary/50 hover:bg-[#0d0d0d] transition-all cursor-pointer overflow-hidden shadow-2xl"
-                                    onClick={() => handleSelect(w)}
-                                >
-                                    {/* Decorative elements */}
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-[80px] group-hover:bg-primary/10 transition-colors" />
-                                    
-                                    <div className="flex items-start justify-between mb-6 relative z-10">
-                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-black border group-hover:scale-110 transition-transform duration-500 ${icon.style}`}>
-                                            {icon.char}
-                                        </div>
-                                        <button 
-                                            className="p-2 text-zinc-600 hover:text-white transition-colors"
-                                            onClick={(e: any) => {
-                                                e.stopPropagation();
-                                                const nextWorkspaceId = String(w.id);
-                                                localStorage.setItem('ozy_workspace_id', nextWorkspaceId);
-                                                if (onWorkspaceChange) onWorkspaceChange(nextWorkspaceId);
-                                                if (onViewSelect) onViewSelect('workspace_settings');
-                                            }}
-                                        >
-                                            <Settings size={18} />
-                                        </button>
-                                    </div>
-
-                                    <div className="relative z-10">
-                                        <h3 className="text-xl font-black text-white tracking-tight mb-1 group-hover:text-primary transition-colors">{w.name}</h3>
-                                        <div className="flex items-center gap-2 mb-6">
-                                            <Globe size={12} className="text-zinc-600" />
-                                            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">{w.slug}</span>
-                                        </div>
-
-                                        <div className="flex items-center gap-4 border-t border-zinc-900 pt-6">
-                                            <div className="flex items-center gap-1.5">
-                                                <Users size={12} className="text-zinc-500" />
-                                                <span className="text-[10px] font-bold text-zinc-400">{w.memberCount} member{w.memberCount > 1 ? 's' : ''}</span>
-                                            </div>
-                                            <div className="w-[1px] h-3 bg-zinc-800" />
-                                            <div className="flex items-center gap-1.5">
-                                                <Shield size={12} className="text-zinc-500" />
-                                                <span className="text-[10px] font-bold text-zinc-400">{w.currentRole}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
-                                        <ArrowRight size={20} className="text-primary" />
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </>
-            )}
-
-            {view === 'wm_shared' && (
-                <>
-                    {sharedWorkspaces.length === 0 ? (
-                        <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0a0a] border border-dashed border-[#2e2e2e] rounded-3xl p-20 text-center animate-in fade-in duration-500">
+                    ) : filteredWorkspaces.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center bg-[#0a0a0a] border border-dashed border-[#2e2e2e] rounded-3xl p-20 text-center">
                             <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
-                                <Users size={40} className="text-zinc-700" />
+                                <Briefcase size={40} className="text-zinc-700" />
                             </div>
-                            <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">No Shared Projects</h2>
+                            <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">No projects found</h2>
                             <p className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest mb-8 max-w-xs">
-                                Shared projects will appear here with your role and member scope.
+                                Start by creating your first scoped workspace to manage membership and dashboard context.
                             </p>
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                className="px-8 py-3 bg-white text-black font-black uppercase text-xs tracking-[0.2em] rounded-xl hover:bg-zinc-200 transition-colors"
+                            >
+                                Create Project
+                            </button>
                         </div>
                     ) : (
-                        <div className="space-y-4 animate-in fade-in duration-500">
-                            {sharedWorkspaces.map((workspace: any) => (
-                                <button
-                                    key={workspace.id}
-                                    onClick={() => handleSelect(workspace)}
-                                    className="w-full bg-[#0a0a0a] border border-[#2e2e2e] rounded-2xl p-5 text-left hover:border-primary/40 transition-all group"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-lg font-black text-white group-hover:text-primary transition-colors">{workspace.name}</p>
-                                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mt-1">
-                                                Role: {workspace.currentRole} - {workspace.memberCount} member{workspace.memberCount > 1 ? 's' : ''}
-                                            </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {enrichedWorkspaces.map((w: any) => {
+                                const icon = getWorkspaceIcon(w.name);
+                                return (
+                                    <div
+                                        key={w.id}
+                                        className="group relative bg-[#0a0a0a] border border-[#2e2e2e] rounded-3xl p-6 hover:border-primary/50 hover:bg-[#0d0d0d] transition-all cursor-pointer overflow-hidden shadow-2xl"
+                                        onClick={() => handleSelect(w)}
+                                    >
+                                        {/* Decorative elements */}
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-[80px] group-hover:bg-primary/10 transition-colors" />
+
+                                        <div className="flex items-start justify-between mb-6 relative z-10">
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-black border group-hover:scale-110 transition-transform duration-500 ${icon.style}`}>
+                                                {icon.char}
+                                            </div>
+                                            <button
+                                                className="p-2 text-zinc-600 hover:text-white transition-colors"
+                                                onClick={(e: any) => {
+                                                    e.stopPropagation();
+                                                    const nextWorkspaceId = String(w.id);
+                                                    localStorage.setItem('ozy_workspace_id', nextWorkspaceId);
+                                                    if (onWorkspaceChange) onWorkspaceChange(nextWorkspaceId);
+                                                    if (onViewSelect) onViewSelect('workspace_settings');
+                                                }}
+                                            >
+                                                <Settings size={18} />
+                                            </button>
                                         </div>
-                                        <ArrowRight size={18} className="text-zinc-500 group-hover:text-primary transition-colors" />
+
+                                        <div className="relative z-10">
+                                            <h3 className="text-xl font-black text-white tracking-tight mb-1 group-hover:text-primary transition-colors">{w.name}</h3>
+                                            <div className="flex items-center gap-2 mb-6">
+                                                <Globe size={12} className="text-zinc-600" />
+                                                <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">{w.slug}</span>
+                                            </div>
+
+                                            <div className="flex items-center gap-4 border-t border-zinc-900 pt-6">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Users size={12} className="text-zinc-500" />
+                                                    <span className="text-[10px] font-bold text-zinc-400">{w.memberCount} member{w.memberCount > 1 ? 's' : ''}</span>
+                                                </div>
+                                                <div className="w-[1px] h-3 bg-zinc-800" />
+                                                <div className="flex items-center gap-1.5">
+                                                    <Shield size={12} className="text-zinc-500" />
+                                                    <span className="text-[10px] font-bold text-zinc-400">{w.currentRole}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
+                                            <ArrowRight size={20} className="text-primary" />
+                                        </div>
                                     </div>
-                                </button>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </>
-            )}
+                )}
 
-            {view === 'wm_templates' && (
-                <div className="space-y-6 animate-in fade-in duration-500">
-                    <div className="rounded-[2rem] border border-[#2e2e2e] bg-[#0a0a0a] p-5">
-                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Quick Seeds</p>
-                        <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-                            These cards create a normal blank project with a helpful name seed. Full project scaffolds and data templates are still pending.
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                        {templates.map((template: any) => (
-                            <div key={template.id} className="group bg-[#0a0a0a] border border-[#2e2e2e] rounded-3xl p-6 hover:border-primary/50 transition-all">
-                                <div className="h-32 bg-zinc-900 rounded-2xl mb-6 flex items-center justify-center">
-                                    <span className="text-4xl font-black text-zinc-800 group-hover:text-zinc-700 transition-colors">{template.name.charAt(0)}</span>
+                {view === 'wm_shared' && (
+                    <>
+                        {sharedWorkspaces.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center bg-[#0a0a0a] border border-dashed border-[#2e2e2e] rounded-3xl p-20 text-center animate-in fade-in duration-500">
+                                <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
+                                    <Users size={40} className="text-zinc-700" />
                                 </div>
-                                <h3 className="text-lg font-black text-white uppercase tracking-tight mb-2">{template.name}</h3>
-                                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-4 min-h-[32px]">
-                                    {template.hint}
+                                <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">No Shared Projects</h2>
+                                <p className="text-zinc-500 font-bold uppercase text-[10px] tracking-widest mb-8 max-w-xs">
+                                    Shared projects will appear here with your role and member scope.
                                 </p>
-                                <button
-                                    onClick={() => createFromTemplate(template)}
-                                    className="w-full py-3 bg-[#1a1a1a] text-zinc-400 font-black uppercase text-xs tracking-widest rounded-xl group-hover:bg-primary group-hover:text-black transition-all flex items-center justify-center gap-2"
-                                >
-                                    <Sparkles size={14} />
-                                    Use Quick Seed
-                                </button>
                             </div>
-                        ))}
+                        ) : (
+                            <div className="space-y-4 animate-in fade-in duration-500">
+                                {sharedWorkspaces.map((workspace: any) => (
+                                    <button
+                                        key={workspace.id}
+                                        onClick={() => handleSelect(workspace)}
+                                        className="w-full bg-[#0a0a0a] border border-[#2e2e2e] rounded-2xl p-5 text-left hover:border-primary/40 transition-all group"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-lg font-black text-white group-hover:text-primary transition-colors">{workspace.name}</p>
+                                                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mt-1">
+                                                    Role: {workspace.currentRole} - {workspace.memberCount} member{workspace.memberCount > 1 ? 's' : ''}
+                                                </p>
+                                            </div>
+                                            <ArrowRight size={18} className="text-zinc-500 group-hover:text-primary transition-colors" />
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {view === 'wm_templates' && (
+                    <div className="space-y-6 animate-in fade-in duration-500">
+                        <div className="rounded-[2rem] border border-[#2e2e2e] bg-[#0a0a0a] p-5">
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Quick Seeds</p>
+                            <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+                                These cards create a normal blank project with a helpful name seed. Full project scaffolds and data templates are still pending.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                            {templates.map((template: any) => (
+                                <div key={template.id} className="group bg-[#0a0a0a] border border-[#2e2e2e] rounded-3xl p-6 hover:border-primary/50 transition-all">
+                                    <div className="h-32 bg-zinc-900 rounded-2xl mb-6 flex items-center justify-center">
+                                        <span className="text-4xl font-black text-zinc-800 group-hover:text-zinc-700 transition-colors">{template.name.charAt(0)}</span>
+                                    </div>
+                                    <h3 className="text-lg font-black text-white uppercase tracking-tight mb-2">{template.name}</h3>
+                                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-4 min-h-[32px]">
+                                        {template.hint}
+                                    </p>
+                                    <button
+                                        onClick={() => createFromTemplate(template)}
+                                        className="w-full py-3 bg-[#1a1a1a] text-zinc-400 font-black uppercase text-xs tracking-widest rounded-xl group-hover:bg-primary group-hover:text-black transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Sparkles size={14} />
+                                        Use Quick Seed
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Create Modal */}
-            {showCreateModal && (
-                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6">
-                    <div className="absolute inset-0 ozy-overlay-backdrop backdrop-blur-md" onClick={() => setShowCreateModal(false)} />
-                    <div className="ozy-dialog-panel max-w-md w-full p-8">
-                        <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter mb-2">Initialize New Project</h2>
-                        <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-8">Workspace scope creation</p>
+                {/* Create Modal */}
+                {showCreateModal && (
+                    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6">
+                        <div className="absolute inset-0 ozy-overlay-backdrop backdrop-blur-md" onClick={() => setShowCreateModal(false)} />
+                        <div className="ozy-dialog-panel max-w-md w-full p-8">
+                            <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter mb-2">Initialize New Project</h2>
+                            <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-8">Workspace scope creation</p>
 
-                        <div className="space-y-6">
-                            <div>
-                                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-2 block">Project Name</label>
-                                <input
-                                    autoFocus
-                                    type="text"
-                                    value={newWorkspaceName}
-                                    onChange={(e: any) => setNewWorkspaceName(e.target.value)}
-                                    placeholder="Enter project name..."
-                                    className="w-full bg-[#0a0a0a] border border-[#2e2e2e] rounded-xl px-4 py-3 text-white font-bold focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all"
-                                />
-                            </div>
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-2 block">Project Name</label>
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        value={newWorkspaceName}
+                                        onChange={(e: any) => setNewWorkspaceName(e.target.value)}
+                                        placeholder="Enter project name..."
+                                        className="w-full bg-[#0a0a0a] border border-[#2e2e2e] rounded-xl px-4 py-3 text-white font-bold focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all"
+                                    />
+                                </div>
 
-                            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
-                                <p className="text-[9px] text-primary font-black uppercase leading-relaxed tracking-wider">
-                                    New projects currently create the workspace record, owner membership, and workspace-scoped dashboard context. Physical tables, buckets, and deployment topology stay manual for now.
-                                </p>
-                            </div>
+                                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                                    <p className="text-[9px] text-primary font-black uppercase leading-relaxed tracking-wider">
+                                        New projects currently create the workspace record, owner membership, and workspace-scoped dashboard context. Physical tables, buckets, and deployment topology stay manual for now.
+                                    </p>
+                                </div>
 
-                            <div className="flex gap-4 pt-4">
-                                <button
-                                    onClick={() => setShowCreateModal(false)}
-                                    className="flex-1 px-6 py-3 bg-[#1a1a1a] text-zinc-400 font-black uppercase text-xs tracking-widest rounded-xl hover:text-white transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleCreate}
-                                    disabled={!newWorkspaceName.trim()}
-                                    className="flex-1 px-6 py-3 bg-primary text-black font-black uppercase text-xs tracking-widest rounded-xl hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-                                >
-                                    Create
-                                </button>
+                                <div className="flex gap-4 pt-4">
+                                    <button
+                                        onClick={() => setShowCreateModal(false)}
+                                        className="flex-1 px-6 py-3 bg-[#1a1a1a] text-zinc-400 font-black uppercase text-xs tracking-widest rounded-xl hover:text-white transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleCreate}
+                                        disabled={!newWorkspaceName.trim()}
+                                        className="flex-1 px-6 py-3 bg-primary text-black font-black uppercase text-xs tracking-widest rounded-xl hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                                    >
+                                        Create
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )}
+            </div>
+        </ModuleScrollContainer>
     );
 };
 

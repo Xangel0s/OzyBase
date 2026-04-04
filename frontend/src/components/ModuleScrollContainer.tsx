@@ -25,10 +25,10 @@ const ModuleScrollContainer: React.FC<ModuleScrollContainerProps> = ({
 }) => (
     <div
         data-module-scroll-root
-        className={`h-full overflow-y-auto overflow-x-hidden custom-scrollbar ${className}`.trim()}
+        className={`h-full overflow-y-auto overflow-x-hidden overscroll-y-contain custom-scrollbar ${className}`.trim()}
     >
         <div
-            className={`mx-auto min-h-full p-8 space-y-8 ${WIDTH_CLASS[width]} ${innerClassName}`.trim()}
+            className={`mx-auto min-h-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8 xl:px-10 xl:py-10 space-y-6 lg:space-y-8 ${WIDTH_CLASS[width]} ${innerClassName}`.trim()}
         >
             {children}
         </div>

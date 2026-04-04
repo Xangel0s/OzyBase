@@ -13,6 +13,8 @@ import {
 import { fetchWithAuth, readJsonIfOk } from "../utils/api";
 import EssentialApiKeysPanel from "./EssentialApiKeysPanel";
 import ModulePageHero from "./ModulePageHero";
+import ModuleScrollContainer from "./ModuleScrollContainer";
+import ModuleSegmentedNav from "./ModuleSegmentedNav";
 
 const MENU_ITEMS = [
   { id: "general", name: "General", icon: SettingsIcon },
@@ -21,6 +23,14 @@ const MENU_ITEMS = [
   { id: "api_keys", name: "API Keys", icon: Key },
   { id: "mcp_gateway", name: "MCP Gateway", icon: Key },
 ];
+
+const SETTINGS_TAB_ITEMS = [
+  { id: "general", label: "General", hint: "Project status and launch readiness." },
+  { id: "infrastructure", label: "Infrastructure", hint: "Connection endpoints and runtime facts." },
+  { id: "billing", label: "Billing", hint: "Simple explanation of the self-hosted model." },
+  { id: "api_keys", label: "API Keys", hint: "Publishable and secret keys in one place." },
+  { id: "mcp_gateway", label: "MCP Gateway", hint: "AI client access without extra server setup." },
+] as const;
 
 interface SettingsProps {
   view?: string;
@@ -717,6 +727,50 @@ const Settings: React.FC<SettingsProps> = ({
 
   const renderApiKeys = (focusMCP = false) => (
     <div className="space-y-8 animate-in fade-in duration-300">
+      <ModulePageHero
+        eyebrow="Settings"
+        title={focusMCP ? "MCP Gateway" : "API Keys"}
+        description={
+          focusMCP
+            ? "Connect editors and AI clients with the built-in MCP endpoint. This page keeps the server URL, auth model, and generated snippet in one predictable place."
+            : "Reveal and rotate the project keys that apps and backends use. The layout stays focused on only the keys and snippets that are actually safe to act on."
+        }
+        icon={Key}
+        pills={[
+          {
+            label: focusMCP ? "editor access" : "runtime credentials",
+            tone: "accent",
+          },
+          {
+            label: "built into this runtime",
+            tone: "neutral",
+          },
+          {
+            label: "copy only what you need",
+            tone: "success",
+          },
+        ]}
+        stats={[
+          {
+            label: "Surface",
+            value: focusMCP ? "MCP + Secret key" : "Anon + Secret key",
+            hint: focusMCP
+              ? "Editors use the secret key and the built-in MCP endpoint."
+              : "Client apps use the anon key, trusted backends use the secret key.",
+          },
+          {
+            label: "Install Model",
+            value: "No extra service",
+            hint: "Everything runs in the existing OzyBase API process.",
+          },
+          {
+            label: "Operator Goal",
+            value: focusMCP ? "Copy the snippet" : "Verify and rotate safely",
+            hint: "Only expose the exact credential or snippet needed for the target app.",
+          },
+        ]}
+      />
+
       {focusMCP ? (
         <div className="rounded-3xl border border-primary/20 bg-primary/5 p-6 shadow-2xl">
           <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">
@@ -743,48 +797,21 @@ const Settings: React.FC<SettingsProps> = ({
   }
 
   return (
-    <div className="flex h-full bg-[#111111] animate-in fade-in duration-500 overflow-hidden">
-      <div className="w-64 border-r border-[#2e2e2e] bg-[#0c0c0c] flex flex-col flex-shrink-0">
-        <div className="px-6 py-6 font-black text-white uppercase tracking-tighter text-lg border-b border-[#2e2e2e]">
-          Settings
-        </div>
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2 py-8">
-          {MENU_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onViewSelect?.(item.id)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all group ${
-                currentView === item.id
-                  ? "bg-zinc-900 border border-zinc-800 text-primary font-bold"
-                  : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40 border border-transparent"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <item.icon
-                  size={14}
-                  className={
-                    currentView === item.id
-                      ? "text-primary"
-                      : "text-zinc-700 group-hover:text-zinc-400"
-                  }
-                />
-                <span className="tracking-tight">{item.name}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
+    <ModuleScrollContainer width="6xl" innerClassName="animate-in fade-in duration-500 pb-16">
+      <div className="space-y-6">
+        <ModuleSegmentedNav
+          items={SETTINGS_TAB_ITEMS}
+          activeId={currentView}
+          onSelect={(nextView) => onViewSelect?.(nextView)}
+        />
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#111111]">
-        <div className="max-w-5xl mx-auto py-12 px-12">
-          {currentView === "general" && renderGeneral()}
-          {currentView === "infrastructure" && renderInfrastructure()}
-          {currentView === "billing" && renderBilling()}
-          {currentView === "api_keys" && renderApiKeys()}
-          {currentView === "mcp_gateway" && renderApiKeys(true)}
-        </div>
+        {currentView === "general" && renderGeneral()}
+        {currentView === "infrastructure" && renderInfrastructure()}
+        {currentView === "billing" && renderBilling()}
+        {currentView === "api_keys" && renderApiKeys()}
+        {currentView === "mcp_gateway" && renderApiKeys(true)}
       </div>
-    </div>
+    </ModuleScrollContainer>
   );
 };
 

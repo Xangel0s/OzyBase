@@ -12,7 +12,15 @@ import {
 import { fetchWithAuth } from '../utils/api';
 import ConfirmModal from './ConfirmModal';
 import ModulePageHero from './ModulePageHero';
+import ModuleScrollContainer from './ModuleScrollContainer';
+import ModuleSegmentedNav from './ModuleSegmentedNav';
 import OzySelect from './OzySelect';
+
+const WORKSPACE_SETTINGS_TABS = [
+    { id: 'ws_general', label: 'General', hint: 'Rename and review the project identity.' },
+    { id: 'ws_members', label: 'Team Members', hint: 'Invite people and adjust access in one place.' },
+    { id: 'ws_danger', label: 'Danger Zone', hint: 'Only destructive actions and irreversible warnings.' },
+] as const;
 
 interface Workspace {
     id: string | number;
@@ -246,58 +254,61 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({
     );
 
     return (
-        <div className="flex-1 overflow-y-auto p-12 bg-[#0c0c0c] custom-scrollbar animate-in fade-in duration-500">
-            <div className="max-w-4xl mx-auto">
-                <div className="mb-12">
-                    <ModulePageHero
-                        eyebrow="Project Settings"
-                        title={workspace.name}
-                        description="Adjust the project identity, manage who can access it, and control the workspace-scoped resources OzyBase already isolates today. Physical tables, buckets, and infrastructure topology still stay explicit."
-                        icon={Settings}
-                        pills={[
-                            { label: workspace.slug ? `slug: ${workspace.slug}` : 'slug pending', tone: workspace.slug ? 'accent' : 'warning' },
-                            { label: `${members.length} team member${members.length === 1 ? '' : 's'}`, tone: 'neutral' },
-                            { label: view === 'ws_danger' ? 'danger zone' : view === 'ws_members' ? 'team access' : 'general config', tone: view === 'ws_danger' ? 'danger' : 'success' },
-                        ]}
-                        stats={[
-                            {
-                                label: 'Project Name',
-                                value: workspace.name,
-                                hint: 'Rename the project here without affecting the rest of the dashboard structure.',
-                            },
-                            {
-                                label: 'Project Slug',
-                                value: workspace.slug || 'Not available',
-                                hint: 'This identifier is stable after project creation so links and integrations stay predictable.',
-                            },
-                            {
-                                label: 'Primary Job',
-                                value: view === 'ws_members' ? 'Manage team access' : view === 'ws_danger' ? 'Protect destructive actions' : 'Keep project identity clean',
-                                hint: 'Each tab focuses on one clear responsibility to reduce admin mistakes.',
-                            },
-                        ]}
-                    />
+        <ModuleScrollContainer width="5xl" innerClassName="animate-in fade-in duration-500 pb-16">
+            <ModulePageHero
+                eyebrow="Project Settings"
+                title={workspace.name}
+                description="Adjust the project identity, manage who can access it, and control the workspace-scoped resources OzyBase already isolates today. Physical tables, buckets, and infrastructure topology still stay explicit."
+                icon={Settings}
+                pills={[
+                    { label: workspace.slug ? `slug: ${workspace.slug}` : 'slug pending', tone: workspace.slug ? 'accent' : 'warning' },
+                    { label: `${members.length} team member${members.length === 1 ? '' : 's'}`, tone: 'neutral' },
+                    { label: view === 'ws_danger' ? 'danger zone' : view === 'ws_members' ? 'team access' : 'general config', tone: view === 'ws_danger' ? 'danger' : 'success' },
+                ]}
+                stats={[
+                    {
+                        label: 'Project Name',
+                        value: workspace.name,
+                        hint: 'Rename the project here without affecting the rest of the dashboard structure.',
+                    },
+                    {
+                        label: 'Project Slug',
+                        value: workspace.slug || 'Not available',
+                        hint: 'This identifier is stable after project creation so links and integrations stay predictable.',
+                    },
+                    {
+                        label: 'Primary Job',
+                        value: view === 'ws_members' ? 'Manage team access' : view === 'ws_danger' ? 'Protect destructive actions' : 'Keep project identity clean',
+                        hint: 'Each tab focuses on one clear responsibility to reduce admin mistakes.',
+                    },
+                ]}
+            />
+
+            <ModuleSegmentedNav
+                items={WORKSPACE_SETTINGS_TABS}
+                activeId={view}
+                onSelect={(nextView) => onViewSelect?.(nextView)}
+            />
+
+            {feedback && (
+                <div className={`rounded-2xl border px-5 py-4 text-sm font-bold ${
+                    feedback.tone === 'success'
+                        ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+                        : 'border-red-500/20 bg-red-500/10 text-red-300'
+                }`}>
+                    {feedback.message}
                 </div>
+            )}
 
-                {feedback && (
-                    <div className={`mb-8 rounded-2xl border px-5 py-4 text-sm font-bold ${
-                        feedback.tone === 'success'
-                            ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
-                            : 'border-red-500/20 bg-red-500/10 text-red-300'
-                    }`}>
-                        {feedback.message}
-                    </div>
-                )}
+            <div className="rounded-[2rem] border border-primary/15 bg-[linear-gradient(180deg,rgba(34,34,10,0.18),rgba(10,10,10,0.96))] p-5">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">Project Scope Today</p>
+                <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+                    This workspace scopes <span className="text-white">memberships, collection metadata, API keys, saved views, and dashboard context</span>.
+                    Dedicated Postgres schemas, automatic bucket provisioning, and infra-region settings are still separate concerns.
+                </p>
+            </div>
 
-                <div className="mb-8 rounded-[2rem] border border-primary/15 bg-[linear-gradient(180deg,rgba(34,34,10,0.18),rgba(10,10,10,0.96))] p-5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">Project Scope Today</p>
-                    <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-                        This workspace scopes <span className="text-white">memberships, collection metadata, API keys, saved views, and dashboard context</span>.
-                        Dedicated Postgres schemas, automatic bucket provisioning, and infra-region settings are still separate concerns.
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-12">
+            <div className="grid grid-cols-1 gap-12">
                     {/* General Settings */}
                     {(view === 'ws_general' || !view) && (
                     <section className="bg-[#0f0f0f] border border-[#2e2e2e] rounded-3xl overflow-hidden shadow-2xl">
@@ -450,7 +461,6 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({
                     </section>
                     )}
                 </div>
-            </div>
 
             <ConfirmModal
                 isOpen={isDeleteConfirmOpen}
@@ -461,7 +471,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({
                 confirmText="Delete Project"
                 type="danger"
             />
-        </div>
+        </ModuleScrollContainer>
     );
 };
 
