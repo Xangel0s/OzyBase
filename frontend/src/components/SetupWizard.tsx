@@ -1157,7 +1157,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                 </p>
                             </div>
 
-                            <div className="mb-6 grid grid-cols-1 gap-3 2xl:grid-cols-3">
+                            <div className="mb-5 grid grid-cols-1 gap-3 xl:grid-cols-3">
                                 {migrationPrepareStages.map((stage, index) => {
                                     const isActive = stage.id === migrationStage;
                                     const isComplete = stage.id === 'analysis'
@@ -1167,7 +1167,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                     return (
                                         <div
                                             key={stage.id}
-                                            className={`rounded-[1.5rem] border px-4 py-4 transition-all ${isActive
+                                            className={`rounded-2xl border px-4 py-3 transition-all ${isActive
                                                 ? 'border-primary/35 bg-primary/10'
                                                 : isComplete
                                                     ? 'border-zinc-700 bg-zinc-900/70'
@@ -1180,7 +1180,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 </div>
                                                 <div>
                                                     <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${isActive ? 'text-primary' : 'text-zinc-500'}`}>{stage.label}</p>
-                                                    <p className="mt-1 text-sm text-zinc-300">{stage.hint}</p>
+                                                    <p className="mt-1 text-sm text-zinc-400">{stage.hint}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -1604,64 +1604,52 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                     </div>
 
                                     {migrationStage === 'source' ? (
-                                        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+                                        <div className="flex-1 min-h-0 overflow-y-auto p-6">
                                             <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
                                                 <div className="flex items-start gap-4">
                                                     <div className="rounded-2xl bg-black/30 border border-white/5 p-3">
                                                         <Database size={18} className="text-primary" />
                                                     </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary mb-2">Flow overview</p>
-                                                        <h4 className="text-sm font-semibold text-white">Choose the engine before anything else</h4>
-                                                        <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
-                                                            Once you click a source card, the next stage switches to loading that selected dump. That keeps the migration flow lighter and more obvious.
+                                                    <div className="min-w-0">
+                                                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary mb-2">Minimal flow</p>
+                                                        <h4 className="text-sm font-semibold text-white">Choose the engine and move on</h4>
+                                                        <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                                                            Pick the source here. The upload screen adapts automatically, and the detailed review stays reserved for the final modal.
+                                                        </p>
+                                                        <div className="mt-4 flex flex-wrap gap-2">
+                                                            {migrationPrepareStages.map((stage, index) => (
+                                                                <span key={`source-pill-${stage.id}`} className="rounded-full border border-zinc-700 bg-zinc-950/70 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300">
+                                                                    {index + 1}. {stage.label}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                        <p className="mt-4 text-xs leading-relaxed text-zinc-500">
+                                                            Current default: {selectedMigrationSource.title}
                                                         </p>
                                                     </div>
                                                 </div>
                                             </div>
-
-                                            <div className="grid grid-cols-1 gap-3">
-                                                {migrationPrepareStages.map((stage, index) => (
-                                                    <div key={`side-stage-${stage.id}`} className="rounded-2xl border border-zinc-800 bg-black/20 px-4 py-4">
-                                                        <div className="flex items-start gap-3">
-                                                            <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950 text-[10px] font-black text-zinc-300">
-                                                                {index + 1}
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">{stage.label}</span>
-                                                                <p className="mt-1 text-sm text-zinc-300">{stage.hint}</p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-
-                                            <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
-                                                <span className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Current source</span>
-                                                <p className="mt-2 text-sm font-semibold text-white">{selectedMigrationSource.title}</p>
-                                                <p className="mt-2 text-sm leading-relaxed text-zinc-500">{selectedMigrationSource.hint}</p>
-                                            </div>
                                         </div>
                                     ) : migrationStage === 'upload' ? (
-                                        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
+                                        <div className="flex-1 min-h-0 overflow-y-auto p-6">
                                             <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
-                                                <div className="flex items-center gap-2 text-primary mb-2">
+                                                <div className="flex items-center gap-2 text-primary mb-3">
                                                     <CheckCircle size={16} />
-                                                    <span className="text-[10px] font-black uppercase tracking-[0.24em]">Readiness check</span>
+                                                    <span className="text-[10px] font-black uppercase tracking-[0.24em]">Readiness</span>
                                                 </div>
                                                 <div className="space-y-3 text-sm">
                                                     <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-3">
-                                                        <span className="text-zinc-400">Database selected</span>
+                                                        <span className="text-zinc-400">Source</span>
                                                         <span className="font-semibold text-white">{selectedMigrationSource.label}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-3">
-                                                        <span className="text-zinc-400">Input loaded</span>
+                                                        <span className="text-zinc-400">Input</span>
                                                         <span className={`font-semibold ${migrationHasInput ? 'text-white' : 'text-zinc-500'}`}>
-                                                            {migrationHasInput ? 'Ready' : 'Pending'}
+                                                            {migrationHasInput ? 'Loaded' : 'Pending'}
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-3">
-                                                        <span className="text-zinc-400">Table name</span>
+                                                        <span className="text-zinc-400">Target table</span>
                                                         <span className={`font-semibold ${!selectedMigrationSource.requiresTableName || migrationDraft.tableName.trim() ? 'text-white' : 'text-zinc-500'}`}>
                                                             {selectedMigrationSource.requiresTableName
                                                                 ? (migrationDraft.tableName.trim() || 'Required')
@@ -1669,28 +1657,13 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                         </span>
                                                     </div>
                                                 </div>
-                                            </div>
-
-                                            <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
-                                                <span className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">What basic analysis will do</span>
-                                                <div className="mt-4 space-y-3">
-                                                    {selectedMode.prepSteps.map((prepStep) => (
-                                                        <div key={`upload-step-${prepStep}`} className="rounded-xl border border-zinc-800 bg-zinc-950/60 px-3 py-3 text-sm text-zinc-300">
-                                                            {prepStep}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            <div className="rounded-[1.75rem] border border-primary/20 bg-primary/5 p-5">
-                                                <span className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">Next move</span>
-                                                <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-                                                    Continue only after the selected source is loaded. The next stage runs the basic analysis and opens the final modal review when the preview is ready.
+                                                <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+                                                    When these three are ready, continue to the basic analysis. The detailed SQL review stays outside this page in the modal.
                                                 </p>
                                             </div>
                                         </div>
                                     ) : migrationPreview ? (
-                                        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
+                                        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
                                             <div className="rounded-[2rem] border border-primary/20 bg-[linear-gradient(135deg,rgba(254,254,0,0.12),rgba(12,12,12,0.5))] p-5">
                                                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                                     <div className="max-w-2xl">
@@ -1728,24 +1701,14 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                                                <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 px-4 py-4">
-                                                    <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Next step</span>
-                                                    <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-                                                        Open the full review only if you want to inspect sample rows and SQL. Otherwise you can continue with the admin and let setup run the plan as summarized here.
-                                                    </p>
-                                                </div>
-                                                <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 px-4 py-4">
-                                                    <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Attention points</span>
-                                                    <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-                                                        {migrationPreview.warnings?.length || 0} global warnings and {migrationPreviewTableWarningCount} tables with table-level warnings need a quick check before bootstrap.
-                                                    </p>
-                                                </div>
-                                            </div>
-
                                             {migrationPreview.warnings && migrationPreview.warnings.length > 0 && (
-                                                <div className="rounded-[1.75rem] border border-amber-500/20 bg-amber-500/5 px-4 py-4">
-                                                    <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-amber-100/70">Warnings snapshot</span>
+                                                <div className="rounded-[1.5rem] border border-amber-500/20 bg-amber-500/5 px-4 py-4">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-amber-100/70">Warnings</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-100/70">
+                                                            {migrationPreview.warnings.length} global
+                                                        </span>
+                                                    </div>
                                                     <div className="mt-3 space-y-2">
                                                         {migrationPreview.warnings.slice(0, 2).map((warning) => (
                                                             <div key={warning} className="rounded-xl border border-amber-500/20 bg-black/20 px-3 py-3 text-xs leading-relaxed text-amber-100/85">
@@ -1756,12 +1719,12 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                 </div>
                                             )}
 
-                                            <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 px-4 py-4">
+                                            <div className="rounded-[1.5rem] border border-zinc-800 bg-black/20 px-4 py-4">
                                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                                     <div>
-                                                        <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Quick table scan</span>
+                                                        <span className="block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Preview tables</span>
                                                         <p className="mt-2 text-sm leading-relaxed text-zinc-300">
-                                                            Keep this step light: review just the first tables here, then open the modal only if you need deeper inspection.
+                                                            Keep this page minimal: scan the first tables here and use the modal for full SQL and sample rows.
                                                         </p>
                                                     </div>
                                                     <button
@@ -1769,34 +1732,14 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                                         onClick={() => setIsMigrationPreviewModalOpen(true)}
                                                         className="inline-flex items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-white transition-all hover:border-primary/35 hover:text-primary"
                                                     >
-                                                        Inspect all tables
+                                                        Open modal review
                                                     </button>
                                                 </div>
-                                                <div className="mt-4 grid grid-cols-1 gap-3 2xl:grid-cols-2">
+                                                <div className="mt-4 flex flex-wrap gap-2">
                                                     {migrationPreviewTableSample.map((table) => (
-                                                        <div key={`compact-${table.name}`} className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-4">
-                                                            <div className="flex items-start justify-between gap-3">
-                                                                <div className="min-w-0">
-                                                                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">{table.display_name}</p>
-                                                                    <h4 className="mt-1 break-all text-sm font-semibold text-white">{table.name}</h4>
-                                                                </div>
-                                                                <div className="rounded-full border border-zinc-700 bg-black/30 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300">
-                                                                    {table.detected_rows} rows
-                                                                </div>
-                                                            </div>
-                                                            <div className="mt-3 flex flex-wrap gap-2">
-                                                                {table.columns.slice(0, 4).map((column) => (
-                                                                    <span key={`compact-${table.name}-${column.name}`} className="rounded-full border border-zinc-700 bg-black/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-300">
-                                                                        {column.name}
-                                                                    </span>
-                                                                ))}
-                                                                {table.columns.length > 4 && (
-                                                                    <span className="rounded-full border border-zinc-700 bg-black/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">
-                                                                        +{table.columns.length - 4} more
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
+                                                        <span key={`compact-${table.name}`} className="rounded-full border border-zinc-700 bg-zinc-950/70 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-200">
+                                                            {table.name}
+                                                        </span>
                                                     ))}
                                                 </div>
                                                 {migrationPreview.table_count > migrationPreviewTableSample.length && (
@@ -1807,36 +1750,28 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col justify-between">
-                                            <div className="space-y-4">
-                                                <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
-                                                    <div className="flex items-start gap-4">
-                                                        <div className="rounded-2xl bg-black/30 border border-white/5 p-3">
-                                                            <selectedMigrationSource.icon size={18} className="text-primary" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary mb-2">Current source</p>
-                                                            <h4 className="text-sm font-semibold text-white">{selectedMigrationSource.title}</h4>
-                                                            <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{selectedMigrationSource.hint}</p>
+                                        <div className="flex-1 min-h-0 overflow-y-auto p-6">
+                                            <div className="rounded-[1.75rem] border border-zinc-800 bg-black/20 p-5">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="rounded-2xl bg-black/30 border border-white/5 p-3">
+                                                        {migrationPreviewing ? <Loader2 size={18} className="text-primary animate-spin" /> : <selectedMigrationSource.icon size={18} className="text-primary" />}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary mb-2">Before analysis</p>
+                                                        <h4 className="text-sm font-semibold text-white">{selectedMigrationSource.title}</h4>
+                                                        <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                                                            Run the basic analysis first. The page stays compact here, and the detailed inspection opens in the modal only when the preview is ready.
+                                                        </p>
+                                                        <div className="mt-4 space-y-2">
+                                                            {selectedMode.prepSteps.map((prepStep) => (
+                                                                <div key={`analysis-prestep-${prepStep}`} className="text-sm text-zinc-500">
+                                                                    {prepStep}
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     </div>
                                                 </div>
-
-                                                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                                                    {selectedMode.prepSteps.map((prepStep) => (
-                                                        <div key={prepStep} className="rounded-2xl border border-zinc-800 bg-black/20 px-4 py-4 text-sm text-zinc-500">
-                                                            <div className="mb-3 flex items-center gap-3">
-                                                                {migrationPreviewing ? <Loader2 size={16} className="text-primary shrink-0 animate-spin" /> : <Sparkles size={14} className="text-primary shrink-0" />}
-                                                                <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">Plan</span>
-                                                            </div>
-                                                            <span>{prepStep}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
                                             </div>
-                                            <p className="mt-6 text-sm text-zinc-500 leading-relaxed">
-                                                Analyze the source first. The detailed review opens in a dedicated modal once the plan is ready, while this panel stays focused on status, scope, and the next action.
-                                            </p>
                                         </div>
                                     )}
 
