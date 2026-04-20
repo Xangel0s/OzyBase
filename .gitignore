@@ -1,0 +1,106 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+/ozybase
+/flowkore
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.install_*
+.ozy_secret
+.ozy_anon_key
+.ozy_service_role_key
+frontend/token.txt
+skills-lock.json
+.engram-ssd.md
+
+# Local agent/editor metadata
+.agent/
+.agents/
+.claude/
+.cline/
+.kiro/
+.trae/
+.windsurf/
+.vscode/mcp.json
+
+# Frontend dependencies
+node_modules/
+dist/
+build/
+frontend_dist/
+internal/api/frontend_dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Embedded PostgreSQL Data
+data/
+ozy_data/
+ozy_data_smoke/
+ozy_data_validation*/
+artifacts/
+/tmp/
+/scratch/
+.tmp-sector/
+.tmp-sector2/
+test_import.csv
+
+# Generated smoke migrations
+migrations/*ci_smoke*.sql
+
+# Server Logs
+*.log
+ozybase-local.log
+server_diag.log
+server_new.log
+server.log
+
+# Frontend local test/debug artifacts
+frontend/playwright-report/
+frontend/test-results/
+frontend/test_error*.txt
+frontend/test_results.txt
+frontend/*_output.txt
+frontend/report.json
+
+# Local one-off patch/work artifacts
+patch_*.py
+patch_*.js
+fix_*.py
+update_modal*.py
+build_new_forge.py
+cat_end.py
+test_patch.py
+guaranteed_patch.py
+backup_content.txt
+git_status_full.txt
+diff_forge.diff
+engram-export.json
+AUDIT_REPORT.md

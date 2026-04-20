@@ -1,0 +1,490 @@
+import React, { useState, useEffect } from 'react';
+import {
+    Users,
+    Settings, 
+    Trash2, 
+    Mail, 
+    AlertTriangle,
+    Save,
+    UserPlus,
+    Lock
+} from 'lucide-react';
+import { fetchWithAuth } from '../utils/api';
+import ConfirmModal from './ConfirmModal';
+import ModulePageHero from './ModulePageHero';
+import ModuleScrollContainer from './ModuleScrollContainer';
+import ModuleSegmentedNav from './ModuleSegmentedNav';
+import OzySelect from './OzySelect';
+
+const WORKSPACE_SETTINGS_TABS = [
+    { id: 'ws_general', label: 'General', hint: 'Rename and review the project identity.' },
+    { id: 'ws_members', label: 'Team Members', hint: 'Invite people and adjust access in one place.' },
+    { id: 'ws_danger', label: 'Danger Zone', hint: 'Only destructive actions and irreversible warnings.' },
+] as const;
+
+interface Workspace {
+    id: string | number;
+    name: string;
+    slug?: string;
+    config?: Record<string, unknown>;
+}
+
+interface WorkspaceMember {
+    user_id: string;
+    email: string;
+    role: 'owner' | 'admin' | 'member' | 'viewer' | string;
+}
+
+interface WorkspaceFeedback {
+    tone: 'success' | 'error';
+    message: string;
+}
+
+interface WorkspaceSettingsProps {
+    workspaceId?: string | number | null;
+    view?: 'ws_general' | 'ws_members' | 'ws_danger' | string;
+    onViewSelect?: (view: string) => void;
+    onWorkspaceChange?: (workspaceId: string | null) => void;
+}
+
+const isWorkspace = (value: unknown): value is Workspace => (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    'name' in value &&
+    typeof (value as { name: unknown }).name === 'string'
+);
+
+const isWorkspaceMember = (value: unknown): value is WorkspaceMember => (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { user_id?: unknown }).user_id === 'string' &&
+    typeof (value as { email?: unknown }).email === 'string' &&
+    typeof (value as { role?: unknown }).role === 'string'
+);
+
+const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({
+    workspaceId,
+    view = 'ws_general',
+    onViewSelect,
+    onWorkspaceChange
+}) => {
+    const [workspace, setWorkspace] = useState<Workspace | null>(null);
+    const [members, setMembers] = useState<WorkspaceMember[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteRole, setInviteRole] = useState('member');
+    const [saving, setSaving] = useState(false);
+    const [name, setName] = useState('');
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [feedback, setFeedback] = useState<WorkspaceFeedback | null>(null);
+
+    const readErrorMessage = async (response: Response, fallback: string) => {
+        try {
+            const data: unknown = await response.json();
+            if (typeof data === 'object' && data !== null && 'error' in data && typeof (data as { error?: unknown }).error === 'string') {
+                const message = (data as { error: string }).error.trim();
+                if (message) {
+                    return message;
+                }
+            }
+        } catch {
+            // Ignore parse failures and fall back to a generic message.
+        }
+        return fallback;
+    };
+
+    const fetchData = React.useCallback(async () => {
+        if (!workspaceId) {
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        try {
+            // Fetch workspace info from the list
+            const resWs = await fetchWithAuth('/api/workspaces');
+            if (resWs.ok) {
+                const data: unknown = await resWs.json();
+                const workspaces = Array.isArray(data) ? data.filter(isWorkspace) : [];
+                const current = workspaces.find((w: any) => String(w.id) === String(workspaceId));
+                if (current) {
+                    setWorkspace(current);
+                    setName(current.name);
+                }
+            }
+
+            // Fetch members
+            const resMembers = await fetchWithAuth(`/api/workspaces/${workspaceId}/members`);
+            if (resMembers.ok) {
+                const data: unknown = await resMembers.json();
+                const workspaceMembers = Array.isArray(data) ? data.filter(isWorkspaceMember) : [];
+                setMembers(workspaceMembers);
+            }
+        } catch (err: unknown) {
+            console.error("Failed to load settings data", err);
+        } finally {
+            setLoading(false);
+        }
+    }, [workspaceId]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    // Auto-scroll to top when switching views (submodules)
+    useEffect(() => {
+        const root = document.querySelector('[data-module-scroll-root]');
+        if (root) {
+            root.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }, [view]);
+
+    const handleUpdateName = async () => {
+        if (!workspaceId || !workspace) return;
+        setSaving(true);
+        try {
+            const res = await fetchWithAuth(`/api/workspaces/${workspaceId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, config: workspace.config ?? {} })
+            });
+            if (!res.ok) {
+                setFeedback({ tone: 'error', message: await readErrorMessage(res, 'Unable to update project settings.') });
+                return;
+            }
+            setFeedback({ tone: 'success', message: 'Project settings updated.' });
+            fetchData();
+        } catch (err: unknown) {
+            console.error(err);
+            setFeedback({ tone: 'error', message: 'Unable to update project settings.' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleRemoveMember = async (userId: string) => {
+        try {
+            const res = await fetchWithAuth(`/api/workspaces/${workspaceId}/members/${userId}`, {
+                method: 'DELETE'
+            });
+            if (!res.ok) {
+                setFeedback({ tone: 'error', message: await readErrorMessage(res, 'Unable to remove project member.') });
+                return;
+            }
+            setFeedback({ tone: 'success', message: 'Project member removed.' });
+            fetchData();
+        } catch (err: unknown) {
+            console.error(err);
+            setFeedback({ tone: 'error', message: 'Unable to remove project member.' });
+        }
+    };
+
+    const handleInvite = async () => {
+        const identifier = inviteEmail.trim();
+        if (!identifier) return;
+
+        const payload = identifier.includes('@')
+            ? { email: identifier, role: inviteRole }
+            : { user_id: identifier, role: inviteRole };
+
+        try {
+            const res = await fetchWithAuth(`/api/workspaces/${workspaceId}/members`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) {
+                setFeedback({ tone: 'error', message: await readErrorMessage(res, 'Unable to update project members.') });
+                return;
+            }
+            setInviteEmail('');
+            setFeedback({ tone: 'success', message: 'Project member updated.' });
+            fetchData();
+        } catch (err: unknown) {
+            console.error(err);
+            setFeedback({ tone: 'error', message: 'Unable to update project members.' });
+        }
+    };
+
+    const handleDeleteWorkspace = async () => {
+        if (!workspaceId || !workspace) return;
+
+        setSaving(true);
+        try {
+            const deletedWorkspaceId = String(workspaceId);
+            const res = await fetchWithAuth(`/api/workspaces/${workspaceId}`, {
+                method: 'DELETE'
+            });
+            if (!res.ok) {
+                throw new Error(await readErrorMessage(res, 'Unable to delete workspace.'));
+            }
+
+            setWorkspace(null);
+            setMembers([]);
+            localStorage.removeItem('ozy_workspace_id');
+            onWorkspaceChange?.(null);
+
+            const workspacesRes = await fetchWithAuth('/api/workspaces');
+            const remainingWorkspaces = workspacesRes.ok ? await workspacesRes.json() : [];
+            const fallbackWorkspace = Array.isArray(remainingWorkspaces)
+                ? remainingWorkspaces.find((item: any) => String(item?.id || '') !== deletedWorkspaceId)
+                : null;
+
+            if (fallbackWorkspace?.id) {
+                const nextWorkspaceId = String(fallbackWorkspace.id);
+                localStorage.setItem('ozy_workspace_id', nextWorkspaceId);
+                onWorkspaceChange?.(nextWorkspaceId);
+            }
+
+            onViewSelect?.('workspaces');
+        } catch (err: unknown) {
+            console.error(err);
+            setFeedback({ tone: 'error', message: err instanceof Error ? err.message : 'Unable to delete workspace.' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) return (
+        <div className="flex-1 flex items-center justify-center p-10 bg-[#111111]">
+            <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+        </div>
+    );
+
+    if (!workspace) return (
+        <div className="flex-1 flex items-center justify-center p-10 bg-[#111111]">
+             <div className="text-center">
+                <AlertTriangle className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+                <h2 className="text-zinc-500 font-bold">No Project Selected</h2>
+                <p className="text-zinc-700 text-sm mt-2">Please select a project to configure its settings.</p>
+             </div>
+        </div>
+    );
+
+    return (
+        <ModuleScrollContainer width="5xl" innerClassName="animate-in fade-in duration-500 pb-16">
+            <ModulePageHero
+                eyebrow="Project Settings"
+                title={workspace.name}
+                description="Adjust the project identity, manage who can access it, and control the project-scoped resources OzyBase already isolates today. In self-hosted mode this does not provision another PostgreSQL database."
+                icon={Settings}
+                pills={[
+                    { label: workspace.slug ? `slug: ${workspace.slug}` : 'slug pending', tone: workspace.slug ? 'accent' : 'warning' },
+                    { label: `${members.length} team member${members.length === 1 ? '' : 's'}`, tone: 'neutral' },
+                    { label: view === 'ws_danger' ? 'danger zone' : view === 'ws_members' ? 'team access' : 'general config', tone: view === 'ws_danger' ? 'danger' : 'success' },
+                ]}
+                stats={[
+                    {
+                        label: 'Project Name',
+                        value: workspace.name,
+                        hint: 'Rename the project here without affecting the rest of the dashboard structure.',
+                    },
+                    {
+                        label: 'Project Slug',
+                        value: workspace.slug || 'Not available',
+                        hint: 'This identifier is stable after project creation so links and integrations stay predictable.',
+                    },
+                    {
+                        label: 'Primary Job',
+                        value: view === 'ws_members' ? 'Manage team access' : view === 'ws_danger' ? 'Protect destructive actions' : 'Keep project identity clean',
+                        hint: 'Each tab focuses on one clear responsibility to reduce admin mistakes.',
+                    },
+                ]}
+            />
+
+            <div className="sticky top-0 z-30 -mx-4 px-4 bg-[#0a0a0a]/80 backdrop-blur-md pb-4 pt-2 border-b border-white/5 mb-8">
+                <ModuleSegmentedNav
+                    items={WORKSPACE_SETTINGS_TABS}
+                    activeId={view}
+                    onSelect={(nextView) => onViewSelect?.(nextView)}
+                />
+            </div>
+
+            {feedback && (
+                <div className={`rounded-md border px-5 py-4 text-sm font-bold ${
+                    feedback.tone === 'success'
+                        ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+                        : 'border-red-500/20 bg-red-500/10 text-red-300'
+                }`}>
+                    {feedback.message}
+                </div>
+            )}
+
+            <div className="rounded-4xl border border-primary/15 bg-[linear-gradient(180deg,rgba(34,34,10,0.18),rgba(10,10,10,0.96))] p-5">
+                <p className="text-[10px] font-medium] text-primary">Project Scope Today</p>
+                <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+                    This project scopes <span className="text-white">memberships, collection metadata, API keys, saved views, MCP context, and dashboard state</span>.
+                    Self-hosted mode keeps the physical PostgreSQL database shared and does not auto-provision dedicated schemas or buckets here.
+                </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-12">
+                    {/* General Settings */}
+                    {(view === 'ws_general' || !view) && (
+                    <section className="bg-[#0f0f0f] border border-border rounded-md overflow-hidden shadow-2xl">
+                        <div className="p-8 border-b border-border bg-[#141414]">
+                            <h2 className="text-lg font-bold text-white uppercase tracking-wider flex items-center gap-3">
+                                <Settings size={18} className="text-primary" />
+                                General Configuration
+                            </h2>
+                        </div>
+                        <div className="p-8 space-y-8">
+                            <div>
+                                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-4 block">Project Name</label>
+                                <div className="flex gap-4">
+                                    <input
+                                        type="text"
+                                        value={name}
+                                        onChange={(e: any) => setName(e.target.value)}
+                                        className="flex-1 bg-background border border-border rounded-md px-4 py-3 text-sm font-bold text-white focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all"
+                                    />
+                                    <button 
+                                        onClick={handleUpdateName}
+                                        disabled={saving || name === workspace?.name}
+                                        className="px-6 py-3 bg-primary text-black font-medium text-xs tracking-widest rounded-md hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
+                                    >
+                                        <Save size={16} />
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-4 block">Project Identifier (Slug)</label>
+                                <div className="p-4 bg-background border border-zinc-900 rounded-md flex items-center justify-between border-dashed">
+                                    <span className="text-sm font-mono text-zinc-600">{workspace?.slug}</span>
+                                    <Lock size={14} className="text-zinc-800" />
+                                </div>
+                                <p className="mt-2 text-[9px] text-zinc-700 font-bold uppercase tracking-wider">Identifiers cannot be changed after project initialization.</p>
+                            </div>
+                        </div>
+                    </section>
+                    )}
+
+                    {/* Team Members */}
+                    {view === 'ws_members' && (
+                    <section className="bg-[#0f0f0f] border border-border rounded-md overflow-hidden shadow-2xl">
+                        <div className="p-8 border-b border-border bg-[#141414] flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-white uppercase tracking-wider flex items-center gap-3">
+                                <Users size={18} className="text-primary" />
+                                Access Control (IAM)
+                            </h2>
+                            <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full font-medium">
+                                {members.length} Members
+                            </span>
+                        </div>
+                        <div className="p-8">
+                            {/* Invite Box */}
+                            <div className="mb-10 bg-background p-6 border border-zinc-900 border-dashed rounded-md">
+                                <h3 className="text-xs font-bold text-white uppercase tracking-[0.15em] mb-4">Invite new collaborator</h3>
+                                <div className="flex flex-col md:flex-row gap-4">
+                                    <div className="flex-1 relative">
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600" size={16} />
+                                        <input
+                                            type="text"
+                                            placeholder="Member email or user ID"
+                                            value={inviteEmail}
+                                            onChange={(e: any) => setInviteEmail(e.target.value)}
+                                            className="w-full bg-background border border-border rounded-md pl-12 pr-4 py-3 text-sm font-bold text-white focus:outline-none focus:border-primary/50 transition-all"
+                                        />
+                                    </div>
+                                    <OzySelect 
+                                        value={inviteRole}
+                                        onChange={(e: any) => setInviteRole(e.target.value)}
+                                        wrapperClassName="w-full md:min-w-[220px] md:w-auto"
+                                        selectClassName="text-[10px]"
+                                    >
+                                        <option value="member">Member</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="viewer">Viewer</option>
+                                    </OzySelect>
+                                    <button 
+                                        onClick={handleInvite}
+                                        disabled={!inviteEmail.trim()}
+                                        className="px-6 py-3 bg-white text-black font-medium text-xs tracking-widest rounded-md hover:bg-zinc-200 transition-colors flex items-center gap-2"
+                                    >
+                                        <UserPlus size={16} />
+                                        Invite
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {members.map((member: any) => (
+                                    <div key={member.user_id} className="flex items-center justify-between p-4 bg-background border border-border rounded-md group hover:border-zinc-700 transition-all">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 font-bold">
+                                                {member.email.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-bold text-white">{member.email}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">UID: {member.user_id.substring(0, 8)}...</span>
+                                                    <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest ${
+                                                        member.role === 'owner' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
+                                                        member.role === 'admin' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' :
+                                                        'bg-zinc-800 text-zinc-400'
+                                                    }`}>
+                                                        {member.role}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {member.role !== 'owner' && (
+                                            <button 
+                                                onClick={() => handleRemoveMember(member.user_id)}
+                                                className="p-2.5 text-zinc-800 hover:text-red-500 hover:bg-red-500/10 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                    )}
+
+                    {/* Danger Zone */}
+                    {view === 'ws_danger' && (
+                    <section className="bg-red-500/5 border border-red-500/20 rounded-md overflow-hidden shadow-2xl">
+                        <div className="p-8 border-b border-red-500/20 bg-red-500/10">
+                            <h2 className="text-lg font-bold text-red-500 uppercase tracking-wider flex items-center gap-3">
+                                <AlertTriangle size={18} />
+                                Termination Protocol
+                            </h2>
+                        </div>
+                        <div className="p-8">
+                            <p className="text-sm text-zinc-400 font-bold mb-6 italic">
+                                Deleting this project removes the logical project record, memberships, and project-scoped dashboard metadata. It does not automatically drop physical Postgres tables, storage buckets, or edge functions.
+                            </p>
+                            <button
+                                onClick={() => setIsDeleteConfirmOpen(true)}
+                                disabled={saving}
+                                className="px-8 py-3 bg-red-600 text-white font-medium text-xs tracking-[0.2em] rounded-md hover:bg-red-700 transition-colors flex items-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                <Trash2 size={16} />
+                                Delete Project
+                            </button>
+                        </div>
+                    </section>
+                    )}
+                </div>
+
+            <ConfirmModal
+                isOpen={isDeleteConfirmOpen}
+                onClose={() => setIsDeleteConfirmOpen(false)}
+                onConfirm={handleDeleteWorkspace}
+                title="Delete Project"
+                message={`Project "${workspace.name}" will be removed from project routing, membership, and dashboard metadata. Physical tables and buckets are not dropped automatically by this action.`}
+                confirmText="Delete Project"
+                type="danger"
+            />
+        </ModuleScrollContainer>
+    );
+};
+
+export default WorkspaceSettings;
+
+

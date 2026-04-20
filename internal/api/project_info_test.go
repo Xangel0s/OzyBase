@@ -1,0 +1,57 @@
+package api
+
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
+
+func TestProjectInfoDoesNotExposeConnectionSecrets(t *testing.T) {
+	info := ProjectInfo{
+		Name:     "test",
+		Database: "ozybase",
+		Version:  "16",
+	}
+
+	payload, err := json.Marshal(info)
+	if err != nil {
+		t.Fatalf("marshal project info: %v", err)
+	}
+
+	body := string(payload)
+	for _, forbidden := range []string{
+		`"host":`,
+		`"port":`,
+		`"user":`,
+		`"password":`,
+		`"service_role":`,
+		`"service_key":`,
+		`"pooler":`,
+		`"smtp_pass":`,
+	} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("project info payload unexpectedly contains %s", forbidden)
+		}
+	}
+}
+
+func TestCountryCodeFromCountryLabel(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "code_passthrough", input: "US", want: "US"},
+		{name: "country_name", input: "United States", want: "US"},
+		{name: "country_name_case", input: "peru", want: "PE"},
+		{name: "unknown", input: "Atlantis", want: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := countryCodeFromCountryLabel(tt.input); got != tt.want {
+				t.Fatalf("countryCodeFromCountryLabel(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}

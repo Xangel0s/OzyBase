@@ -1,0 +1,4 @@
+-- OzyBase Auto-Generated Migration
+-- Description: delete_collection_schema_child_75246493
+
+DROP TABLE IF EXISTS schema_child_75246493 CASCADE;
