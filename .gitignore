@@ -61,7 +61,7 @@ yarn-error.log*
 Thumbs.db
 
 # Embedded PostgreSQL Data
-data/
+/data/
 ozy_data/
 ozy_data_smoke/
 ozy_data_validation*/
