@@ -10,9 +10,7 @@ import {
   Server,
   Settings as SettingsIcon,
   Database,
-  Zap,
-  BrainCircuit,
-  Globe
+  Zap
 } from "lucide-react";
 import { fetchWithAuth, readJsonIfOk } from "../utils/api";
 import EssentialApiKeysPanel from "./EssentialApiKeysPanel";
@@ -24,7 +22,6 @@ const MENU_ITEMS = [
   { id: "infrastructure", name: "Infrastructure", icon: Server },
   { id: "usage", name: "Usage & Limits", icon: Activity },
   { id: "api_keys", name: "API Keys", icon: Key },
-  { id: "mcp_gateway", name: "MCP Gateway", icon: Key },
 ];
 
 const SETTINGS_TAB_ITEMS = [
@@ -32,7 +29,6 @@ const SETTINGS_TAB_ITEMS = [
   { id: "infrastructure", label: "Infrastructure", hint: "Connection endpoints and runtime facts." },
   { id: "usage", label: "Usage & Limits", hint: "Project-scoped quotas on shared self-hosted infrastructure." },
   { id: "api_keys", label: "API Keys", hint: "Publishable and secret keys in one place." },
-  { id: "mcp_gateway", label: "MCP Gateway", hint: "AI client access without extra server setup." },
 ] as const;
 
 interface SettingsProps {
@@ -325,19 +321,6 @@ const Settings: React.FC<SettingsProps> = ({
           </div>
         </div>
 
-        <div className="bg-black/20 border border-white/5 rounded-md p-8 shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
-           <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 mb-2">MCP Gateway</p>
-                <h3 className="text-lg font-bold text-white uppercase tracking-tight italic">AI Access to DB</h3>
-                <p className="text-[11px] text-zinc-500 mt-2 leading-relaxed max-w-xl">The MCP endpoint is built-in. It lives under API Keys, uses the Secret key, and generates the VS Code snippet you need for `mcp.json`.</p>
-              </div>
-              <div className="flex flex-wrap gap-3 shrink-0">
-                <button onClick={() => onViewSelect?.("mcp_gateway")} className="px-5 py-2.5 rounded-md bg-white text-black text-[9px] uppercase tracking-widest font-bold hover:scale-105 active:scale-95 transition-all shadow-lg">Open MCP Gateway</button>
-                <button onClick={() => onViewSelect?.("api_keys")} className="px-5 py-2.5 rounded-md border border-white/10 text-zinc-300 text-[9px] uppercase tracking-widest font-bold hover:border-primary/30 hover:text-primary transition-all bg-black/40 hover:bg-black/60">Open API keys</button>
-              </div>
-           </div>
-        </div>
       </div>
     </ModuleScrollContainer>
   );
@@ -549,7 +532,7 @@ const Settings: React.FC<SettingsProps> = ({
                   Self-hosted project scope
                 </h3>
                 <p className="text-[11px] text-zinc-400 leading-relaxed mt-2">
-                  Project scopes people, metadata, API keys, MCP context, saved views and usage counters. It does not provision another PostgreSQL database or dedicated schema in self-hosted mode.
+                  Project scopes people, metadata, API keys, saved views and usage counters. It does not provision another PostgreSQL database or dedicated schema in self-hosted mode.
                 </p>
               </div>
             </div>
@@ -633,16 +616,16 @@ const Settings: React.FC<SettingsProps> = ({
     </ModuleScrollContainer>
   );
 
-  const renderApiKeys = (focusMCP = false) => (
+  const renderApiKeys = () => (
     <ModuleScrollContainer width="full" className="animate-in fade-in duration-500">
       <header className="px-8 py-6 border-b border-border flex items-center justify-between gap-4 bg-background shrink-0 -mx-4 -mt-5 sm:-mx-6 sm:-mt-6 lg:-mx-8 lg:-mt-8 xl:-mx-10 xl:-mt-10 mb-8">
           <div className="flex items-center gap-4">
               <div className="flex w-10 h-10 items-center justify-center rounded-md border border-border bg-zinc-900 text-primary">
-                  {focusMCP ? <BrainCircuit size={20} /> : <Key size={20} />}
+                  <Key size={20} />
               </div>
               <div>
                   <h1 className="text-xl font-bold text-white uppercase tracking-tight italic">
-                      {focusMCP ? "MCP Gateway" : "API Keys"}
+                      API Keys
                   </h1>
                   <p className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase italic">Credentials</p>
               </div>
@@ -650,17 +633,6 @@ const Settings: React.FC<SettingsProps> = ({
       </header>
 
       <div className="space-y-6 pb-12">
-        {focusMCP ? (
-          <div className="rounded-md border border-primary/20 bg-primary/5 p-6 shadow-[0_20px_40px_rgba(0,0,0,0.6)] relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-            <p className="text-[9px] font-bold uppercase tracking-widest text-primary mb-2 relative z-10">MCP Gateway</p>
-            <h3 className="text-lg font-bold text-white uppercase tracking-tight italic relative z-10">Connect VS Code or another MCP client</h3>
-            <p className="text-[11px] text-zinc-400 mt-2 leading-relaxed relative z-10">
-              Reveal the Secret key below, then copy the generated MCP snippet.
-              This uses the built-in `/api/project/mcp` backend and does not require a separate server install.
-            </p>
-          </div>
-        ) : null}
         <EssentialApiKeysPanel />
       </div>
     </ModuleScrollContainer>
@@ -718,7 +690,6 @@ const Settings: React.FC<SettingsProps> = ({
         {currentView === "infrastructure" && renderInfrastructure()}
         {currentView === "usage" && renderUsage()}
         {currentView === "api_keys" && renderApiKeys()}
-        {currentView === "mcp_gateway" && renderApiKeys(true)}
       </main>
     </div>
   );

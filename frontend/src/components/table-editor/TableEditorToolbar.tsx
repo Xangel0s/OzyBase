@@ -77,7 +77,6 @@ interface TableEditorToolbarProps {
     isRealtimeLoading: boolean;
     onToggleRealtime: () => void | Promise<void>;
     onOpenPolicies: () => void;
-    onOpenAdvisors: () => void;
     onOpenDefinition: () => void;
     searchTerm: string;
     setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
@@ -143,7 +142,6 @@ const TableEditorToolbar: React.FC<TableEditorToolbarProps> = ({
     isRealtimeLoading,
     onToggleRealtime,
     onOpenPolicies,
-    onOpenAdvisors,
     onOpenDefinition,
     searchTerm = '',
     setSearchTerm,
@@ -296,15 +294,6 @@ const TableEditorToolbar: React.FC<TableEditorToolbarProps> = ({
                             <span className="bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] text-zinc-400 font-bold tracking-tighter">4</span>
                             RLS policies
                         </span>
-                    </button>
-
-                    {/* INDEX ADVISOR */}
-                    <button
-                        onClick={onOpenAdvisors}
-                        className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-[#161616] px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-all shrink-0"
-                    >
-                        <Lightbulb size={14} />
-                        <span>Index Advisor</span>
                     </button>
 
                     <div className="h-4 w-px bg-zinc-800 mx-1" />

@@ -303,65 +303,6 @@ func projectAPIBaseURL(c echo.Context) string {
 	return resolveProjectAPIURL(c)
 }
 
-func buildMCPConfigPayload(c echo.Context, serviceRoleKey string) map[string]any {
-	baseURL := projectAPIBaseURL(c)
-	serverURL := strings.TrimRight(baseURL, "/") + "/api/project/mcp"
-	toolsURL := strings.TrimRight(baseURL, "/") + "/api/project/mcp/tools"
-	invokeURL := strings.TrimRight(baseURL, "/") + "/api/project/mcp/invoke"
-	serversConfig := map[string]any{
-		"servers": map[string]any{
-			"ozybase": map[string]any{
-				"command": "ozybase",
-				"args":    []string{"mcp", "bridge", "--url", serverURL},
-				"env": map[string]any{
-					"OZYBASE_API_KEY": serviceRoleKey,
-				},
-			},
-		},
-	}
-	mcpServersConfig := map[string]any{
-		"mcpServers": map[string]any{
-			"ozybase": map[string]any{
-				"command": "ozybase",
-				"args":    []string{"mcp", "bridge", "--url", serverURL},
-				"env": map[string]any{
-					"OZYBASE_API_KEY": serviceRoleKey,
-				},
-			},
-		},
-	}
-	serversConfigJSON, _ := json.MarshalIndent(serversConfig, "", "  ")
-	mcpServersConfigJSON, _ := json.MarshalIndent(mcpServersConfig, "", "  ")
-
-	return map[string]any{
-		"runtime":     "native",
-		"transport":   "jsonrpc-http",
-		"server_url":  serverURL,
-		"tools_url":   toolsURL,
-		"invoke_url":  invokeURL,
-		"auth_header": "apikey",
-		"tool_count":  len(buildMCPTools()),
-		"sample_server": fmt.Sprintf(
-			"curl -s %q -H %q -H %q -d %q",
-			serverURL,
-			"apikey: "+serviceRoleKey,
-			"Content-Type: application/json",
-			`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`,
-		),
-		"sample_tools": fmt.Sprintf("curl -s %q -H %q", toolsURL, "apikey: "+serviceRoleKey),
-		"sample_invoke": fmt.Sprintf(
-			"curl -s %q -H %q -H %q -d %q",
-			invokeURL,
-			"apikey: "+serviceRoleKey,
-			"Content-Type: application/json",
-			`{"tool":"system.health","arguments":{}}`,
-		),
-		"vscode_config":      string(serversConfigJSON),
-		"servers_config":     string(serversConfigJSON),
-		"mcp_servers_config": string(mcpServersConfigJSON),
-	}
-}
-
 func (h *Handler) currentEssentialAPIKey(ctx context.Context, role string) (APIKey, string, error) {
 	var key APIKey
 	var secretCiphertext string
@@ -489,9 +430,6 @@ func (h *Handler) RevealEssentialAPIKey(c echo.Context) error {
 		"key_version":  currentKey.KeyVersion,
 		"created_at":   currentKey.CreatedAt,
 		"last_used_at": currentKey.LastUsedAt,
-	}
-	if role == APIKeyRoleServiceRole {
-		payload["mcp"] = buildMCPConfigPayload(c, keyMaterial)
 	}
 	return c.JSON(http.StatusOK, payload)
 }
@@ -627,9 +565,6 @@ func (h *Handler) RotateEssentialAPIKey(c echo.Context) error {
 		"previous_key_id":   currentID,
 		"previous_disabled": true,
 		"warning":           "Rotation complete. The previous key stopped working immediately.",
-	}
-	if role == APIKeyRoleServiceRole {
-		payload["mcp"] = buildMCPConfigPayload(c, newKey)
 	}
 	return c.JSON(http.StatusOK, payload)
 }

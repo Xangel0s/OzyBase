@@ -9,7 +9,6 @@
     <a href="https://goreportcard.com/report/github.com/Xangel0s/OzyBase"><img src="https://img.shields.io/badge/Go%20Report-A%2B-brightgreen.svg" alt="Go Report Card"></a>
     <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License MIT"></a>
     <a href="./docs/DEPLOYMENT.md"><img src="https://img.shields.io/badge/Deployment-Runbook-blue.svg" alt="Deployment Runbook"></a>
-    <a href="./docs/MCP_VSCODE.md"><img src="https://img.shields.io/badge/MCP-VS%20Code-purple.svg" alt="MCP VS Code"></a>
   </p>
 </div>
 
@@ -25,7 +24,7 @@ OzyBase is a PostgreSQL-backed Backend-as-a-Service that ships as:
 - authentication and API key management
 - storage, realtime, webhooks, cron, vault, and edge functions
 - security hardening, observability, integrations, and admin audit tooling
-- AI-facing runtime endpoints for MCP, NLQ, and pgvector workflows
+- AI-facing runtime endpoints for NLQ and pgvector workflows
 
 The repo is designed for self-hosting first: local binary, Docker, install-to-play, and Coolify-style managed Postgres deployments are all supported.
 
@@ -34,7 +33,7 @@ The repo is designed for self-hosting first: local binary, Docker, install-to-pl
 | Target | Status | Recommended for | Notes |
 | --- | --- | --- | --- |
 | Local PC | Stable | Development, QA, demos | Run API + frontend locally with one PostgreSQL instance. |
-| Self-hosted Docker | Stable | Real apps on a single node | Shared DB runtime, full admin panel, quotas, storage, realtime, MCP. |
+| Self-hosted Docker | Stable | Real apps on a single node | Shared DB runtime, full admin panel, quotas, storage, realtime. |
 | Coolify | Recommended | The default production path for most users | OzyBase is intentionally optimized for Coolify-style managed Postgres + persistent volumes. |
 | Cloud / enterprise control plane | Future track | Dedicated DB, managed billing, PITR UX, replicas | Not part of the self-hosted OSS contract today. |
 
@@ -51,7 +50,7 @@ In self-hosted mode, OzyBase keeps `workspace` as an internal backend entity but
 | Team members | Scoped by project |
 | API keys | Scoped by project |
 | Saved views | Scoped by project |
-| MCP context | Scoped by project |
+| Project context | Scoped by project |
 | Usage & limits | Scoped by project |
 
 What this means in practice:
@@ -311,7 +310,6 @@ Projects are powered by the workspace engine and behave as logical scopes in sel
 | Collection metadata scoping | Yes |
 | API key scoping | Yes |
 | Saved view scoping | Yes |
-| MCP context scoping | Yes |
 | Usage & limits by project | Yes |
 | Dedicated PostgreSQL database per project | No |
 | Dedicated schema per project | No |
@@ -329,7 +327,6 @@ This is the simplest stable contract for the self-hosted product.
 | Storage reads/uploads/deletes | Yes | No |
 | Realtime event delivery | Yes | No |
 | Function invocation | Yes | No |
-| MCP runtime tools | Yes | No |
 | Project lifecycle | No | Yes |
 | Members and roles | No | Yes |
 | Usage accounting | No | Yes |
@@ -545,18 +542,14 @@ Core routes:
 - `POST /api/extensions/marketplace/:slug/install`
 - `DELETE /api/extensions/marketplace/:slug/install`
 
-## 10. AI Runtime: MCP, NLQ, and pgvector
+## 10. AI Runtime: NLQ and pgvector
 
-OzyBase exposes an AI-facing admin runtime directly over HTTP.
+OzyBase exposes an AI-facing admin runtime directly over HTTP for query and vector workflows.
 
 Implemented today:
 
 - pgvector status/setup/upsert/search
 - natural language to SQL translate/query
-- MCP JSON-RPC endpoint
-- MCP helper endpoints for tools listing and invoke
-- VS Code remote MCP configuration support
-
 Core routes:
 
 - `GET /api/project/vector/status`
@@ -565,20 +558,7 @@ Core routes:
 - `POST /api/project/vector/search`
 - `POST /api/project/nlq/translate`
 - `POST /api/project/nlq/query`
-- `POST /api/project/mcp`
-- `GET /api/project/mcp/tools`
-- `POST /api/project/mcp/invoke`
-
-Current built-in MCP tools include:
-
-- `system.health`
-- `collections.list`
-- `collections.create`
-- `vector.status`
-- `nlq.translate`
-- `nlq.query`
-
-See [docs/MCP_VSCODE.md](./docs/MCP_VSCODE.md) for editor setup.
+ 
 
 ## Current Product Boundaries
 
@@ -708,7 +688,6 @@ Additional operational validations live in:
 
 - [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)
 - [docs/DEPLOYMENT_PROFILES.md](./docs/DEPLOYMENT_PROFILES.md)
-- [docs/MCP_VSCODE.md](./docs/MCP_VSCODE.md)
 - [docs/PERFORMANCE_BENCHMARKS.md](./docs/PERFORMANCE_BENCHMARKS.md)
 - [docs/SECURITY_SUITE.md](./docs/SECURITY_SUITE.md)
 - [docs/SECURITY_NOTIFICATIONS.md](./docs/SECURITY_NOTIFICATIONS.md)

@@ -467,9 +467,9 @@ var suggestions = [];
 for (var i = 0; i < findings.length; i++) {
   var issue = findings[i] || {};
   var reasons = issue.risk_reasons || [];
-  if (issue.schema === 'public' && reasons.indexOf('RLS_DISABLED') >= 0) {
-    suggestions.push("Sugerencia de Seguridad: La tabla '" + issue.schema + "." + issue.table_name + "' está expuesta. Ejecuta 'mcp invoke policies.enable_rls' para protegerla.");
-  }
+	  if (issue.schema === 'public' && reasons.indexOf('RLS_DISABLED') >= 0) {
+	    suggestions.push("Sugerencia de Seguridad: La tabla '" + issue.schema + "." + issue.table_name + "' está expuesta. Activa RLS para protegerla.");
+	  }
 }
 suggestions;
 `

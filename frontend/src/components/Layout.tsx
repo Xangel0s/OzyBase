@@ -63,8 +63,6 @@ import NotificationCenter from './NotificationCenter';
 import AutoFixModal from './AutoFixModal';
 import ConfirmModal from './ConfirmModal';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
-import MCPLogo from './MCPLogo';
-import { useAgentNexus } from '../hooks/useAgentNexus';
 import { BrandedToast } from './OverlayPrimitives';
 import {
     PRIMARY_NAV,
@@ -118,29 +116,6 @@ interface HealthPulseResponse {
     pulse?: {
         overall?: string;
     };
-}
-
-interface MCPPendingApprovalsPayload {
-    active_sessions?: Array<{
-        token_id?: string;
-        last_activity_at?: string;
-        pending_count?: number;
-    }>;
-    active_sessions_live?: Array<{
-        token_id?: string;
-        last_activity_at?: string;
-        pending_count?: number;
-    }>;
-    active_count?: number;
-    active_count_live?: number;
-    items?: Array<{
-        id?: string;
-        token_id?: string;
-        status?: string;
-    }>;
-    published_tools?: number;
-    bridge_status?: string;
-    bridge_transport?: string;
 }
 
 const resetScrollPosition = (viewport: HTMLElement | null) => {
@@ -217,59 +192,16 @@ const Layout: React.FC<LayoutProps> = ({
     const [activeWorkspaceMeta, setActiveWorkspaceMeta] = useState<ActiveWorkspaceMeta | null>(null);
     const [pendingAccessRequestsCount, setPendingAccessRequestsCount] = useState(0);
     const [systemPulse, setSystemPulse] = useState<SystemPulseOverall>('unknown');
-    const [agentPulseCount, setAgentPulseCount] = useState(0);
-    const [mcpExecutionPulse, setMCPExecutionPulse] = useState(false);
-    const [isMCPBridgeHoverOpen, setIsMCPBridgeHoverOpen] = useState(false);
     const [isProjectSwitcherOpen, setIsProjectSwitcherOpen] = useState(false);
     const [isSidebarLocked, setIsSidebarLocked] = useState(false);
 
     const notificationRef = useRef<HTMLDivElement | null>(null);
     const userDropdownRef = useRef<HTMLDivElement | null>(null);
     const contentViewportRef = useRef<HTMLDivElement | null>(null);
-    const mcpBridgeRef = useRef<HTMLDivElement | null>(null);
 
-    const {
-        agents,
-        approveAgent,
-        rejectAgent,
-        approvalsLoading: nexusLoading,
-        bridgeStatus: nexusBridgeStatus,
-        publishedToolsCount,
-        pendingApprovals,
-    } = useAgentNexus('mcp');
-
-    // Sync local state with nexus hook for backward compatibility if needed
-    const mcpBridgeStatus = nexusBridgeStatus;
-    const mcpPublishedTools = publishedToolsCount;
-    
-    // Update agent pulse count from hook data
     useEffect(() => {
-        setAgentPulseCount(agents.length);
-        const hasActivity = agents.some(a => a.pendingCount > 0 || a.activity);
-        setMCPExecutionPulse(hasActivity);
-    }, [agents]);
-
-    const unapprovedAgents = useMemo(() => agents.filter(a => !a.isApproved), [agents]);
-    const approvedAgents = useMemo(() => agents.filter(a => a.isApproved), [agents]);
-
-    const getAgentIcon = (agent: any) => {
-        const icon = agent.icon || agent.source;
-        if (icon === 'cursor') return <MousePointer2 className="w-3.5 h-3.5 text-cyan-400" />;
-        if (icon === 'vscode') return <Code className="w-3.5 h-3.5 text-blue-400" />;
-        if (icon === 'antigravity') return <Zap className="w-3.5 h-3.5 text-purple-400" />;
-        if (icon === 'python') return <Terminal className="w-3.5 h-3.5 text-yellow-400" />;
-        return <MCPLogo size={14} className="text-zinc-400" />;
-    };
-
-    const handleApproveAgent = async (e: React.MouseEvent, id: string) => {
-        e.stopPropagation();
-        await approveAgent(id);
-    };
-
-    const handleRejectAgent = async (e: React.MouseEvent, id: string) => {
-        e.stopPropagation();
-        await rejectAgent(id);
-    };
+        setAgentPulseCount(0);
+    }, []);
 
     // Derived state (js-combine-iterations)
     const safeHealthIssues = useMemo(() => Array.isArray(healthIssues) ? healthIssues : [], [healthIssues]);
@@ -301,23 +233,6 @@ const Layout: React.FC<LayoutProps> = ({
     const notificationIssues = useMemo(() => {
         const issues = [...safeHealthIssues];
         
-        // Add MCP pending approvals as notification issues
-        if (Array.isArray(pendingApprovals)) {
-            pendingApprovals.forEach((approval) => {
-                issues.unshift({
-                    type: 'security',
-                    title: 'MCP tool request pending',
-                    description: `Agent requested to execute tool: ${approval.tool || 'unknown'}`,
-                    count: 1,
-                    fixable: false,
-                    reviewable: true,
-                    action_view: 'agent_forge',
-                    action_target: 'mcp',
-                    action_label: 'Review Request',
-                });
-            });
-        }
-
         if (isAdminUser && pendingAccessRequestsCount > 0) {
             issues.unshift({
                 type: 'security',
@@ -332,7 +247,7 @@ const Layout: React.FC<LayoutProps> = ({
             });
         }
         return issues;
-    }, [isAdminUser, pendingAccessRequestsCount, safeHealthIssues, pendingApprovals]);
+    }, [isAdminUser, pendingAccessRequestsCount, safeHealthIssues]);
 
     const fetchPendingAccessRequestsCount = React.useCallback(async (signal?: AbortSignal) => {
         if (!isAdminUser || !workspaceId) {
@@ -819,21 +734,18 @@ const Layout: React.FC<LayoutProps> = ({
             if (userDropdownRef.current && !userDropdownRef.current.contains(event.target)) {
                 setIsUserDropdownOpen(false);
             }
-            if (mcpBridgeRef.current && !mcpBridgeRef.current.contains(event.target)) {
-                setIsMCPBridgeHoverOpen(false);
-            }
             if (!(event.target instanceof HTMLElement) || !event.target.closest('[data-table-menu-root]')) {
                 setActiveTableMenu(null);
             }
         };
 
-        if (isNotificationOpen || isUserDropdownOpen || activeTableMenu || isMCPBridgeHoverOpen) {
+        if (isNotificationOpen || isUserDropdownOpen || activeTableMenu) {
             document.addEventListener('mousedown', handleClickOutside);
         }
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [activeTableMenu, isMCPBridgeHoverOpen, isNotificationOpen, isUserDropdownOpen]);
+    }, [activeTableMenu, isNotificationOpen, isUserDropdownOpen]);
 
     useEffect(() => {
         const normalizedWorkspaceId = String(workspaceId || '').trim();
@@ -1001,7 +913,7 @@ const Layout: React.FC<LayoutProps> = ({
         const targetView = String(issue?.action_view || '').trim();
         const resolvedView = targetView && getViewMeta(targetView).id === targetView
             ? targetView
-            : 'advisors';
+            : 'overview';
         onMenuViewSelect(resolvedView);
         if (resolvedView === 'security' && String(issue?.action_target || '') === 'access_requests') {
             window.dispatchEvent(new CustomEvent('ozy:navigate-intent', {
@@ -1596,124 +1508,6 @@ const Layout: React.FC<LayoutProps> = ({
                                 </span>
                             </button>
 
-                            <div
-                                ref={mcpBridgeRef}
-                                className="relative"
-                            >
-                                <button
-                                    type="button"
-                                    className={`inline-flex items-center gap-3 rounded-full border px-3 py-1.5 transition-all ${agents.length > 0
-                                        ? 'border-white/10 bg-white/5 text-white'
-                                        : 'border-white/5 bg-black/40 text-zinc-500'
-                                        } ${mcpExecutionPulse ? 'shadow-[0_0_12px_rgba(34,211,238,0.15)]' : 'shadow-inner'} ${unapprovedAgents.length > 0 ? 'border-amber-500/50' : ''}`}
-                                    title="MCP Agent Pulse"
-                                    onClick={() => setIsMCPBridgeHoverOpen((current) => !current)}
-                                >
-                                    <div className="relative">
-                                        <MCPLogo size={14} className={agents.length > 0 ? 'animate-pulse text-cyan-400' : 'opacity-40'} />
-                                        {unapprovedAgents.length > 0 && (
-                                            <span className="absolute -top-1.5 -right-1.5 w-2 h-2 bg-amber-500 rounded-full border border-black animate-ping" />
-                                        )}
-                                    </div>
-                                    <span className="text-[10px] font-bold tracking-widest">{agents.length}</span>
-                                </button>
-
-                                <div
-                                    className={`absolute right-0 top-10 z-120 w-80 rounded-lg border border-white/10 bg-[#0a0a0a]/95 p-1 shadow-2xl backdrop-blur-xl transition-all ${isMCPBridgeHoverOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-2 pointer-events-none'}`}
-                                    aria-hidden={!isMCPBridgeHoverOpen}
-                                >
-                                      {/* Header */}
-                                      <div className="flex items-center justify-between px-3 py-2 border-b border-white/5 bg-white/5">
-                                          <div className="flex items-center gap-2">
-                                              <div className={`w-2 h-2 rounded-full ${mcpBridgeStatus === 'healthy' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                                              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-300">MCP Nexus Bridge</span>
-                                          </div>
-                                          <span className="text-[10px] text-zinc-500 font-mono">v1.2.4</span>
-                                      </div>
-
-                                      {/* Pending Approvals */}
-                                      {unapprovedAgents.length > 0 && (
-                                          <div className="p-2 border-b border-white/5 bg-amber-500/5">
-                                              <p className="px-1 mb-2 text-[10px] font-bold text-amber-500/80 uppercase tracking-tighter">Conexiones Pendientes</p>
-                                              <div className="space-y-1">
-                                                  {unapprovedAgents.map(agent => (
-                                                      <div key={agent.id} className="flex items-center justify-between p-2 rounded bg-white/5 border border-amber-500/20">
-                                                          <div className="flex items-center gap-2 overflow-hidden">
-                                                              {getAgentIcon(agent)}
-                                                              <div className="overflow-hidden">
-                                                                  <p className="text-[11px] font-bold text-zinc-200 truncate">{agent.name || 'Agente Desconocido'}</p>
-                                                                  <p className="text-[9px] text-zinc-500 truncate">Token: {agent.id.slice(0, 8)}...</p>
-                                                              </div>
-                                                          </div>
-                                                          <div className="flex gap-1">
-                                                              <button 
-                                                                  onClick={(e) => handleRejectAgent(e, agent.id)}
-                                                                  className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors"
-                                                                  title="Rechazar"
-                                                              >
-                                                                  <X size={14} />
-                                                              </button>
-                                                              <button 
-                                                                  onClick={(e) => handleApproveAgent(e, agent.id)}
-                                                                  className="p-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 transition-colors"
-                                                                  title="Aprobar"
-                                                              >
-                                                                  <Check size={14} />
-                                                              </button>
-                                                          </div>
-                                                      </div>
-                                                  ))}
-                                              </div>
-                                          </div>
-                                      )}
-
-                                      {/* Active Agents */}
-                                      <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
-                                          {approvedAgents.length === 0 ? (
-                                              <div className="py-8 text-center">
-                                                  <MCPLogo size={24} className="mx-auto text-zinc-800 mb-2 opacity-20" />
-                                                  <p className="text-[11px] text-zinc-600">No hay agentes activos</p>
-                                              </div>
-                                          ) : (
-                                              <div className="space-y-0.5">
-                                                  <p className="px-2 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">Agentes Autorizados</p>
-                                                  {approvedAgents.map(agent => (
-                                                      <div key={agent.id} className="group relative flex items-center gap-3 p-2 rounded-md hover:bg-white/5 transition-all">
-                                                          <div className="relative">
-                                                              <div className="w-8 h-8 rounded bg-zinc-900 border border-white/10 flex items-center justify-center">
-                                                                  {getAgentIcon(agent)}
-                                                              </div>
-                                                              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-black" />
-                                                          </div>
-                                                          <div className="flex-1 overflow-hidden">
-                                                              <div className="flex items-center justify-between">
-                                                                  <p className="text-[11px] font-bold text-zinc-200 truncate">{agent.name}</p>
-                                                                  <span className="text-[9px] px-1 rounded bg-zinc-800 text-zinc-500 uppercase">{agent.level}</span>
-                                                              </div>
-                                                              <p className="text-[10px] text-zinc-400 truncate mt-0.5">
-                                                                  {agent.activity || 'Esperando instrucciones...'}
-                                                              </p>
-                                                          </div>
-                                                      </div>
-                                                  ))}
-                                              </div>
-                                          )}
-                                      </div>
-
-                                      {/* Footer */}
-                                      <div className="mt-1 p-2 bg-white/5 border-t border-white/5 flex items-center justify-between">
-                                          <div className="flex items-center gap-1.5">
-                                              <Database size={10} className="text-zinc-600" />
-                                              <span className="text-[9px] text-zinc-500">{mcpPublishedTools} herramientas publicadas</span>
-                                          </div>
-                                          <div className="flex items-center gap-1.5">
-                                              <Activity size={10} className="text-zinc-600" />
-                                              <span className="text-[9px] text-zinc-500 capitalize">{mcpBridgeStatus}</span>
-                                          </div>
-                                      </div>
-                                </div>
-                            </div>
-
                             <div className="relative" ref={notificationRef}>
                                 <button
                                     aria-label="Open notifications"
@@ -1748,7 +1542,6 @@ const Layout: React.FC<LayoutProps> = ({
                                     }}
                                     onReviewIssue={handleReviewIssue}
                                     onViewLogs={() => {
-                                        onMenuViewSelect('advisors');
                                         setIsNotificationOpen(false);
                                     }}
                                 />

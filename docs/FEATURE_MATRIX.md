@@ -16,7 +16,6 @@ This is the practical feature map for self-hosted OzyBase today.
 | Edge Functions | Yes | Yes | Stable |
 | Observability | Yes | Yes | Stable |
 | API keys | Yes | Yes | Stable |
-| MCP | Yes | Yes | Stable |
 | Usage & Limits | Yes | Yes | Stable |
 
 ## 2. What Frontend Can Operate
@@ -29,7 +28,6 @@ The frontend already handles normal admin operations for:
 - storage buckets and uploads
 - project switching
 - members and API keys
-- MCP quick access
 - usage and project limits
 - observability and advisors
 
@@ -52,7 +50,6 @@ The frontend already handles normal admin operations for:
 | API keys | Yes |
 | Collection metadata | Yes |
 | Saved views | Yes |
-| MCP context | Yes |
 | Usage & limits | Yes |
 | Physical DB | No |
 | Physical schema | No |

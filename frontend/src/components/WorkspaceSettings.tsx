@@ -313,7 +313,7 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({
             <div className="rounded-4xl border border-primary/15 bg-[linear-gradient(180deg,rgba(34,34,10,0.18),rgba(10,10,10,0.96))] p-5">
                 <p className="text-[10px] font-medium] text-primary">Project Scope Today</p>
                 <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-                    This project scopes <span className="text-white">memberships, collection metadata, API keys, saved views, MCP context, and dashboard state</span>.
+                    This project scopes <span className="text-white">memberships, collection metadata, API keys, saved views, and dashboard state</span>.
                     Self-hosted mode keeps the physical PostgreSQL database shared and does not auto-provision dedicated schemas or buckets here.
                 </p>
             </div>

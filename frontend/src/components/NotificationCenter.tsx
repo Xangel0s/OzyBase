@@ -61,7 +61,7 @@ const NotificationCenter = ({ isOpen, onClose, issues, onIssueAction, onReviewIs
                         {issues.map((issue: any, idx: any) => {
                             const isFixable = issue.fixable ?? issue.canAutoFix ?? false;
                             const isReviewable = issue.reviewable === true;
-                            const actionLabel = String(issue.action_label || 'Review in Advisors');
+                            const actionLabel = String(issue.action_label || 'Review');
 
                             return (
                                 <div
@@ -137,14 +137,6 @@ const NotificationCenter = ({ isOpen, onClose, issues, onIssueAction, onReviewIs
                 )}
             </div>
 
-            <div className="p-3 bg-[#111111] border-t border-border text-center">
-                <button
-                    onClick={onViewLogs}
-                    className="text-[9px] font-bold text-zinc-600 hover:text-primary uppercase tracking-widest transition-colors w-full py-2"
-                >
-                    View System Logs & Advisors
-                </button>
-            </div>
         </div>
     );
 };

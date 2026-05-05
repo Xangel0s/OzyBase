@@ -31,16 +31,11 @@ Additional pgvector production validation (2026-02-24):
 - Smoke CI now validates vector flow when pgvector is available and gracefully skips when runtime lacks the extension.
 - Full enterprise suite re-run (`scripts/validate_enterprise.ps1`) after changes -> `PASS`.
 
-Additional NLQ + MCP native validation (2026-02-24):
+Additional NLQ native validation (2026-02-24):
 - Native deterministic NLQ rollout added:
   - translate endpoint (`POST /api/project/nlq/translate`)
   - query endpoint (`POST /api/project/nlq/query`)
-- Native MCP runtime added:
-  - tools catalog endpoint (`GET /api/project/mcp/tools`)
-  - tool invoke endpoint (`POST /api/project/mcp/invoke`)
-- MCP runtime model validated as in-process HTTP runtime (shared auth/audit/DB pool), not a separate stdio daemon.
-- MCP collection creation flow validated (`collections.create`) with schema checks and smoke coverage.
-- Smoke API extended to validate NLQ and MCP flows.
+- Smoke API extended to validate NLQ flows.
 - Enterprise validation suite re-run (`scripts/validate_enterprise.ps1 -SkipE2E`) after changes -> `PASS`.
 - Full validation suite re-run (`scripts/validate_enterprise.ps1`) after changes -> `PASS`.
 

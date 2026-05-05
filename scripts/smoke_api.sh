@@ -504,7 +504,7 @@ PY
 status_code="$(call_api DELETE "/api/functions/${wasm_fn_name}" "" "$TOKEN")"
 require_status "$status_code" "200"
 
-echo "[smoke] native NLQ + MCP flow"
+echo "[smoke] native NLQ flow"
 nlq_translate_payload="$(printf '{"query":"count rows in %s","table":"%s"}' "$table_name" "$table_name")"
 status_code="$(call_api POST /api/project/nlq/translate "$nlq_translate_payload" "$TOKEN")"
 require_status "$status_code" "200"
@@ -534,66 +534,6 @@ if not isinstance(columns, list) or not columns:
     raise SystemExit("nlq query missing columns")
 PY
 
-status_code="$(call_api GET /api/project/mcp/tools "" "$TOKEN")"
-require_status "$status_code" "200"
-"$PYTHON_BIN" - "$TMP_BODY" <<'PY'
-import json, sys
-with open(sys.argv[1], "r", encoding="utf-8") as f:
-    data = json.load(f)
-tools = data.get("tools")
-if not isinstance(tools, list) or len(tools) < 3:
-    raise SystemExit("mcp tools catalog is too small")
-names = {str(item.get("name", "")).strip() for item in tools if isinstance(item, dict)}
-required = {"collections.create", "nlq.translate", "nlq.query"}
-missing = sorted(required - names)
-if missing:
-    raise SystemExit(f"mcp tools catalog missing required tools: {missing}")
-PY
-
-status_code="$(call_api POST /api/project/mcp/invoke '{"tool":"vector.status","arguments":{}}' "$TOKEN")"
-require_status "$status_code" "200"
-
-mcp_collection_name="ci_smoke_mcp_$(date +%s)"
-mcp_create_payload="$(printf '{"tool":"collections.create","arguments":{"name":"%s","schema":[{"name":"owner_id","type":"uuid"},{"name":"title","type":"text"}],"list_rule":"auth","create_rule":"admin"}}' "$mcp_collection_name")"
-status_code="$(call_api POST /api/project/mcp/invoke "$mcp_create_payload" "$TOKEN")"
-require_status "$status_code" "200"
-"$PYTHON_BIN" - "$TMP_BODY" "$mcp_collection_name" <<'PY'
-import json, sys
-path, table_name = sys.argv[1], sys.argv[2]
-with open(path, "r", encoding="utf-8") as f:
-    data = json.load(f)
-result = data.get("result") if isinstance(data, dict) else None
-if not isinstance(result, dict):
-    raise SystemExit("mcp collections.create missing result")
-if str(result.get("name", "")).strip() != table_name:
-    raise SystemExit("mcp collections.create returned unexpected table name")
-status = str(result.get("status", "")).strip().lower()
-if status not in {"created", "updated"}:
-    raise SystemExit(f"unexpected collections.create status: {status}")
-PY
-
-mcp_insert_payload="$(printf '{"owner_id":"%s","title":"mcp-created-row"}' "$USER_ID")"
-status_code="$(call_api POST "/api/tables/${mcp_collection_name}/rows" "$mcp_insert_payload" "$TOKEN")"
-if [[ "$status_code" != "200" && "$status_code" != "201" ]]; then
-  echo "MCP-created table row insert failed with status ${status_code}" >&2
-  cat "$TMP_BODY" >&2
-  exit 1
-fi
-
-mcp_nlq_payload="$(printf '{"tool":"nlq.translate","arguments":{"query":"count rows in %s","table":"%s"}}' "$table_name" "$table_name")"
-status_code="$(call_api POST /api/project/mcp/invoke "$mcp_nlq_payload" "$TOKEN")"
-require_status "$status_code" "200"
-"$PYTHON_BIN" - "$TMP_BODY" <<'PY'
-import json, sys
-with open(sys.argv[1], "r", encoding="utf-8") as f:
-    data = json.load(f)
-result = data.get("result") if isinstance(data, dict) else None
-if not isinstance(result, dict):
-    raise SystemExit("mcp invoke response missing result")
-if str(result.get("mode", "")).strip().lower() != "deterministic":
-    raise SystemExit("mcp nlq tool did not return deterministic mode")
-PY
-
 echo "[smoke] api key lifecycle (essential verify + reveal + rotate)"
 status_code="$(call_api GET /api/project/keys/essential "" "$TOKEN")"
 require_status "$status_code" "200"
@@ -618,22 +558,6 @@ if [[ -z "$ORIGINAL_SERVICE_ROLE_KEY" ]]; then
   exit 1
 fi
 
-reveal_anon_payload="$(printf '{"verification_token":"%s"}' "$KEY_VERIFICATION_TOKEN")"
-status_code="$(call_api POST /api/project/keys/essential/anon/reveal "$reveal_anon_payload" "$TOKEN")"
-require_status "$status_code" "200"
-ANON_KEY_VALUE="$(json_read key)"
-if [[ -z "$ANON_KEY_VALUE" ]]; then
-  echo "Essential anon key reveal response missing key" >&2
-  cat "$TMP_BODY" >&2
-  exit 1
-fi
-status_code="$(call_api_with_apikey GET /api/project/mcp/tools "" "$ANON_KEY_VALUE")"
-if [[ "$status_code" != "401" && "$status_code" != "403" ]]; then
-  echo "Anon key should not satisfy protected MCP tools endpoint; got ${status_code}" >&2
-  cat "$TMP_BODY" >&2
-  exit 1
-fi
-
 rotate_service_role_payload="$(printf '{"verification_token":"%s","reason":"ci smoke validation"}' "$KEY_VERIFICATION_TOKEN")"
 status_code="$(call_api POST /api/project/keys/essential/service_role/rotate "$rotate_service_role_payload" "$TOKEN")"
 require_status "$status_code" "200"
@@ -644,16 +568,6 @@ if [[ -z "$ROTATED_KEY_ID" || -z "$ROTATED_SERVICE_ROLE_KEY" ]]; then
   cat "$TMP_BODY" >&2
   exit 1
 fi
-
-status_code="$(call_api_with_apikey GET /api/project/mcp/tools "" "$ORIGINAL_SERVICE_ROLE_KEY")"
-if [[ "$status_code" != "401" ]]; then
-  echo "Previous service_role key should be rejected after rotation; got status ${status_code}" >&2
-  cat "$TMP_BODY" >&2
-  exit 1
-fi
-
-status_code="$(call_api_with_apikey GET /api/project/mcp/tools "" "$ROTATED_SERVICE_ROLE_KEY")"
-require_status "$status_code" "200"
 
 echo "[smoke] workspace scope with jwt and service_role key"
 workspace_payload="$(printf '{"name":"CI Smoke Workspace %s"}' "$(date +%s)")"
@@ -714,15 +628,6 @@ if [[ "$status_code" != "204" && "$status_code" != "200" ]]; then
   echo "Collection cleanup failed with status ${status_code}" >&2
   cat "$TMP_BODY" >&2
   exit 1
-fi
-
-if [[ -n "${mcp_collection_name:-}" ]]; then
-  status_code="$(call_api DELETE "/api/collections/${mcp_collection_name}" "" "$TOKEN")"
-  if [[ "$status_code" != "204" && "$status_code" != "200" && "$status_code" != "404" ]]; then
-    echo "MCP collection cleanup failed with status ${status_code}" >&2
-    cat "$TMP_BODY" >&2
-    exit 1
-  fi
 fi
 
 if [[ -n "${SMOKE_WORKSPACE_ID:-}" ]]; then

@@ -34,8 +34,6 @@ import {
 
 type ComponentName =
     | 'Overview'
-    | 'AgentForge'
-    | 'OzyEngramChat'
     | 'TableEditor'
     | 'SchemaVisualizer'
     | 'SqlTerminal'
@@ -47,18 +45,9 @@ type ComponentName =
     | 'StorageManager'
     | 'EdgeFunctions'
     | 'RealtimeInspector'
-    | 'Advisors'
-    | 'Observability'
-    | 'LogsAnalytics'
     | 'PermissionManager'
-    | 'SecurityDashboard'
-    | 'SecurityManager'
-    | 'FirewallManager'
-    | 'NotificationSettings'
     | 'Settings'
     | 'ApiDocs'
-    | 'Integrations'
-    | 'IntegrationsManager'
     | 'WorkspaceManager'
     | 'WorkspaceSettings';
 
@@ -86,8 +75,6 @@ export interface SubmenuItem {
 
 export const VIEW_REGISTRY: Record<string, ViewMeta> = {
     overview: { id: 'overview', group: 'overview', label: 'Home', component: 'Overview', supportsExplorer: false },
-    agents: { id: 'agents', group: 'agents', label: 'Agent Forge', component: 'AgentForge', supportsExplorer: false },
-    engram: { id: 'engram', group: 'engram', label: 'Ozy Engram', component: 'OzyEngramChat', supportsExplorer: false },
     tables: { id: 'tables', group: 'tables', label: 'Table Editor', component: 'TableEditor', supportsExplorer: true },
     table: { id: 'table', group: 'tables', label: 'Table Editor', component: 'TableEditor', supportsExplorer: true },
     visualizer: { id: 'visualizer', group: 'database', label: 'Schema Visualizer', component: 'SchemaVisualizer', supportsExplorer: true },
@@ -98,12 +85,6 @@ export const VIEW_REGISTRY: Record<string, ViewMeta> = {
     providers: { id: 'providers', group: 'auth', label: 'Providers', component: 'AuthProvidersView', supportsExplorer: true },
     policies: { id: 'policies', group: 'auth', label: 'Permissions', component: 'PermissionManager', supportsExplorer: true },
     two_factor: { id: 'two_factor', group: 'auth', label: '2FA Settings', component: 'TwoFactorAuth', supportsExplorer: true },
-    security: { id: 'security', group: 'auth', label: 'Security Hub', component: 'SecurityDashboard', supportsExplorer: true },
-    security_policies: { id: 'security_policies', group: 'auth', label: 'Geo-Fencing', component: 'SecurityManager', supportsExplorer: true },
-    firewall: { id: 'firewall', group: 'auth', label: 'IP Firewall', component: 'FirewallManager', supportsExplorer: true },
-    security_notifications: { id: 'security_notifications', group: 'auth', label: 'Alert Notifications', component: 'NotificationSettings', supportsExplorer: true },
-    auth_integrations: { id: 'auth_integrations', group: 'auth', label: 'Integrations & SIEM', component: 'IntegrationsManager', supportsExplorer: true },
-    templates: { id: 'templates', group: 'auth', label: 'Email Templates', component: 'EmailTemplatesView', supportsExplorer: true },
     auth_settings: { id: 'auth_settings', group: 'auth', label: 'Auth Settings', component: 'AuthSettingsView', supportsExplorer: true },
 
     storage: { id: 'storage', group: 'storage', label: 'Storage', component: 'StorageManager', props: { view: 'buckets' }, supportsExplorer: true },
@@ -117,15 +98,6 @@ export const VIEW_REGISTRY: Record<string, ViewMeta> = {
     // Legacy alias kept to avoid breaking persisted navigation state.
     config: { id: 'config', group: 'realtime', label: 'Inspector', component: 'RealtimeInspector', props: { view: 'inspector' }, supportsExplorer: true },
 
-    advisors: { id: 'advisors', group: 'advisors', label: 'Advisors', component: 'Advisors', supportsExplorer: false },
-    observability: { id: 'observability', group: 'observability', label: 'Observability', component: 'Observability', supportsExplorer: false },
-
-    logs: { id: 'logs', group: 'logs', label: 'Logs', component: 'LogsAnalytics', props: { view: 'explorer' }, supportsExplorer: true },
-    explorer: { id: 'explorer', group: 'logs', label: 'Log Explorer', component: 'LogsAnalytics', props: { view: 'explorer' }, supportsExplorer: true },
-    live: { id: 'live', group: 'logs', label: 'Live Tail', component: 'LogsAnalytics', props: { view: 'live' }, supportsExplorer: true },
-    alerts: { id: 'alerts', group: 'logs', label: 'Security Alerts', component: 'LogsAnalytics', props: { view: 'alerts' }, supportsExplorer: true },
-    metrics: { id: 'metrics', group: 'logs', label: 'Traffic Analysis', component: 'LogsAnalytics', props: { view: 'metrics' }, supportsExplorer: true },
-
     docs: { id: 'docs', group: 'docs', label: 'API Docs', component: 'ApiDocs', props: { page: 'intro' }, supportsExplorer: true },
     intro: { id: 'intro', group: 'docs', label: 'Getting Started', component: 'ApiDocs', props: { page: 'intro' }, supportsExplorer: true },
     auth_api: { id: 'auth_api', group: 'docs', label: 'Authentication', component: 'ApiDocs', props: { page: 'auth_api' }, supportsExplorer: true },
@@ -135,21 +107,12 @@ export const VIEW_REGISTRY: Record<string, ViewMeta> = {
     edge_api: { id: 'edge_api', group: 'docs', label: 'Edge Functions', component: 'ApiDocs', props: { page: 'edge_api' }, supportsExplorer: true },
     sdk: { id: 'sdk', group: 'docs', label: 'Client Access', component: 'ApiDocs', props: { page: 'sdk' }, supportsExplorer: true },
 
-    integrations: { id: 'integrations', group: 'integrations', label: 'Integrations', component: 'Integrations', props: { page: 'wrappers' }, supportsExplorer: true },
-    wrappers: { id: 'wrappers', group: 'integrations', label: 'Wrappers', component: 'Integrations', props: { page: 'wrappers' }, supportsExplorer: true },
-    webhooks: { id: 'webhooks', group: 'integrations', label: 'Webhooks', component: 'Integrations', props: { page: 'webhooks' }, supportsExplorer: true },
-    cron: { id: 'cron', group: 'integrations', label: 'Cron Jobs', component: 'Integrations', props: { page: 'cron' }, supportsExplorer: true },
-    extensions: { id: 'extensions', group: 'integrations', label: 'PG Extensions', component: 'Integrations', props: { page: 'extensions' }, supportsExplorer: true },
-    vault: { id: 'vault', group: 'integrations', label: 'Vault', component: 'Integrations', props: { page: 'vault' }, supportsExplorer: true },
-    graphql: { id: 'graphql', group: 'integrations', label: 'GraphQL', component: 'Integrations', props: { page: 'graphql' }, supportsExplorer: true },
-
     settings: { id: 'settings', group: 'settings', label: 'Settings', component: 'Settings', props: { view: 'general' }, supportsExplorer: false },
     general: { id: 'general', group: 'settings', label: 'General', component: 'Settings', props: { view: 'general' }, supportsExplorer: false },
     infrastructure: { id: 'infrastructure', group: 'settings', label: 'Infrastructure', component: 'Settings', props: { view: 'infrastructure' }, supportsExplorer: false },
     usage: { id: 'usage', group: 'settings', label: 'Usage & Limits', component: 'Settings', props: { view: 'usage' }, supportsExplorer: false },
     billing: { id: 'billing', group: 'settings', label: 'Usage & Limits', component: 'Settings', props: { view: 'usage' }, supportsExplorer: false },
     api_keys: { id: 'api_keys', group: 'settings', label: 'API Keys', component: 'Settings', props: { view: 'api_keys' }, supportsExplorer: false },
-    mcp_gateway: { id: 'mcp_gateway', group: 'settings', label: 'MCP Gateway', component: 'Settings', props: { view: 'mcp_gateway' }, supportsExplorer: false },
 
     workspaces: { id: 'workspaces', group: 'workspaces', label: 'Projects', component: 'WorkspaceManager', props: { view: 'wm_overview' }, supportsExplorer: true },
     wm_overview: { id: 'wm_overview', group: 'workspaces', label: 'My Projects', component: 'WorkspaceManager', props: { view: 'wm_overview' }, supportsExplorer: true },
@@ -164,8 +127,6 @@ export const VIEW_REGISTRY: Record<string, ViewMeta> = {
 
 export const PRIMARY_NAV: NavItem[] = [
     { id: 'overview', icon: Home, label: 'Home' },
-    { id: 'agents', icon: Cpu, label: 'Agent Forge' },
-    { id: 'engram', icon: BrainCircuit, label: 'Ozy Engram' },
     { id: 'tables', icon: Table2, label: 'Table Editor' },
     { id: 'database', icon: Database, label: 'Database' },
     { id: 'sql', icon: Terminal, label: 'SQL Editor' },
@@ -175,11 +136,7 @@ export const PRIMARY_NAV: NavItem[] = [
     { id: 'edge', icon: Zap, label: 'Edge Functions' },
     { id: 'realtime', icon: MousePointer2, label: 'Realtime' },
     { type: 'separator' },
-    { id: 'advisors', icon: Lightbulb, label: 'Advisors' },
-    { id: 'observability', icon: Telescope, label: 'Observability' },
-    { id: 'logs', icon: List, label: 'Logs' },
     { id: 'docs', icon: FileText, label: 'API Docs' },
-    { id: 'integrations', icon: LayoutGrid, label: 'Integrations' },
 ];
 
 export const SUBMENUS: Record<string, SubmenuItem[]> = {
@@ -188,12 +145,6 @@ export const SUBMENUS: Record<string, SubmenuItem[]> = {
         { id: 'providers', name: 'Providers', icon: Key },
         { id: 'policies', name: 'Permissions', icon: Shield },
         { id: 'two_factor', name: '2FA Settings', icon: ShieldCheck },
-        { id: 'security', name: 'Security Hub', icon: ShieldAlert },
-        { id: 'security_policies', name: 'Geo-Fencing', icon: Globe },
-        { id: 'firewall', name: 'IP Firewall', icon: ShieldBan },
-        { id: 'security_notifications', name: 'Alert Notifications', icon: Bell },
-        { id: 'auth_integrations', name: 'Integrations & SIEM', icon: Activity },
-        { id: 'templates', name: 'Email Templates', icon: FileText },
         { id: 'auth_settings', name: 'Auth Settings', icon: Settings },
     ],
     storage: [
@@ -205,12 +156,6 @@ export const SUBMENUS: Record<string, SubmenuItem[]> = {
     realtime: [
         { id: 'inspector', name: 'Inspector', icon: Search },
     ],
-    logs: [
-        { id: 'explorer', name: 'Log Explorer', icon: Search },
-        { id: 'live', name: 'Live Tail', icon: Activity },
-        { id: 'alerts', name: 'Security Alerts', icon: Bell },
-        { id: 'metrics', name: 'Traffic Analysis', icon: Activity },
-    ],
     docs: [
         { id: 'intro', name: 'Getting Started', icon: Home },
         { id: 'auth_api', name: 'Authentication', icon: Lock },
@@ -220,20 +165,11 @@ export const SUBMENUS: Record<string, SubmenuItem[]> = {
         { id: 'edge_api', name: 'Edge Functions', icon: Zap },
         { id: 'sdk', name: 'Client Access', icon: Code },
     ],
-    integrations: [
-        { id: 'wrappers', name: 'Wrappers', icon: Globe },
-        { id: 'webhooks', name: 'Webhooks', icon: Zap },
-        { id: 'cron', name: 'Cron Jobs', icon: History },
-        { id: 'extensions', name: 'PG Extensions', icon: Cpu },
-        { id: 'vault', name: 'Vault', icon: Shield },
-        { id: 'graphql', name: 'GraphQL', icon: Code },
-    ],
     settings: [
         { id: 'general', name: 'General', icon: Settings },
         { id: 'infrastructure', name: 'Infrastructure', icon: Server },
         { id: 'usage', name: 'Usage & Limits', icon: Activity },
         { id: 'api_keys', name: 'API Keys', icon: Key },
-        { id: 'mcp_gateway', name: 'MCP Gateway', icon: Terminal },
     ],
     workspaces: [
         { id: 'wm_overview', name: 'My Projects', icon: Briefcase },
@@ -284,9 +220,7 @@ export function getDefaultViewForSection(sectionId: string): string {
         storage: 'buckets',
         edge: 'functions',
         realtime: 'inspector',
-        logs: 'explorer',
         docs: 'intro',
-        integrations: 'wrappers',
         settings: 'general',
         workspaces: 'wm_overview',
         workspace_settings: 'ws_general',
@@ -304,4 +238,3 @@ export function isPrimaryNavActive(navId: string, selectedView: string): boolean
 export function getViewLabel(viewId: string): string {
     return getViewMeta(viewId).label;
 }
-

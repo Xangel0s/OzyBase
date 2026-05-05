@@ -107,6 +107,5 @@ Local development is a valid self-hosted runtime shape:
 - storage
 - SQL editor
 - usage/limits
-- MCP
 
 Cloud-only control-plane behaviors are not part of the local contract.

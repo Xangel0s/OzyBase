@@ -19,7 +19,7 @@ This plan is for:
 - self-hosted OSS
 - single-installation runtime
 - shared physical PostgreSQL database
-- project-scoped governance, limits, keys, metadata, and MCP
+- project-scoped governance, limits, keys, metadata, and runtime context
 
 This plan is not for:
 - dedicated database per project
@@ -63,7 +63,7 @@ That is why these two areas are more important than adding more modules.
 
 `Project` must mean exactly one thing in self-hosted OSS:
 
-> A logical scope for people, metadata, keys, usage, limits, MCP, and dashboard context inside one shared installation.
+> A logical scope for people, metadata, keys, usage, limits, and dashboard context inside one shared installation.
 
 It must not imply:
 - another PostgreSQL database
@@ -104,7 +104,6 @@ The following must remain project-scoped and verifiable:
 - API keys
 - collection metadata
 - saved views
-- MCP context
 - usage
 - limits
 
@@ -137,7 +136,7 @@ The following must remain false in self-hosted OSS:
 
 - E2E:
   - create/select/switch project
-  - verify scoped members, keys, views, MCP, usage
+  - verify scoped members, keys, views, usage
 - API:
   - capabilities contract checks
   - limits CRUD checks
@@ -163,7 +162,7 @@ Runtime plane should own:
 - storage operations
 - realtime execution
 - function invocation
-- MCP runtime behavior
+- runtime behavior
 
 ## Control Plane
 
@@ -200,7 +199,7 @@ Control plane should own:
   - Members
   - Usage & Limits
   - Keys
-  - MCP context
+  - runtime context
 - Runtime surfaces do not present governance promises they do not control.
 
 ### Architecture

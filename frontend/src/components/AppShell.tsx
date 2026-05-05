@@ -8,31 +8,20 @@ const lazyAny = (
 ): React.ComponentType<any> => lazy(loader) as React.ComponentType<any>;
 
 const TableEditor = lazyAny(() => import('./TableEditor'));
-const AgentForge = lazyAny(() => import('./AgentForge'));
-const OzyEngramChat = lazyAny(() => import('./OzyEngramChat'));
 const Overview = lazyAny(() => import('./Overview'));
 const SqlTerminal = lazyAny(() => import('./SqlTerminal'));
 const AuthManager = lazyAny(() => import('./AuthManager'));
 const StorageManager = lazyAny(() => import('./StorageManager'));
 const EdgeFunctions = lazyAny(() => import('./EdgeFunctions'));
 const RealtimeInspector = lazyAny(() => import('./RealtimeInspector'));
-const Advisors = lazyAny(() => import('./Advisors'));
-const Observability = lazyAny(() => import('./Observability'));
-const LogsAnalytics = lazyAny(() => import('./LogsAnalytics'));
 const SchemaVisualizer = lazyAny(() => import('./SchemaVisualizer'));
 const Settings = lazyAny(() => import('./Settings'));
 const ApiDocs = lazyAny(() => import('./ApiDocs'));
-const Integrations = lazyAny(() => import('./Integrations'));
-const SecurityManager = lazyAny(() => import('./SecurityManager'));
-const SecurityDashboard = lazyAny(() => import('./SecurityDashboard'));
 const PermissionManager = lazyAny(() => import('./PermissionManager'));
-const NotificationSettings = lazyAny(() => import('./NotificationSettings'));
 const TwoFactorAuth = lazyAny(() => import('./TwoFactorAuth'));
-const IntegrationsManager = lazyAny(() => import('./IntegrationsManager'));
 const AuthProvidersView = lazyAny(() => import('./AuthProvidersView'));
 const EmailTemplatesView = lazyAny(() => import('./EmailTemplatesView'));
 const AuthSettingsView = lazyAny(() => import('./AuthSettingsView'));
-const FirewallManager = lazyAny(() => import('./FirewallManager'));
 const WorkspaceManager = lazyAny(() => import('./WorkspaceManager'));
 const WorkspaceSettings = lazyAny(() => import('./WorkspaceSettings'));
 
@@ -110,10 +99,6 @@ const AppShell: React.FC<AppShellProps> = ({
             }
           />
         );
-      case 'AgentForge':
-        return <AgentForge />;
-      case 'OzyEngramChat':
-        return <OzyEngramChat />;
       case 'Overview':
         return (
           <Overview
@@ -150,22 +135,8 @@ const AppShell: React.FC<AppShellProps> = ({
         return <EdgeFunctions view={props.view} />;
       case 'RealtimeInspector':
         return <RealtimeInspector view={props.view} />;
-      case 'Advisors':
-        return <Advisors onViewSelect={setSelectedView} />;
-      case 'Observability':
-        return <Observability onViewSelect={setSelectedView} />;
-      case 'LogsAnalytics':
-        return <LogsAnalytics view={props.view} />;
       case 'PermissionManager':
         return <PermissionManager />;
-      case 'SecurityDashboard':
-        return <SecurityDashboard onViewSelect={setSelectedView} />;
-      case 'SecurityManager':
-        return <SecurityManager />;
-      case 'FirewallManager':
-        return <FirewallManager />;
-      case 'NotificationSettings':
-        return <NotificationSettings />;
       case 'Settings':
         return (
           <Settings
@@ -175,10 +146,6 @@ const AppShell: React.FC<AppShellProps> = ({
         );
       case 'ApiDocs':
         return <ApiDocs page={props.page} onViewSelect={setSelectedView} />;
-      case 'Integrations':
-        return <Integrations page={String(props.page || 'wrappers')} />;
-      case 'IntegrationsManager':
-        return <IntegrationsManager />;
       case 'WorkspaceManager':
         return (
           <WorkspaceManager

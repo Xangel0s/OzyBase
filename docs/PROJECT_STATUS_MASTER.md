@@ -2,7 +2,7 @@
 
 > **Last Updated:** 2026-04-01
 > **Version:** v1.1.0-Enterprise
-> **Executive Summary:** High-performance, zero-config Backend-as-a-Service with native RLS, hybrid storage, distributed realtime, MCP/NLQ runtime, and workspace-aware administration. Public npm distribution for the JS/TS SDK is still pending.
+> **Executive Summary:** High-performance, zero-config Backend-as-a-Service with native RLS, hybrid storage, distributed realtime, NLQ/vector runtime, and workspace-aware administration. Public npm distribution for the JS/TS SDK is still pending.
 
 ---
 
@@ -15,7 +15,7 @@
 - [x] **Ozy-Migrations**: Local SQL migration generation and CLI applier (`migrate-apply`).
 - [x] **Prometheus Observability**: Metrics endpoint, dashboards, and validation coverage.
 - [x] **OAuth Social Login**: GitHub and Google integration.
-- [x] **AI Runtime Surface**: Native NLQ, MCP, vector runtime, WASM functions, and extensions marketplace.
+- [x] **AI Runtime Surface**: Native NLQ, vector runtime, WASM functions, and extensions marketplace.
 
 ### 🛡️ Security & Hardening
 - [x] **JWT User Context**: Secure passing of identity to Postgres for granular security policies.
@@ -57,7 +57,6 @@
 
 ### Phase 3: AI, Scale & Runtime Extensions
 - [x] NLQ runtime.
-- [x] MCP runtime and tool catalog.
 - [x] pgvector runtime.
 - [x] WASM edge function runtime.
 - [x] Extensions marketplace lifecycle.

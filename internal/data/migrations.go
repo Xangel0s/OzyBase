@@ -570,7 +570,7 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 		`ALTER TABLE _v_api_keys ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ`,
 		`ALTER TABLE _v_api_keys ADD COLUMN IF NOT EXISTS managed_kind VARCHAR(20) NOT NULL DEFAULT 'custom'`,
 		`ALTER TABLE _v_api_keys ADD COLUMN IF NOT EXISTS secret_ciphertext TEXT`,
-		`UPDATE _v_api_keys SET managed_kind = 'custom' WHERE managed_kind IS NULL OR managed_kind = ''`,
+		`UPDATE _v_api_keys SET managed_kind = 'custom' WHERE managed_kind IS NULL OR managed_kind = '' OR managed_kind NOT IN ('custom', 'essential')`,
 		`ALTER TABLE _v_api_keys DROP CONSTRAINT IF EXISTS _v_api_keys_managed_kind_check`,
 		`ALTER TABLE _v_api_keys ADD CONSTRAINT _v_api_keys_managed_kind_check CHECK (managed_kind IN ('custom', 'essential'))`,
 		`CREATE INDEX IF NOT EXISTS idx_api_keys_group_version ON _v_api_keys(key_group_id, key_version DESC)`,

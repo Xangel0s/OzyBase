@@ -25,7 +25,6 @@ Projects currently scope:
 - collection metadata
 - API keys
 - saved views
-- MCP context
 - dashboard context
 - usage counters
 - project limits and warnings
@@ -64,7 +63,6 @@ The self-hosted product is easier to reason about when this split stays explicit
 | Storage operations | Yes | No |
 | Realtime delivery | Yes | No |
 | Function invocation | Yes | No |
-| MCP runtime tools | Yes | No |
 | Project lifecycle | No | Yes |
 | Members and roles | No | Yes |
 | Usage accounting | No | Yes |
@@ -104,7 +102,6 @@ What differs per project:
 - API keys
 - collection metadata tracked by project
 - saved table views
-- MCP configuration context
 - usage and limits
 
 What stays shared:

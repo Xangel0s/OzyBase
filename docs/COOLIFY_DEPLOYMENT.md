@@ -117,7 +117,7 @@ Then validate:
 - setup wizard works
 - first project is created
 - `Settings > Usage & Limits` loads
-- `Connected` modal loads keys and MCP JSON
+- `Connected` modal loads keys and connection details
 - storage uploads work
 - SQL editor opens
 - realtime status loads

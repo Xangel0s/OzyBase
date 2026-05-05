@@ -25,14 +25,14 @@ export function AgentSummaryCard({
     onClick,
     activeAgents,
     pendingApprovals,
-    bridgeStatus,
+    connectionStatus,
 }: {
     onClick: () => void;
     activeAgents: number;
     pendingApprovals: number;
-    bridgeStatus: string;
+    connectionStatus: string;
 }) {
-    const isHealthy = bridgeStatus === 'healthy';
+    const isHealthy = connectionStatus === 'healthy';
     
     return (
         <div 
@@ -59,7 +59,7 @@ export function AgentSummaryCard({
                             </p>
                             <span className="h-1 w-1 rounded-full bg-zinc-800" />
                             <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-600">
-                                Bridge: <span className={isHealthy ? 'text-emerald-400' : 'text-amber-400'}>{bridgeStatus}</span>
+                                Connection: <span className={isHealthy ? 'text-emerald-400' : 'text-amber-400'}>{connectionStatus}</span>
                             </p>
                         </div>
                     </div>
@@ -71,7 +71,7 @@ export function AgentSummaryCard({
                         <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-700">Core_Linked</span>
                     </div>
                     <div className="flex items-center gap-2 group-hover:translate-x-1 transition-transform">
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-primary">Gestionar Nexus</span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-primary">Manage</span>
                         <ArrowRight size={14} className="text-primary" />
                     </div>
                 </div>
@@ -144,35 +144,6 @@ interface WorkspaceLimits {
     api_requests_soft_limit?: number;
     realtime_events_soft_limit?: number;
     function_invocations_soft_limit?: number;
-}
-
-interface MCPPendingApproval {
-    id: string;
-    token_id?: string;
-    token_security_level?: string;
-    tool?: string;
-    status?: string;
-    created_at?: string;
-}
-
-interface MCPActiveSession {
-    token_id: string;
-    security_level?: string;
-    last_activity_at?: string;
-    pending_count?: number;
-    recent_tools?: string[];
-    available_skills?: string[];
-    available_tools?: string[];
-}
-
-interface MCPPendingPayload {
-    items?: MCPPendingApproval[];
-    active_sessions?: MCPActiveSession[];
-    active_sessions_live?: MCPActiveSession[];
-    active_count?: number;
-    active_count_live?: number;
-    published_tools?: number;
-    bridge_status?: string;
 }
 
 const formatBytes = (bytesValue: unknown) => {
@@ -289,10 +260,6 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
     const [cardPosition, setCardPosition] = useState({ x: 0, y: 0 });
     const [cardPositionReady, setCardPositionReady] = useState(false);
     const [isDraggingCard, setIsDraggingCard] = useState(false);
-    const [bridgeStatus, setBridgeStatus] = useState('healthy');
-    const [activeAgentCount, setActiveAgentCount] = useState(0);
-    const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
-
     const clampCardPosition = useCallback((position: { x: number; y: number }) => {
         const arena = cardArenaRef.current;
         const card = cardRef.current;
@@ -408,48 +375,6 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
             window.clearInterval(interval);
         };
     }, [loadData]);
-
-    const loadAgentAndEngram = useCallback(async (signal?: AbortSignal) => {
-        try {
-            const pendingRes = await fetchWithAuth('/api/project/mcp/approvals/pending', { signal });
-
-            const pendingPayload = await readJsonIfOk<MCPPendingPayload>(pendingRes);
-            if (pendingPayload) {
-                const activeSessions = Array.isArray(pendingPayload.active_sessions_live)
-                    ? pendingPayload.active_sessions_live
-                    : Array.isArray(pendingPayload.active_sessions)
-                        ? pendingPayload.active_sessions
-                        : [];
-                const pendingItems = Array.isArray(pendingPayload.items) ? pendingPayload.items : [];
-                const activeCount = typeof pendingPayload.active_count_live === 'number'
-                    ? pendingPayload.active_count_live
-                    : typeof pendingPayload.active_count === 'number'
-                        ? pendingPayload.active_count
-                        : activeSessions.length;
-                setActiveAgentCount(activeCount);
-                setPendingApprovalCount(pendingItems.length);
-                setBridgeStatus(String(pendingPayload.bridge_status || (activeCount > 0 ? 'healthy' : 'degraded')).trim() || 'unknown');
-            }
-        } catch (err) {
-            if (!isAbortLikeError(err, signal)) {
-                setActiveAgentCount(0);
-                setBridgeStatus('degraded');
-            }
-        }
-    }, []);
-
-    useEffect(() => {
-        const controller = new AbortController();
-        void loadAgentAndEngram(controller.signal);
-        const interval = window.setInterval(() => {
-            void loadAgentAndEngram();
-        }, 20000);
-
-        return () => {
-            controller.abort();
-            window.clearInterval(interval);
-        };
-    }, [loadAgentAndEngram]);
 
     const securityIssues = useMemo(
         () => healthIssues.filter((issue: any) => issue.type === 'security').length,
@@ -580,9 +505,7 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                             value={status.label}
                             hint={status.hint}
                             tone={status.tone}
-                            onClick={() => onViewSelect?.('advisors')}
                             testId="overview-card-status"
-                            actionLabel="Open advisors"
                         />
                         <MetricTile
                             icon={Database}
@@ -693,8 +616,8 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                             </div>
                             
                             <div className="mt-6 flex items-center justify-between">
-                                <span className={`rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${bridgeStatus === 'healthy' ? 'border-green-500/20 bg-green-500/10 text-green-500' : 'border-amber-500/20 bg-amber-500/10 text-amber-500'}`}>
-                                    bridge_{bridgeStatus}
+                                <span className="rounded-md border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-green-500">
+                                    core_ready
                                 </span>
                                 <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-700">Ozy_Core_V1</p>
                             </div>
@@ -704,11 +627,15 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
             </div>
 
             <section className="mt-10">
-                <AgentSummaryCard
-                    onClick={() => onViewSelect?.('agents')}
-                    activeAgents={activeAgentCount}
-                    pendingApprovals={pendingApprovalCount}
-                    bridgeStatus={bridgeStatus}
+                <MetricTile
+                    icon={ShieldCheck}
+                    label="Core"
+                    value={status.label}
+                    hint={status.hint}
+                    tone={status.tone}
+                    onClick={() => onViewSelect?.('tables')}
+                    testId="overview-card-core"
+                    actionLabel="Open database"
                 />
             </section>
 
@@ -856,7 +783,7 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                         <div className="rounded-md border border-[#2c2c2c] bg-[#101010] px-4 py-4">
                             <p className="text-[10px] font-medium] text-zinc-500">Runtime note</p>
                             <p className="mt-2 text-sm leading-6 text-zinc-400">
-                                This panel stays compact even when the values are fixed. Jump to Observability or Logs when you need the longer timeline instead of inflating the summary card.
+                                This panel stays compact even when the values are fixed. Use the dedicated module for deeper diagnostics when needed.
                             </p>
                         </div>
                     </div>
@@ -876,7 +803,7 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                                 <button
                                     key={`${issue?.title || 'issue'}-${index}`}
                                     type="button"
-                                    onClick={() => onViewSelect?.('advisors')}
+                                    onClick={() => onViewSelect?.('overview')}
                                     className="w-full rounded-md border border-[#2c2c2c] bg-[#101010] px-4 py-3.5 text-left transition-colors hover:border-primary/25 hover:bg-[#141414]"
                                 >
                                     <div className="flex items-start gap-3">
@@ -888,10 +815,10 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm font-bold leading-6 text-zinc-200">{issue?.title || 'Issue detected'}</p>
                                             <p className="mt-1 text-sm leading-6 text-zinc-500">
-                                                {issue?.description || 'Review this item from Advisors for more context.'}
+                                {issue?.description || 'Review this item for more context.'}
                                             </p>
                                             <div className="mt-2.5 inline-flex items-center gap-2 rounded-full border border-zinc-800 px-3 py-1 text-[9px] font-medium] text-zinc-500">
-                                                Open advisors
+                                                Open details
                                                 <ExternalLink size={12} />
                                             </div>
                                         </div>
@@ -900,7 +827,7 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                             )) : (
                                 <button
                                     type="button"
-                                    onClick={() => onViewSelect?.('advisors')}
+                                    onClick={() => onViewSelect?.('overview')}
                                     className="rounded-md border border-[#2c2c2c] bg-[#101010] px-4 py-5 text-left text-sm text-zinc-500 transition-colors hover:border-primary/25 hover:text-zinc-300"
                                 >
                                     No security or performance alerts are active right now.

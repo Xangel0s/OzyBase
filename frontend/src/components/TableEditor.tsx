@@ -2254,7 +2254,6 @@ const TableEditor: React.FC<TableEditorProps> = ({
         isRealtimeLoading={isRealtimeLoading}
         onToggleRealtime={requestRealtimeToggle}
         onOpenPolicies={() => onViewSelect?.("policies")}
-        onOpenAdvisors={() => onViewSelect?.("advisors")}
         onOpenDefinition={() => onViewSelect?.("definition")}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}

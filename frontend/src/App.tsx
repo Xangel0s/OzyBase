@@ -24,7 +24,6 @@ function App() {
     const [creatingProject, setCreatingProject] = useState(false);
     const [requestingAccess, setRequestingAccess] = useState(false);
     const [accessRequested, setAccessRequested] = useState(false);
-
     const loadTables = useCallback((signal?: AbortSignal) => {
         fetchWithAuth('/api/collections', { signal })
             .then((res) => res.json())
@@ -138,12 +137,14 @@ function App() {
     }
 
     return (
-        <AppShell
-            tables={tables}
-            workspaceId={workspaceId}
-            refreshTables={loadTables}
-            onWorkspaceChange={setWorkspaceId}
-        />
+        <>
+            <AppShell
+                tables={tables}
+                workspaceId={workspaceId}
+                refreshTables={loadTables}
+                onWorkspaceChange={setWorkspaceId}
+            />
+        </>
     );
 }
 

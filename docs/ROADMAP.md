@@ -33,7 +33,6 @@ Focus: **Schema Management & AI**
 - [x] **Frontend TypeScript Migration**: Frontend migrated to strict TypeScript (`@ts-nocheck=0`, `typecheck/build/lint` green).
 - [x] **Natural Language Querying (NLQ)**: Native deterministic NLQ implemented (`/api/project/nlq/translate` + `/api/project/nlq/query`) with safe table/column validation and smoke coverage.
 - [x] **Vector Support**: Native integration with `pgvector` for RAG applications (status/setup/upsert/search endpoints + smoke validation).
-- [x] **MCP Implementation**: Native MCP tool catalog + invoke endpoint (`/api/project/mcp/tools` + `/api/project/mcp/invoke`) wired to health/collections/vector/NLQ tools.
 
 ---
 

@@ -44,7 +44,7 @@ const BulkEditModal = ({ isOpen, onClose, schema = [], onSubmit }: BulkEditModal
                             <Save className="text-primary" size={16} />
                         </div>
                         <div>
-                            <h3 className="text-[11px] font-bold uppercase tracking-widest text-white">Bulk_Edit_Nexus</h3>
+                            <h3 className="text-[11px] font-bold uppercase tracking-widest text-white">Bulk Edit</h3>
                             <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 italic">Target: Selected_Nodes</p>
                         </div>
                     </div>

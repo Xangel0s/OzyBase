@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { apiRequest, login, runSQL } from './helpers/app.js';
 
-test('regression fixes: csv import, bucket actions, auth menu and MCP discoverability', async ({ page }) => {
+test('regression fixes: csv import, bucket actions and auth menu', async ({ page }) => {
     test.setTimeout(300000);
 
     const qaSuffix = Date.now().toString().slice(-8);
@@ -82,13 +82,10 @@ test('regression fixes: csv import, bucket actions, auth menu and MCP discoverab
         expect(menuBox).not.toBeNull();
         expect(menuBox.y + menuBox.height).toBeLessThan(1200);
 
-        await page.locator('header').getByText('A', { exact: true }).click();
-        await page.getByRole('button', { name: 'Settings', exact: true }).last().click();
-        await expect(page.getByRole('button', { name: 'MCP Gateway', exact: true })).toBeVisible({ timeout: 15000 });
-        await page.getByRole('button', { name: 'MCP Gateway', exact: true }).click();
-        await expect(page.getByText('Connect VS Code or another MCP client')).toBeVisible({ timeout: 10000 });
-        await page.getByRole('button', { name: 'General' }).click();
-        await expect(page.getByText('Core Release Channel')).toBeVisible({ timeout: 10000 });
+	        await page.locator('header').getByText('A', { exact: true }).click();
+	        await page.getByRole('button', { name: 'Settings', exact: true }).last().click();
+	        await page.getByRole('button', { name: 'General' }).click();
+	        await expect(page.getByText('Core Release Channel')).toBeVisible({ timeout: 10000 });
 
         const updateStatus = await apiRequest(page, '/api/project/update-status');
         expect(updateStatus.ok).toBe(true);
