@@ -84,6 +84,9 @@ jobs:
       - name: Download modules
         run: go mod download
 
+      - name: Allow database warmup
+        run: sleep 5
+
       - name: Run setup concurrency guard test
         run: go test -v ./internal/api -run TestSetupSystem_ConcurrentInitialization -count=1
 
