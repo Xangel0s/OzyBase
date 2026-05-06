@@ -242,7 +242,26 @@ func generateTemporaryPassword(length int) (string, error) {
 // GenerateTokenOnly generates a signed JWT without persisting a session row.
 // Use this only when session persistence is handled separately in the same transaction.
 func (s *AuthService) GenerateTokenOnly(userID, role string) (string, error) {
-	return s.generateToken(context.Background(), userID, role)
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("failed to generate token entropy: %w", err)
+	}
+
+	now := time.Now().UTC()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":          userID,
+		"user_id":      userID,
+		"role":         role,
+		"aud":          "authenticated",
+		"iss":          "ozybase",
+		"iat":          now.Unix(),
+		"nbf":          now.Unix(),
+		"exp":          now.Add(accessTokenTTL).Unix(),
+		"jti":          hex.EncodeToString(b),
+		"app_metadata": map[string]string{},
+	})
+
+	return token.SignedString([]byte(s.jwtSecret))
 }
 
 // GenerateSessionTokenPair creates a signed JWT, a backing session row, and a rotating refresh token.

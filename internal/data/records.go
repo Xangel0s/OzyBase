@@ -886,6 +886,9 @@ func (db *DB) BulkInsertRecord(ctx context.Context, collectionName string, recor
 				return err
 			}
 			if diagnostics.exhausted() {
+				if end < len(records) {
+					diagnostics.truncated = true
+				}
 				break
 			}
 		}
@@ -937,7 +940,11 @@ func bulkInsertChunkSize(columnCount int) int {
 }
 
 func execBulkInsertChunk(ctx context.Context, tx pgx.Tx, collectionName string, columns []string, columnTypes map[string]string, records []map[string]any, rowOffset int, diagnostics *bulkImportDiagnosticCollector) error {
-	if len(records) == 0 || diagnostics.exhausted() {
+	if len(records) == 0 {
+		return nil
+	}
+	if diagnostics.exhausted() {
+		diagnostics.truncated = true
 		return nil
 	}
 
@@ -968,6 +975,7 @@ func execBulkInsertChunk(ctx context.Context, tx pgx.Tx, collectionName string, 
 		return err
 	}
 	if diagnostics.exhausted() {
+		diagnostics.truncated = true
 		return nil
 	}
 	if err := execBulkInsertChunk(ctx, tx, collectionName, columns, columnTypes, records[midpoint:], rowOffset+midpoint, diagnostics); err != nil {

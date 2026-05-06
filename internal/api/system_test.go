@@ -847,7 +847,9 @@ func setupSystemTestDB(t *testing.T) *data.DB {
 			_v_sessions,
 			_v_users,
 			_v_audit_logs,
-			_v_security_policies
+			_v_security_policies,
+			_v_workspace_members,
+			_v_workspaces
 		RESTART IDENTITY CASCADE
 	`)
 	require.NoError(t, err)
