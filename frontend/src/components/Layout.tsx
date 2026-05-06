@@ -199,10 +199,6 @@ const Layout: React.FC<LayoutProps> = ({
     const userDropdownRef = useRef<HTMLDivElement | null>(null);
     const contentViewportRef = useRef<HTMLDivElement | null>(null);
 
-    useEffect(() => {
-        setAgentPulseCount(0);
-    }, []);
-
     // Derived state (js-combine-iterations)
     const safeHealthIssues = useMemo(() => Array.isArray(healthIssues) ? healthIssues : [], [healthIssues]);
     const rlsCoverageIssues = useMemo(

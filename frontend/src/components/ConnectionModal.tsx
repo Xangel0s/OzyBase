@@ -12,6 +12,7 @@ import {
   Key,
   Loader2,
   LockKeyhole,
+  RotateCcw,
   Server,
   ShieldCheck,
   X,
@@ -50,6 +51,8 @@ const ROLE_LABELS: Record<EssentialRole, { title: string; badge: string; note: s
     note: 'Use this only in trusted backends and admin automation.',
   },
 };
+
+const KEY_ORDER: EssentialRole[] = ['anon', 'service_role'];
 
 const formatTimestamp = (value?: string | null) => {
   if (!value) return 'Not set';
@@ -336,8 +339,8 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
                           disabled={!revealed?.key}
                           className="rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-200 hover:text-white disabled:opacity-40 flex items-center gap-2"
                         >
-                          {copiedKey === `${role}-secret` ? <Check size={12} /> : <Copy size={12} />}
-                          {copiedKey === `${role}-secret` ? 'Copied' : 'Copy'}
+                          {copied === `${role}-secret` ? <Check size={12} /> : <Copy size={12} />}
+                          {copied === `${role}-secret` ? 'Copied' : 'Copy'}
                         </button>
                         <button
                           onClick={() => setPendingRotateRole(role)}
