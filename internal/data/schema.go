@@ -554,9 +554,7 @@ func mapPostgresArrayTypeToOzy(pgTypeUpper, udtNameUpper string) string {
 	if candidate == "" {
 		candidate = strings.TrimSpace(pgTypeUpper)
 	}
-	if strings.HasPrefix(candidate, "_") {
-		candidate = strings.TrimPrefix(candidate, "_")
-	}
+	candidate = strings.TrimPrefix(candidate, "_")
 	candidate = strings.ToUpper(candidate)
 
 	switch {

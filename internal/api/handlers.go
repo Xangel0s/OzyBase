@@ -543,7 +543,7 @@ func (h *Handler) Health(c echo.Context) error {
 
 	realtimeStart := time.Now()
 	realtimeStatus := "ok"
-	realtimeDetail := "broker active"
+	var realtimeDetail string
 	subscribers := 0
 	if h.Broker == nil {
 		realtimeStatus = "fail"
@@ -559,7 +559,7 @@ func (h *Handler) Health(c echo.Context) error {
 	}
 
 	workersStatus := "ok"
-	workersDetail := "audit worker active"
+	var workersDetail string
 	auditQueueDepth := 0
 	if h.Audit == nil || !h.Audit.IsRunning() {
 		workersStatus = "fail"

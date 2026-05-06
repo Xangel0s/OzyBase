@@ -299,10 +299,6 @@ func normalizeEssentialRole(raw string) (string, error) {
 	}
 }
 
-func projectAPIBaseURL(c echo.Context) string {
-	return resolveProjectAPIURL(c)
-}
-
 func (h *Handler) currentEssentialAPIKey(ctx context.Context, role string) (APIKey, string, error) {
 	var key APIKey
 	var secretCiphertext string
