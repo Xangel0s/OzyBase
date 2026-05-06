@@ -177,8 +177,8 @@ func writePostgresAwareError(c echo.Context, err error, fallback string) error {
 	}
 
 	status := http.StatusBadRequest
-	message := fallback
-	errorCode := "PG_ERROR"
+	var message string
+	var errorCode string
 
 	switch pgErr.Code {
 	case "42P01":
