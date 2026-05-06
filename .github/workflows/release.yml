@@ -64,6 +64,17 @@ jobs:
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Frontend install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Sync embedded frontend assets
+        run: bash scripts/sync_frontend_dist.sh
+
       - name: Download Go modules
         run: go mod download
 
@@ -78,20 +89,9 @@ jobs:
           version: v2.11.3
           args: --timeout=10m
 
-      - name: Frontend install
-        working-directory: frontend
-        run: npm ci
-
       - name: Frontend lint
         working-directory: frontend
         run: npm run lint
-
-      - name: Frontend build
-        working-directory: frontend
-        run: npm run build
-
-      - name: Sync embedded frontend assets
-        run: bash scripts/sync_frontend_dist.sh
 
       - name: Frontend bundle budget
         working-directory: frontend
@@ -179,6 +179,24 @@ jobs:
         with:
           go-version: "1.25.8"
           cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Sync embedded frontend assets
+        run: bash scripts/sync_frontend_dist.sh
 
       - name: Download Go modules
         run: go mod download
