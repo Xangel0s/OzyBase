@@ -178,7 +178,7 @@ func (h *Handler) StartCollectionAutoDiscovery(ctx context.Context) {
 	defer ticker.Stop()
 
 	if err := h.runCollectionAutoDiscoveryPass(ctx, pruneMissing); err != nil {
-		fmt.Printf("⚠️ [Collection Auto-Discovery] startup pass failed: %v\n", err)
+		fmt.Printf("[Collection Auto-Discovery] startup pass failed: %v\n", err)
 	}
 
 	for {
@@ -187,7 +187,7 @@ func (h *Handler) StartCollectionAutoDiscovery(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if err := h.runCollectionAutoDiscoveryPass(ctx, pruneMissing); err != nil {
-				fmt.Printf("⚠️ [Collection Auto-Discovery] periodic pass failed: %v\n", err)
+				fmt.Printf("[Collection Auto-Discovery] periodic pass failed: %v\n", err)
 			}
 		}
 	}
@@ -214,7 +214,7 @@ func (h *Handler) runCollectionAutoDiscoveryPass(parentCtx context.Context, prun
 			continue
 		}
 		if err := h.upsertCollectionMetadataForTable(ctx, tableName, ""); err != nil {
-			fmt.Printf("⚠️ [Collection Auto-Discovery] failed to register %s: %v\n", tableName, err)
+			fmt.Printf("[Collection Auto-Discovery] failed to register %s: %v\n", tableName, err)
 			continue
 		}
 		added++
@@ -226,7 +226,7 @@ func (h *Handler) runCollectionAutoDiscoveryPass(parentCtx context.Context, prun
 				continue
 			}
 			if err := h.deleteCollectionMetadataForTable(ctx, name); err != nil {
-				fmt.Printf("⚠️ [Collection Auto-Discovery] failed to prune %s: %v\n", name, err)
+				fmt.Printf("[Collection Auto-Discovery] failed to prune %s: %v\n", name, err)
 				continue
 			}
 			removed++
@@ -234,7 +234,7 @@ func (h *Handler) runCollectionAutoDiscoveryPass(parentCtx context.Context, prun
 	}
 
 	if added > 0 || removed > 0 {
-		fmt.Printf("🔄 [Collection Auto-Discovery] synced (added=%d removed=%d prune=%t)\n", added, removed, pruneMissing)
+		fmt.Printf("[Collection Auto-Discovery] synced (added=%d removed=%d prune=%t)\n", added, removed, pruneMissing)
 	}
 
 	return nil
@@ -358,12 +358,12 @@ func (h *Handler) cleanOldLogs(ctx context.Context) {
 	// 30 days retention
 	res, err := h.DB.Pool.Exec(ctx, "DELETE FROM _v_audit_logs WHERE created_at < NOW() - INTERVAL '30 days'")
 	if err != nil {
-		fmt.Printf("⚠️ [Log Cleaner] Failed to purge old logs: %v\n", err)
+		fmt.Printf("[Log Cleaner] Failed to purge old logs: %v\n", err)
 		return
 	}
 	count := res.RowsAffected()
 	if count > 0 {
-		fmt.Printf("🧹 [Log Cleaner] Purged %d logs older than 30 days\n", count)
+		fmt.Printf("[Log Cleaner] Purged %d logs older than 30 days\n", count)
 	}
 }
 
@@ -401,7 +401,7 @@ func (h *Handler) flushLogsToSIEM(ctx context.Context) {
 		LIMIT 500
 	`, from, to)
 	if err != nil {
-		fmt.Printf("⚠️ [SIEM Export] failed to query logs: %v\n", err)
+		fmt.Printf("[SIEM Export] failed to query logs: %v\n", err)
 		return
 	}
 	defer rows.Close()
@@ -429,7 +429,7 @@ func (h *Handler) flushLogsToSIEM(ctx context.Context) {
 		return
 	}
 	if err := h.Integrations.SendLogBatch(ctx, logs); err != nil {
-		fmt.Printf("⚠️ [SIEM Export] failed to enqueue SIEM batch: %v\n", err)
+		fmt.Printf("[SIEM Export] failed to enqueue SIEM batch: %v\n", err)
 	}
 }
 

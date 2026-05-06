@@ -33,7 +33,7 @@ func NewApplier(pool *pgxpool.Pool, path string) *Applier {
 func (a *Applier) ApplyPendingMigrations(ctx context.Context) error {
 	// 1. Ensure migrations path exists
 	if _, err := os.Stat(a.migrationsPath); os.IsNotExist(err) {
-		log.Printf("📂 Migrations directory %s does not exist, skipping applier.", a.migrationsPath)
+		log.Printf("Migrations directory %s does not exist, skipping applier.", a.migrationsPath)
 		return nil
 	}
 
@@ -43,7 +43,7 @@ func (a *Applier) ApplyPendingMigrations(ctx context.Context) error {
 	if err != nil {
 		// If table doesn't exist yet, it will be created by RunMigrations called before this,
 		// but if it still fails, we assume no migrations applied.
-		log.Printf("⚠️ Could not fetch migration history: %v", err)
+		log.Printf("Could not fetch migration history: %v", err)
 	} else {
 		defer rows.Close()
 		for rows.Next() {
@@ -73,11 +73,11 @@ func (a *Applier) ApplyPendingMigrations(ctx context.Context) error {
 	sort.Strings(pending)
 
 	if len(pending) == 0 {
-		log.Println("✅ No pending migrations to apply.")
+		log.Println("No pending migrations to apply.")
 		return nil
 	}
 
-	log.Printf("🚀 Found %d pending migrations. Applying...", len(pending))
+	log.Printf("Found %d pending migrations. Applying...", len(pending))
 
 	// 5. Apply each migration in a transaction
 	for _, fileName := range pending {
@@ -87,7 +87,7 @@ func (a *Applier) ApplyPendingMigrations(ctx context.Context) error {
 			return fmt.Errorf("failed to read migration file %s: %w", fileName, err)
 		}
 
-		log.Printf("📝 Applying migration: %s", fileName)
+		log.Printf("Applying migration: %s", fileName)
 
 		// Run in transaction
 		tx, err := a.pool.Begin(ctx)
@@ -111,7 +111,7 @@ func (a *Applier) ApplyPendingMigrations(ctx context.Context) error {
 			return fmt.Errorf("failed to commit migration %s: %w", fileName, err)
 		}
 
-		log.Printf("✅ Migration applied successfully: %s", fileName)
+		log.Printf("Migration applied successfully: %s", fileName)
 	}
 
 	return nil

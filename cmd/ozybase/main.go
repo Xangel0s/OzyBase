@@ -31,7 +31,7 @@ import (
 func main() {
 	logger.Init(strings.EqualFold(strings.TrimSpace(os.Getenv("DEBUG")), "true"))
 	if err := run(); err != nil {
-		logger.Log.Fatal().Err(err).Msg("Failed to start OzyBase")
+		logger.Log.Fatal().Err(err).Msg("startup=failed")
 	}
 }
 
@@ -44,6 +44,8 @@ func run() error {
 		return nil
 	}
 
+	printStartupBanner()
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
@@ -52,21 +54,21 @@ func run() error {
 
 	// Initialize Logger
 	logger.Init(os.Getenv("DEBUG") == "true")
-	logger.Log.Info().Msg("🎯 OzyBase initializing...")
+	logger.Log.Info().Msg("startup=begin")
 	if cfg.GeneratedJWTSecret {
-		logger.Log.Warn().Msg("JWT_SECRET was missing and has been generated automatically into .ozy_secret")
+		logger.Log.Warn().Msg("jwt_secret=generated")
 	}
 	if cfg.GeneratedAnonKey {
-		logger.Log.Warn().Msg("ANON_KEY was missing and has been generated automatically into .ozy_anon_key")
+		logger.Log.Warn().Msg("anon_key=generated")
 	}
 	if cfg.GeneratedServiceRoleKey {
-		logger.Log.Warn().Msg("SERVICE_ROLE_KEY was missing and has been generated automatically into .ozy_service_role_key")
+		logger.Log.Warn().Msg("service_role_key=generated")
 	}
 	if cfg.DerivedAllowedOrigin {
-		logger.Log.Info().Strs("origins", cfg.AllowedOrigins).Msg("ALLOWED_ORIGINS was auto-derived from SITE_URL/APP_DOMAIN")
+		logger.Log.Info().Strs("origins", cfg.AllowedOrigins).Msg("allowed_origins=derived")
 	}
 	for _, warning := range cfg.SecurityWarnings {
-		logger.Log.Warn().Str("area", "config-security").Msg(warning)
+		logger.Log.Warn().Str("warning", warning).Msg("config_security=warning")
 	}
 
 	// Connect to database
@@ -98,7 +100,7 @@ func run() error {
 		}
 	}()
 
-	logger.Log.Info().Msg("✅ Connected to PostgreSQL")
+	logger.Log.Info().Msg("db=connected")
 	logDatabaseIdentity(ctx, db)
 
 	// Run migrations
@@ -106,10 +108,10 @@ func run() error {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	// 🔐 Initialize OAuth
+	// Initialize OAuth
 	initOAuth()
 
-	// 📦 Initialize Storage
+	// Initialize Storage
 	storageSvc, err := initStorage(cfg)
 	if err != nil {
 		return err
@@ -120,7 +122,7 @@ func run() error {
 	if shouldBootstrapAdminFromEnv() {
 		ozyauth.EnsureAdminUser(db)
 	} else {
-		logger.Log.Info().Msg("Admin bootstrap skipped. Setup Wizard will handle first-time initialization.")
+		logger.Log.Info().Msg("bootstrap=wizard")
 	}
 
 	// CLI Commands handling
@@ -135,19 +137,19 @@ func run() error {
 	// Initialize Realtime components
 	broker, dispatcher, cronMgr := initRealtime(db)
 
-	// 🔄 Initialize PubSub (for horizontal scaling)
+	// Initialize PubSub (for horizontal scaling)
 	ps := initPubSub(cfg, broker)
 	startRealtimePipelines(ctx, db, broker, dispatcher, ps, cfg)
 
 	// Setup Mailer
 	mailSvc := buildMailer(db, cfg)
 
-	// 📝 Setup Audit Service (Go Best Practice: Async Logging)
+	// Setup Audit Service (Go Best Practice: Async Logging)
 	auditService := core.NewAuditService(db)
 	auditService.Start()
 	defer auditService.Stop()
 
-	// 📜 Initialize Migrations Generator & Applier
+	// Initialize migrations generator and applier
 	migrator := migrations.NewGenerator("./migrations")
 	applier := migrations.NewApplier(db.Pool, "./migrations")
 
@@ -180,21 +182,21 @@ func run() error {
 
 	e := setupEcho(ctx, h, cfg, cronMgr)
 
-	// 📊 Register Prometheus
+	// Register Prometheus
 	api.RegisterPrometheus(e)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	go func() {
-		logger.Log.Info().Str("addr", addr).Msg("🚀 OzyBase server starting")
+		logger.Log.Info().Str("addr", addr).Msg("server=starting")
 		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
-			logger.Log.Fatal().Err(err).Msg("Server crashed")
+			logger.Log.Fatal().Err(err).Msg("server=crashed")
 		}
 	}()
 
 	// Wait for interruption
 	<-ctx.Done()
-	logger.Log.Info().Msg("🛑 Shutting down server...")
+		logger.Log.Info().Msg("server=shutting_down")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -203,8 +205,17 @@ func run() error {
 		return fmt.Errorf("failed to shutdown server: %w", err)
 	}
 
-	logger.Log.Info().Msg("👋 Server exited")
+		logger.Log.Info().Msg("server=exited")
 	return nil
+}
+
+func printStartupBanner() {
+	fmt.Println(`  OOOOO   ZZZZZ   Y   Y   BBBB    AAA    SSSS   EEEEE`)
+	fmt.Println(`  O   O      Z    Y Y     B   B  A   A  S      E`)
+	fmt.Println(`  O   O     Z      Y      BBBB   AAAAA   SSS   EEEE`)
+	fmt.Println(`  O   O    Z       Y      B   B  A   A      S  E`)
+	fmt.Println(`  OOOOO   ZZZZZ    Y      BBBB   A   A  SSSS   EEEEE`)
+	fmt.Println()
 }
 
 func logDatabaseIdentity(ctx context.Context, db *data.DB) {
@@ -225,7 +236,7 @@ func logDatabaseIdentity(ctx context.Context, db *data.DB) {
 			split_part(version(), ',', 1)::text AS version_short
 	`).Scan(&serverAddr, &serverPort, &dbName, &dbUser, &version)
 	if err != nil {
-		logger.Log.Warn().Err(err).Msg("Unable to resolve DB server identity")
+		logger.Log.Warn().Err(err).Msg("db_identity=unresolved")
 		return
 	}
 
@@ -235,7 +246,7 @@ func logDatabaseIdentity(ctx context.Context, db *data.DB) {
 		Str("database", dbName).
 		Str("db_user", dbUser).
 		Str("server_version", version).
-		Msg("Database runtime target resolved")
+		Msg("db_identity=resolved")
 }
 
 func buildMailer(db *data.DB, cfg *config.Config) mailer.Mailer {
@@ -251,9 +262,9 @@ func buildMailer(db *data.DB, cfg *config.Config) mailer.Mailer {
 	}
 
 	if fallback.Configured() {
-		logger.Log.Info().Msg("SMTP runtime mailer initialized with environment fallback")
+		logger.Log.Info().Msg("smtp_mailer=environment_fallback")
 	} else {
-		logger.Log.Warn().Msg("SMTP is not configured yet; email flows will use the console mailer until SMTP settings are saved")
+		logger.Log.Warn().Msg("smtp_mailer=console_fallback")
 	}
 
 	return mailer.NewRuntimeMailer(db, fallback)
@@ -272,7 +283,7 @@ func handleCLI(db *data.DB) (bool, error) {
 		if err := gen.Generate(outputPath); err != nil {
 			return true, fmt.Errorf("failed to generate types: %w", err)
 		}
-		logger.Log.Info().Str("output", outputPath).Msg("Types generated successfully")
+		logger.Log.Info().Str("output", outputPath).Msg("types=generated")
 		return true, nil
 	}
 
@@ -284,7 +295,7 @@ func handleCLI(db *data.DB) (bool, error) {
 		}
 		newPass := os.Args[2]
 
-		logger.Log.Info().Str("email", email).Msg("Resetting admin password")
+		logger.Log.Info().Str("email", email).Msg("admin_password=resetting")
 
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPass), 12)
 		if err != nil {
@@ -296,7 +307,7 @@ func handleCLI(db *data.DB) (bool, error) {
 			return true, fmt.Errorf("failed to update password: %w", err)
 		}
 
-		logger.Log.Info().Str("email", email).Msg("Admin password reset successfully")
+		logger.Log.Info().Str("email", email).Msg("admin_password=reset")
 		return true, nil
 	}
 
@@ -304,12 +315,12 @@ func handleCLI(db *data.DB) (bool, error) {
 		ctx := context.Background()
 		applier := migrations.NewApplier(db.Pool, "./migrations")
 
-		logger.Log.Info().Msg("Running Ozy-Apply: checking for pending migrations")
+		logger.Log.Info().Msg("migrations=checking_pending")
 		if err := applier.ApplyPendingMigrations(ctx); err != nil {
 			return true, fmt.Errorf("migration application failed: %w", err)
 		}
 
-		logger.Log.Info().Msg("All migrations applied successfully")
+		logger.Log.Info().Msg("migrations=applied")
 		return true, nil
 	}
 
@@ -349,7 +360,7 @@ func shouldBootstrapAdminFromEnv() bool {
 
 func initOAuth() {
 	if err := core.InitOAuth(); err != nil {
-		logger.Log.Warn().Err(err).Msg("OAuth initialization failed")
+		logger.Log.Warn().Err(err).Msg("oauth=init_failed")
 	}
 }
 
@@ -358,18 +369,18 @@ func initStorage(cfg *config.Config) (storage.Provider, error) {
 		svc, err := storage.NewS3Provider(cfg.S3Endpoint, cfg.S3AccessKey, cfg.S3SecretKey, cfg.S3UseSSL)
 		if err != nil {
 			if cfg.StorageFallbackLocal {
-				logger.Log.Warn().Err(err).Str("path", cfg.StoragePath).Msg("S3 storage unavailable, falling back to local storage")
+				logger.Log.Warn().Err(err).Str("path", cfg.StoragePath).Msg("storage=s3_fallback_local")
 				return storage.NewLocalProvider(cfg.StoragePath), nil
 			}
 			return nil, fmt.Errorf("failed to initialize S3 storage: %w", err)
 		}
-		logger.Log.Info().Msg("Using S3-compatible storage")
+		logger.Log.Info().Msg("storage=s3")
 		return svc, nil
 	}
 	if cfg.StorageProvider != "local" {
-		logger.Log.Warn().Str("provider", cfg.StorageProvider).Msg("Unknown storage provider, defaulting to local storage")
+		logger.Log.Warn().Str("provider", cfg.StorageProvider).Msg("storage=provider_unknown")
 	}
-	logger.Log.Info().Str("path", cfg.StoragePath).Msg("Using local storage")
+	logger.Log.Info().Str("path", cfg.StoragePath).Msg("storage=local")
 	return storage.NewLocalProvider(cfg.StoragePath), nil
 }
 
@@ -394,7 +405,7 @@ func startRealtimePipelines(ctx context.Context, db *data.DB, broker *realtime.B
 	}
 	broker.SetNodeID(nodeID)
 	if err := realtime.StartPubSubBridge(ctx, ps, broker, nodeID, channel); err != nil {
-		logger.Log.Warn().Err(err).Str("mode", ps.Mode()).Msg("realtime pubsub bridge failed to start")
+		logger.Log.Warn().Err(err).Str("mode", ps.Mode()).Msg("realtime_pubsub=start_failed")
 	}
 	if cfg.RealtimeWALBridgeEnabled {
 		err := realtime.StartLogicalWALBridge(ctx, realtime.LogicalWALBridgeConfig{
@@ -405,11 +416,11 @@ func startRealtimePipelines(ctx context.Context, db *data.DB, broker *realtime.B
 			Channel:         channel,
 		}, broker, dispatcher, ps)
 		if err != nil {
-			logger.Log.Warn().Err(err).Msg("realtime WAL bridge failed to initialize, falling back to LISTEN/NOTIFY")
+			logger.Log.Warn().Err(err).Msg("realtime_wal=fallback_listen_notify")
 			go realtime.ListenForEvents(ctx, db.Pool, broker, dispatcher, ps, nodeID, channel)
 			return
 		}
-		logger.Log.Info().Str("slot", cfg.RealtimeWALSlot).Str("publication", cfg.RealtimeWALPublication).Msg("realtime WAL bridge enabled")
+		logger.Log.Info().Str("slot", cfg.RealtimeWALSlot).Str("publication", cfg.RealtimeWALPublication).Msg("realtime_wal=enabled")
 		return
 	}
 
@@ -418,10 +429,10 @@ func startRealtimePipelines(ctx context.Context, db *data.DB, broker *realtime.B
 
 func initPubSub(cfg *config.Config, broker *realtime.Broker) realtime.PubSub {
 	if cfg.RealtimeBroker == "redis" {
-		logger.Log.Info().Msg("🔄 Using Redis PubSub")
+		logger.Log.Info().Msg("pubsub=redis")
 		return realtime.NewRedisPubSub(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
 	}
-	logger.Log.Info().Msg("🔄 Using Local PubSub")
+		logger.Log.Info().Msg("pubsub=local")
 	return realtime.NewLocalPubSub(broker)
 }
 
@@ -444,7 +455,7 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 			return nil
 		},
 	}))
-	e.Use(h.FirewallMiddleware()) // 🛡️ IP Firewall (Whitelist/Blacklist) - Very First Defense
+	e.Use(h.FirewallMiddleware()) // IP Firewall (Whitelist/Blacklist) - Very First Defense
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: cfg.AllowedOrigins,
@@ -501,9 +512,9 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 			return path == "/api/files/uploads" || strings.HasPrefix(path, "/api/files/uploads/multipart/")
 		},
 	}))
-	e.Use(api.PrometheusMiddleware()) // 📊 Stats
-	e.Use(api.APIKeyMiddleware(h.DB)) // 🔐 API Key Auth (Enterprise Phase 1)
-	e.Use(api.RLSMiddleware(h.DB))    // 🛡️ RLS Context Injection
+	e.Use(api.PrometheusMiddleware()) // Stats
+	e.Use(api.APIKeyMiddleware(h.DB)) // API Key Auth (Enterprise Phase 1)
+	e.Use(api.RLSMiddleware(h.DB))    // RLS Context Injection
 	e.Use(api.AdminAuditMiddleware(h))
 	// #nosec G101 -- CSRF token lookup/cookie fields are static identifiers, not credentials.
 	e.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
@@ -586,7 +597,7 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 	apiGroup.Use(api.LimitsEnforcementMiddleware(h.DB, cfg.LimitsEnforcementV2))
 	{
 		apiGroup.GET("/health", h.Health)
-		apiGroup.GET("/project/metrics", h.GetPrometheusMetrics) // 📊 Enterprise Phase 1
+		apiGroup.GET("/project/metrics", h.GetPrometheusMetrics) // Enterprise Phase 1
 		apiGroup.GET("/project/stats", h.GetStats, authRequired)
 		apiGroup.GET("/realtime", realtimeHandler.Stream)
 		apiGroup.POST("/realtime/session", realtimeHandler.CreateSession, authRequired)

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   AlertTriangle,
+  ArrowRight,
   Check,
   Copy,
   Database,
@@ -229,6 +230,43 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
 
           {activeTab === 'connection' ? (
             <div className="space-y-4">
+              <div className="rounded-md border border-primary/20 bg-primary/5 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary">Recommended setup</p>
+                    <h2 className="mt-2 text-lg font-semibold text-white">One-time project connection</h2>
+                    <p className="mt-2 text-sm text-zinc-400">Run the npm bootstrap in your project terminal, confirm in the browser, and keep the MCP wired locally for every IDE.</p>
+                  </div>
+                  <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-emerald-200">
+                    {connection?.last_verified_at ? 'Connected' : 'Not linked yet'}
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-4">
+                  {[
+                    'Run `npx ozybase connect` in the project terminal.',
+                    'Review the summary in the browser confirmation.',
+                    'Approve once and persist the local project link.',
+                    'Let the IDE use the local MCP stdio endpoint.',
+                  ].map((step, index) => (
+                    <div key={step} className="rounded-md border border-zinc-800 bg-black/30 p-4">
+                      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-[10px] text-white">{index + 1}</span>
+                        <ArrowRight size={12} />
+                      </div>
+                      <p className="mt-3 text-sm text-zinc-200 leading-relaxed">{step}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-widest">
+                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-zinc-300">Terminal first</span>
+                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-zinc-300">Browser approval</span>
+                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-zinc-300">Local state persisted</span>
+                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-zinc-300">MCP by stdio</span>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <StatCard icon={<Database size={16} />} label="Database" value={connection?.connection?.database || 'Not loaded'} />
                 <StatCard icon={<Server size={16} />} label="Host" value={connection?.connection?.host || 'Not loaded'} />

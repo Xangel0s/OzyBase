@@ -1,4 +1,4 @@
-# OzyBase Dashboard 🛡️🚀
+# OzyBase Dashboard
 
 ![OzyBase Banner](../docs/banner.jpg)
 

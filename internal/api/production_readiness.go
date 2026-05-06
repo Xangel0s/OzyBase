@@ -7,7 +7,7 @@ import (
 	"github.com/Xangel0s/OzyBase/internal/config"
 )
 
-const poolerRecommendationWarning = "DB_POOLER_URL is not configured; direct database connections are enabled, but a pooler is recommended for multi-instance production workloads"
+const poolerRecommendationWarning = "DB_POOLER_URL missing; direct DB mode active"
 
 type ProjectProductionReadiness struct {
 	Status             string   `json:"status"`

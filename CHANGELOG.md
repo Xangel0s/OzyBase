@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Enterprise smoke suite now validates realtime status, marketplace flows, and wasm edge-function invoke path.
-- Roadmap tracking updated to mark XL closure (`pgvector + NLQ + MCP + WASM + marketplace + global SSE`) as completed.
+- Roadmap tracking updated to mark XL closure (`pgvector + NLQ + WASM + marketplace + global SSE`) as completed.
 - README updated with AI-editor readiness summary and final roadmap snapshot (`0` pending items).
 
 ## [1.2.1] - 2026-02-20

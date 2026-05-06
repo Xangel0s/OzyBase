@@ -537,7 +537,7 @@ func MetricsMiddleware(h *Handler) echo.MiddlewareFunc {
 			path := c.Request().URL.Path
 			lowerPath := strings.ToLower(path)
 
-			// 🛡️ [Refined Exclusion] Strictly block automated polling noise
+			// [Refined Exclusion] Strictly block automated polling noise
 			// We block only the HEAD and background fetch events, allowing actual interactions
 			isPolling := isMetricsPollingPath(lowerPath)
 
@@ -574,7 +574,7 @@ func MetricsMiddleware(h *Handler) echo.MiddlewareFunc {
 				userIDPtr = nil
 			}
 
-			// 🚀 [Async Audit] Use the high-performance worker
+			// [Async Audit] Use the high-performance worker
 			rawWorkspaceID, _ := c.Get("workspace_id").(string)
 			var workspaceIDPtr *string
 			if strings.TrimSpace(rawWorkspaceID) != "" {

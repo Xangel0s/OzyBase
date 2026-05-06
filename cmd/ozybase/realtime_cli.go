@@ -86,7 +86,7 @@ func handleRealtimeEnable(ctx context.Context, db *data.DB, args []string) error
 		return err
 	}
 
-	log.Printf("✅ Realtime enabled for %s.%s (publication=%s, slot=%s)", schemaName, tableName, publicationName, slotName)
+	log.Printf("Realtime enabled for %s.%s (publication=%s, slot=%s)", schemaName, tableName, publicationName, slotName)
 	return nil
 }
 

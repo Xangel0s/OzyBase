@@ -439,18 +439,18 @@ func validateSecurity(cfg *Config, debug, strict bool) ([]string, error) {
 		readEnv("DB_POOLER_URL") == "" &&
 		readEnv("POOLER_URL") == "" &&
 		readEnv("DB_POOLER_HOST") == "" {
-		warnings = append(warnings, "DB_POOLER_URL is not configured; direct database connections are enabled, but a pooler is recommended for multi-instance production workloads")
+		warnings = append(warnings, "DB_POOLER_URL missing; direct DB mode active")
 	}
 
 	if placeholderDomain(cfg.SiteURL) {
-		msg := "SITE_URL uses a placeholder example.* domain"
+		msg := "SITE_URL uses placeholder domain"
 		if strict && !debug {
 			return nil, errors.New(msg)
 		}
 		warnings = append(warnings, msg)
 	}
 	if placeholderDomain(cfg.AppDomain) {
-		msg := "APP_DOMAIN uses a placeholder example.* domain"
+		msg := "APP_DOMAIN uses placeholder domain"
 		if strict && !debug {
 			return nil, errors.New(msg)
 		}
@@ -464,14 +464,14 @@ func validateSecurity(cfg *Config, debug, strict bool) ([]string, error) {
 		warnings = append(warnings, msg)
 	}
 	if strings.TrimSpace(cfg.SMTPHost) == "" && !debug {
-		msg := "SMTP_HOST is not configured; verification, reset, and invite emails will use the console mailer"
+		msg := "SMTP_HOST missing; console mailer active"
 		warnings = append(warnings, msg)
 	}
 
 	if !debug {
 		for _, origin := range cfg.AllowedOrigins {
 			if origin == "*" {
-				msg := "ALLOWED_ORIGINS contains '*' in non-debug mode"
+			msg := "ALLOWED_ORIGINS contains '*' in non-debug mode"
 				if strict {
 					return nil, errors.New(msg)
 				}

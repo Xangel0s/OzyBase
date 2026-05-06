@@ -485,7 +485,7 @@ func (h *Handler) syncCollectionsAfterSQL(ctx context.Context, query string, wor
 			err = h.deleteCollectionMetadataForTable(ctx, mutation.TableName)
 		}
 		if err != nil {
-			log.Printf("⚠️ Warning: Failed to sync SQL collection metadata for %s (%s): %v", mutation.TableName, mutation.Action, err)
+			log.Printf("Warning: Failed to sync SQL collection metadata for %s (%s): %v", mutation.TableName, mutation.Action, err)
 		}
 	}
 }

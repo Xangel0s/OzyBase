@@ -65,13 +65,13 @@ func NewEmbeddedDB() *EmbeddedDB {
 
 // Start initializes and starts the embedded PostgreSQL engine
 func (e *EmbeddedDB) Start() error {
-	logger.Log.Info().Msg("🐘 [OzyBase] No external DB detected. Starting embedded PostgreSQL engine...")
+	logger.Log.Info().Msg("[OzyBase] No external DB detected. Starting embedded PostgreSQL engine...")
 
 	// Check if bin folder is empty to notify about first start
 	// Note: embedded-postgres might create subfolders inside binPath
 	binDir, err := os.ReadDir(e.binPath)
 	if err != nil || len(binDir) == 0 {
-		logger.Log.Info().Msg("📥 [OzyBase] First start: Downloading/Preparing PostgreSQL engine... this may take a moment.")
+		logger.Log.Info().Msg("[OzyBase] First start: Downloading/Preparing PostgreSQL engine... this may take a moment.")
 	}
 
 	e.postgres = embeddedpostgres.NewDatabase(e.config)
@@ -80,14 +80,14 @@ func (e *EmbeddedDB) Start() error {
 		return fmt.Errorf("failed to start embedded postgres: %w", err)
 	}
 
-	logger.Log.Info().Uint32("port", e.port).Msg("✅ [OzyBase] Embedded PostgreSQL is ready")
+	logger.Log.Info().Uint32("port", e.port).Msg("[OzyBase] Embedded PostgreSQL is ready")
 	return nil
 }
 
 // Stop gracefully shuts down the embedded PostgreSQL engine
 func (e *EmbeddedDB) Stop() error {
 	if e.postgres != nil {
-		logger.Log.Info().Msg("🛑 [OzyBase] Stopping embedded PostgreSQL...")
+		logger.Log.Info().Msg("[OzyBase] Stopping embedded PostgreSQL")
 		return e.postgres.Stop()
 	}
 	return nil

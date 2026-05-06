@@ -1,21 +1,21 @@
-# 🗺️ OzyBase Roadmap: The Path to Enterprise & Beyond
+# OzyBase Roadmap: The Path to Enterprise & Beyond
 
 OzyBase is a high-performance, single-binary Backend-as-a-Service designed for developers who value simplicity, speed, and standard PostgreSQL power.
 
 ---
 
-## 🟢 PHASE 1: The "Círculo Perfecto" (v1.0.0) 🏆
+## Phase 1: The "Círculo Perfecto" (v1.0.0)
 Focus: **Developer Experience (DX) & Zero Config**
 
 - [x] **Zero Config Engine**: Added Embedded PostgreSQL support.
 - [x] **Client Integration Pattern**: Lightweight JS access patterns and dashboard docs are available today.
-- [ ] **Public JS/TS SDK Package Release**: npm publication and release workflow are still pending.
+- [ ] **Public npm MCP Wrapper Release**: npm publication and release workflow are pending.
 - [x] **Automatic Type Safety**: `gen-types` command for TS interfaces.
 - [x] **Single Binary**: Backend + Frontend + DB in one executable.
 
 ---
 
-## 🔵 PHASE 1.5: Enterprise Readiness (v1.1.0) 🛡️
+## Phase 1.5: Enterprise Readiness (v1.1.0)
 Focus: **Security, Scaling & Observability**
 
 - [x] **Row Level Security (RLS)**: Native Postgres isolation via JWT context.
@@ -26,7 +26,7 @@ Focus: **Security, Scaling & Observability**
 
 ---
 
-## 🟡 PHASE 2: Management & Intelligence (Current Focus) 🧠
+## Phase 2: Management & Intelligence (Current Focus)
 Focus: **Schema Management & AI**
 
 - [x] **Ozy-Migrations**: Visual schema editor that generates versioned SQL migrations automatically with CLI applier.
@@ -36,7 +36,7 @@ Focus: **Schema Management & AI**
 
 ---
 
-## 🔴 PHASE 3: Future Scale & Extensions ⚡
+## Phase 3: Future Scale & Extensions
 Focus: **Global Infrastructure**
 
 - [x] **WASM Edge Functions**: Native `wasm` runtime for functions with WASI execution (`wazero`), timeout controls, and smoke validation.
@@ -44,4 +44,4 @@ Focus: **Global Infrastructure**
 - [x] **Global SSE Scaling**: Distributed realtime fan-out through Redis PubSub bridge with node-aware deduplication and realtime status endpoint.
 
 ---
-**Vision**: "PocketBase simplicity, Supabase power, Go performance." 🛡️🚀
+**Vision**: "PocketBase simplicity, Supabase power, Go performance."

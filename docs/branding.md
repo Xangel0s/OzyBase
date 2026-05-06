@@ -16,21 +16,21 @@ OzyBase follows a **"Function-First, Dark-Default"** philosophy. The interface i
 
 ## 2. Color Palette
 
-### 🌑 Surface & Backgrounds
+### Surface & Backgrounds
 Deep, neutral grays are used to create depth without using pure black (except for terminals).
 - **Ultra Dark**: `#0c0c0c` (Main App Background, Code Editors)
 - **Surface**: `#111111` (Sidebars, Cards)
 - **Surface Highlight**: `#171717` (Hover states, Active Cards)
 - **Borders**: `#2e2e2e` (Subtle dividers)
 
-### ⚡ Accents (The "Ozy" Glow)
+### Accents (The "Ozy" Glow)
 Used sparingly for primary actions, active states, and success indicators.
 - **Primary (Ozy Yellow/Green)**: `text-primary` (Tailwind class) / `#E6E600` (Approx) - Used for buttons, active sidebar borders, brand logo.
 - **Success**: `#22c55e` (Green-500) - Connected statuses, safe actions.
 - **Error**: `#ef4444` (Red-500) - Disconnected, dangerous actions.
 - **Warning**: `#f59e0b` (Amber-500) - Performance hints, lint warnings.
 
-### 🖊️ Typography
+### Typography
 - **Primary Font**: `Inter` or System Sans-Serif. Clean, readable at small sizes.
 - **Monospace**: `JetBrains Mono` or `Fira Code`. Required for SQL editors, logs, and IDs.
 - **Labels**: Small cap headers (`text-[10px] uppercase font-black tracking-widest`) are a signature trait.

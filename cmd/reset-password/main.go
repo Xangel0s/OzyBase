@@ -52,12 +52,12 @@ func main() {
 		if err != nil {
 			log.Fatalf("Error updating password: %v", err)
 		}
-		fmt.Printf("✅ Updated password for %s\n", email)
+		fmt.Printf("Updated password for %s\n", email)
 	} else {
 		_, err = db.Exec(ctx, "INSERT INTO _v_users (email, password_hash, role) VALUES ($1, $2, 'admin')", email, string(hashedPassword))
 		if err != nil {
 			log.Fatalf("Error creating user: %v", err)
 		}
-		fmt.Printf("✅ Created admin user %s\n", email)
+		fmt.Printf("Created admin user %s\n", email)
 	}
 }

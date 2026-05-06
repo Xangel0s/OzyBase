@@ -53,6 +53,6 @@ func StartPubSubBridge(ctx context.Context, pubsub PubSub, broker *Broker, nodeI
 			}
 		}
 	}()
-	log.Printf("Realtime PubSub bridge active (mode=%s, channel=%s, node=%s)", pubsub.Mode(), channel, nodeID)
+	log.Printf("realtime=bridge_active mode=%s channel=%s node=%s", pubsub.Mode(), channel, nodeID)
 	return nil
 }

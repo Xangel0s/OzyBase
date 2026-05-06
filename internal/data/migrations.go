@@ -809,6 +809,6 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 		return fmt.Errorf("failed to commit migrations: %w", err)
 	}
 
-	log.Println("🛠️ Migrations completed successfully")
+		log.Println("migrations=ok")
 	return nil
 }

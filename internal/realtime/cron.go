@@ -24,7 +24,7 @@ func NewCronManager(pool *pgxpool.Pool) *CronManager {
 func (m *CronManager) Start() {
 	m.Refresh()
 	m.scheduler.Start()
-	log.Println("⏰ Cron scheduler started")
+	log.Println("Cron scheduler started")
 }
 
 func (m *CronManager) Refresh() {
@@ -48,16 +48,16 @@ func (m *CronManager) Refresh() {
 			if _, err := m.scheduler.AddFunc(schedule, func() {
 				m.executeJob(id, name, command)
 			}); err == nil {
-				log.Printf("⏰ Job added: %s (%s)", name, schedule)
+			log.Printf("Job added: %s (%s)", name, schedule)
 			} else {
-				log.Printf("❌ Failed to add job %s: %v", name, err)
+				log.Printf("Failed to add job %s: %v", name, err)
 			}
 		}
 	}
 }
 
 func (m *CronManager) executeJob(id, name, command string) {
-	log.Printf("⏰ Executing job: %s", name)
+		log.Printf("Executing job: %s", name)
 	ctx := context.Background()
 
 	start := time.Now()
@@ -67,7 +67,7 @@ func (m *CronManager) executeJob(id, name, command string) {
 	status := "success"
 	message := "OK"
 	if err != nil {
-		log.Printf("❌ Job %s failed: %v", name, err)
+		log.Printf("Job %s failed: %v", name, err)
 		status = "error"
 		message = err.Error()
 	}
@@ -78,7 +78,7 @@ func (m *CronManager) executeJob(id, name, command string) {
 		SET last_run = $2, updated_at = NOW()
 		WHERE id = $1
 	`, id, start); err != nil {
-		log.Printf("⚠️ Failed to update cron job history: %v", err)
+		log.Printf("Failed to update cron job history: %v", err)
 	}
 
 	// Insert log record
@@ -86,8 +86,8 @@ func (m *CronManager) executeJob(id, name, command string) {
 		INSERT INTO _v_cron_logs (job_id, status, message, duration_ms)
 		VALUES ($1, $2, $3, $4)
 	`, id, status, message, duration); err != nil {
-		log.Printf("⚠️ Failed to insert cron log: %v", err)
+		log.Printf("Failed to insert cron log: %v", err)
 	}
 
-	log.Printf("✅ Job %s finished with status: %s", name, status)
+	log.Printf("Job %s finished with status: %s", name, status)
 }

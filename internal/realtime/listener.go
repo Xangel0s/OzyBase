@@ -21,7 +21,7 @@ func ListenForEvents(ctx context.Context, pool *pgxpool.Pool, broker *Broker, di
 		log.Fatalf("Unable to listen on ozy_events channel: %v", err)
 	}
 
-	log.Println("🔔 Listening for database events...")
+	log.Println("db_listen=active")
 
 	for {
 		notification, err := conn.Conn().WaitForNotification(ctx)

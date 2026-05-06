@@ -57,7 +57,7 @@ Roadmap snapshot (2026-02-24):
 - In progress: `1` (`public JS/TS SDK npm publication`)
 - Pending: `0` (top-level enterprise table in this document)
 - Enterprise core (up to `L`): `100%` complete
-- XL status: `completed` (`pgvector`, `NLQ`, `MCP`, `WASM edge/functions`, `extensions marketplace`, `global SSE scaling`)
+- XL status: `completed` (`pgvector`, `NLQ`, `WASM edge/functions`, `extensions marketplace`, `global SSE scaling`)
 
 ## Status by priority
 
@@ -73,7 +73,7 @@ Roadmap snapshot (2026-02-24):
 | L | Full frontend migration to strict TypeScript (0 type errors) | Completed | `frontend/tsconfig.json:1`, `frontend/src/main.tsx:1`, `frontend/src/utils/api.ts:1`, `frontend/src/components/Login.tsx:1`, `.github/workflows/ci.yml:102`, `scripts/validate_enterprise.ps1:211`, strict validation (`frontend/`: `npm run typecheck=PASS`, `npm run build=PASS`, `@ts-nocheck=0`), source mix (`frontend/src`: `js/jsx=0`, `ts/tsx=43`) |
 | L | Blue/green or canary deployment with automatic rollback | Completed | `scripts/deploy_canary.sh:1`, `scripts/canary_verify.sh:1`, `docker-compose.yml:3`, `docker-compose.install.yml:3`, `docker-compose.coolify.yml:3`, `.github/workflows/canary-deploy.yml:1`, `docs/DEPLOYMENT.md:86` |
 | L | Real disaster drill (backup + restore), documented and repeatable | Completed | `scripts/disaster_drill.sh:1`, `.github/workflows/disaster-drill.yml:1`, `docs/DISASTER_DRILL.md:1`, `docs/DEPLOYMENT.md:110` |
-| XL | Expansion phase: NLQ, pgvector, MCP, then WASM edge/extensions | Completed | `docs/ROADMAP.md:33`, `docs/ROADMAP.md:34`, `docs/ROADMAP.md:35`, `docs/ROADMAP.md:42`, `internal/api/vector.go:260`, `internal/api/nlq.go:1`, `internal/api/mcp.go:1`, `internal/api/functions.go:1`, `internal/api/extensions_marketplace.go:1`, `internal/realtime/bridge.go:1`, `internal/api/realtime_status.go:1`, `cmd/ozybase/main.go:425`, `internal/api/admin_audit.go:41`, `scripts/smoke_api.sh:159` |
+| XL | Expansion phase: NLQ, pgvector, then WASM edge/extensions | Completed | `docs/ROADMAP.md:33`, `docs/ROADMAP.md:34`, `docs/ROADMAP.md:35`, `docs/ROADMAP.md:42`, `internal/api/vector.go:260`, `internal/api/nlq.go:1`, `internal/api/functions.go:1`, `internal/api/extensions_marketplace.go:1`, `internal/realtime/bridge.go:1`, `internal/api/realtime_status.go:1`, `cmd/ozybase/main.go:425`, `internal/api/admin_audit.go:41`, `scripts/smoke_api.sh:159` |
 
 ## Notes
 
@@ -86,6 +86,6 @@ Roadmap snapshot (2026-02-24):
 - Frontend source migration to TypeScript is now complete by extension (`frontend/src`: only `.ts/.tsx`), with CI gate enabled (`npm run typecheck`).
 - `@ts-nocheck` cleanup is complete in `frontend/src` (`0` remaining).
 - Strict hardening is now complete (`frontend/tsconfig.json` with `strict=true`, `noImplicitAny` active via strict mode, `npm run typecheck` + `npm run build` both green).
-- XL native scope now includes `pgvector + NLQ + MCP + WASM + extensions marketplace + global SSE scaling` in product runtime and smoke coverage.
+- XL native scope now includes `pgvector + NLQ + WASM + extensions marketplace + global SSE scaling` in product runtime and smoke coverage.
 - `scripts/validate_enterprise.ps1` remains green after XL closure changes.
-- MCP collection lifecycle validation is included in smoke gates (`collections.create` path under `/api/project/mcp/invoke`).
+- Collection lifecycle validation is included in smoke gates (`collections.create` path under `/api/project/invoke`).

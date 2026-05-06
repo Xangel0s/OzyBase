@@ -566,7 +566,7 @@ The README should reflect the product honestly, so these constraints are explici
 
 - `Migration Studio` currently works from pasted/uploaded input during setup. It is not yet a live remote connector for MySQL, SQL Server, or Mongo deployments.
 - workspace scope is real for membership and dashboard metadata, but it does not auto-create isolated physical infrastructure
-- the public npm JS/TS SDK package is still pending; the supported path today is direct HTTP plus generated types
+- the public npm MCP wrapper is part of the release path; the supported path today is direct HTTP plus generated types
 - storage ACL composition is intentionally narrower than a full arbitrary-policy builder at edit time
 
 ## Quick Start

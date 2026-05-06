@@ -158,7 +158,7 @@ func (db *DB) InsertRecord(ctx context.Context, collectionName string, data map[
 		return "", err
 	}
 
-	// 🔐 Security: Global auto-hash for sensitive fields
+	// Security: Global auto-hash for sensitive fields
 	autoHashSensitiveData(data)
 
 	var id string
@@ -553,7 +553,7 @@ func (db *DB) UpdateRecord(ctx context.Context, collectionName, id string, data 
 		return fmt.Errorf("invalid collection name: %s", collectionName)
 	}
 
-	// 🔐 Security: Global auto-hash for sensitive fields
+	// Security: Global auto-hash for sensitive fields
 	autoHashSensitiveData(data)
 
 	return db.WithTransactionAndRLS(ctx, func(tx pgx.Tx) error {

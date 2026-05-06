@@ -22,7 +22,7 @@ OzyBase already has a credible runtime:
 - storage
 - auth
 - realtime
-- MCP / AI runtime
+- AI runtime
 - self-hosted deployment story
 
 That is enough for real apps.
@@ -45,7 +45,7 @@ The current `Project` model in self-hosted is defensible:
 - one installation
 - one shared physical PostgreSQL database
 - multiple logical projects
-- scoped members, keys, metadata, MCP, usage, and limits
+- scoped members, keys, metadata, usage, and limits
 
 That is a realistic OSS contract.
 
@@ -59,7 +59,7 @@ OzyBase is not a toy dashboard anymore. It already covers:
 - realtime
 - observability
 - usage and quota enforcement
-- MCP-oriented access
+- AI-assisted access
 
 For self-hosted teams, that is real value.
 
@@ -71,7 +71,7 @@ Trying to become the best self-hosted BaaS for:
 - Coolify
 - one-click deployment
 - strong admin UX
-- AI/MCP-native runtime
+- AI-native runtime
 
 is much more defensible.
 
@@ -86,7 +86,7 @@ The system already exposes many modules:
 - security
 - observability
 - functions
-- MCP
+- AI features
 - vectors
 - integrations
 - admin tooling
@@ -159,7 +159,7 @@ It should win by becoming better in a narrower, clearer identity:
 - self-hosted-first
 - Coolify-native
 - strong admin plane
-- MCP/AI-native operational surface
+- AI-native operational surface
 - project-scoped governance
 - predictable runtime behavior
 
@@ -173,7 +173,7 @@ For self-hosted:
 - `Project` is a logical scope.
 - It is not a new DB.
 - It is not automatic physical isolation.
-- It is the anchor for members, keys, usage, limits, MCP, and admin context.
+- It is the anchor for members, keys, usage, limits, and admin context.
 
 The system should keep `workspace` as an internal technical term only where needed.
 
@@ -189,7 +189,7 @@ The next maturity layer should be a clear split:
   - storage
   - realtime
   - functions
-  - MCP
+  - AI features
 
 - `control plane`
   - projects
@@ -384,7 +384,7 @@ These should not be treated as immediate self-hosted OSS goals:
 
 The strongest honest positioning today is:
 
-> OzyBase is a self-hosted-first BaaS optimized for Coolify-style deployment, project-scoped governance, admin-heavy operations, and AI/MCP-native workflows.
+> OzyBase is a self-hosted-first BaaS optimized for Coolify-style deployment, project-scoped governance, admin-heavy operations, and AI-native workflows.
 
 That is stronger than being a vague "Supabase clone".
 

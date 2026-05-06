@@ -47,7 +47,7 @@ func (m *LogMailer) SendPasswordResetEmail(to, token string) error {
 }
 
 func (m *LogMailer) SendSecurityAlert(to, alertType, details string) error {
-	subject := fmt.Sprintf("⚠️ SECURITY ALERT: %s", alertType)
+	subject := fmt.Sprintf("SECURITY ALERT: %s", alertType)
 	body := fmt.Sprintf("A critical security event has been detected:\n\nType: %s\nDetails: %s\n\nDate: %s\nAction Required: Check your OzyBase Dashboard immediately.", alertType, details, time.Now().Format(time.RFC1123))
 	return m.Send(to, subject, body)
 }
@@ -89,10 +89,10 @@ func (m *SMTPMailer) Send(to, subject, body string) error {
 
 	err := smtp.SendMail(addr, auth, m.From, []string{to}, msg)
 	if err != nil {
-		log.Printf("❌ Failed to send email via SMTP: %v", err)
+	log.Printf("Failed to send email via SMTP: %v", err)
 		return err
 	}
-	log.Printf("📧 Email sent to %s via SMTP", to)
+	log.Printf("Email sent to %s via SMTP", to)
 	return nil
 }
 
@@ -111,7 +111,7 @@ func (m *SMTPMailer) SendPasswordResetEmail(to, token string) error {
 }
 
 func (m *SMTPMailer) SendSecurityAlert(to, alertType, details string) error {
-	subject := fmt.Sprintf("⚠️ SECURITY ALERT: %s", alertType)
+	subject := fmt.Sprintf("SECURITY ALERT: %s", alertType)
 	body := fmt.Sprintf("A critical security event has been detected:\n\nType: %s\nDetails: %s\n\nDate: %s\nAction Required: Check your OzyBase Dashboard immediately.", alertType, details, time.Now().Format(time.RFC1123))
 	return m.Send(to, subject, body)
 }

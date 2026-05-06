@@ -37,5 +37,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("✅ All admins deleted. System is now uninitialized.")
+	fmt.Println("All admins deleted. System is now uninitialized.")
 }

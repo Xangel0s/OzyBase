@@ -132,7 +132,7 @@ func TestLoad_WarnsWhenSMTPIsMissingInNonDebug(t *testing.T) {
 
 	found := false
 	for _, warning := range cfg.SecurityWarnings {
-		if warning == "SMTP_HOST is not configured; verification, reset, and invite emails will use the console mailer" {
+		if warning == "SMTP_HOST missing; console mailer active" {
 			found = true
 			break
 		}
@@ -185,7 +185,7 @@ func TestLoad_WarnsWhenPoolerIsMissingForExternalDatabase(t *testing.T) {
 
 	found := false
 	for _, warning := range cfg.SecurityWarnings {
-		if warning == "DB_POOLER_URL is not configured; direct database connections are enabled, but a pooler is recommended for multi-instance production workloads" {
+		if warning == "DB_POOLER_URL missing; direct DB mode active" {
 			found = true
 			break
 		}

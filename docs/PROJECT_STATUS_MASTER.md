@@ -6,9 +6,9 @@
 
 ---
 
-## ✅ Completed Features (Ready & Live)
+## Completed Features
 
-### 🏗️ Core Runtime & Scale
+### Core Runtime & Scale
 - [x] **Native RLS Engine**: Automatic Postgres user context injection via JWT.
 - [x] **Hybrid Storage System**: Support for local and S3-compatible backends.
 - [x] **Distributed Realtime**: Redis Pub/Sub integration for multi-node fan-out.
@@ -17,13 +17,13 @@
 - [x] **OAuth Social Login**: GitHub and Google integration.
 - [x] **AI Runtime Surface**: Native NLQ, vector runtime, WASM functions, and extensions marketplace.
 
-### 🛡️ Security & Hardening
+### Security & Hardening
 - [x] **JWT User Context**: Secure passing of identity to Postgres for granular security policies.
 - [x] **IP Firewall & Sentinel**: Whitelist/blacklist management via Security Dashboard.
 - [x] **Secure Setup Wizard**: Server-side initialization with truthful mode summaries and setup action reporting.
 - [x] **Audit Logging**: Enhanced logging with geolocation and user tracking.
 
-### 💻 Dashboard & DX
+### Dashboard & DX
 - [x] **Type Generator CLI**: Automatic TypeScript interface generation from Postgres.
 - [x] **Enterprise Table Explorer**: Supabase-like UI for data management.
 - [x] **RBAC Console**: Table-level permission management for list/create/update/delete rules.
@@ -32,7 +32,7 @@
 
 ---
 
-## 🚧 In Progress
+## In Progress
 
 - [ ] **Public JS/TS SDK npm Release**: The SDK repo/docs work exists, but the package is not yet published to npm.
 - [ ] **Unified RLS Policy Editor**: RLS presets, coverage auditing, and bulk enforcement exist, but a dedicated consolidated editor is still incomplete.
@@ -40,7 +40,7 @@
 
 ---
 
-## 🗺️ Phase Snapshot
+## Phase Snapshot
 
 ### Phase 1: Zero-Config & Runtime Foundation
 - [x] Embedded PostgreSQL engine with automated startup.
@@ -67,7 +67,7 @@
 ## Notes
 
 - Runtime roadmap closure remains strong for backend and dashboard capabilities.
-- The main status correction in this document is the SDK: documentation and integration patterns exist, but public npm publication is still pending.
+- The main status correction in this document is the MCP npm wrapper: documentation and integration patterns exist, and public npm publication is the remaining release step.
 - Older documents that said "official SDK released" should now be interpreted as SDK groundwork/runtime compatibility, not npm availability.
 - Workspace isolation today covers memberships, collection metadata, API keys, saved views, and dashboard context. Automatic physical schema/bucket provisioning per workspace is still pending.
 

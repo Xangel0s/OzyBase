@@ -940,14 +940,14 @@ func (h *Handler) CreateCollection(c echo.Context) error {
 		})
 	}
 
-	// 📜 Record Migration
+	// Record migration
 	fullMigrationSQL := createSQL
 	if triggerSQL != "" {
 		fullMigrationSQL += "\n\n" + triggerSQL
 	}
 	description := fmt.Sprintf("create_collection_%s", req.Name)
 	if _, err := h.Migrations.CreateMigration(description, fullMigrationSQL); err != nil {
-		log.Printf("⚠️ Warning: Failed to record migration: %v", err)
+		log.Printf("Warning: Failed to record migration: %v", err)
 	}
 
 	searchIndexSQL := data.BuildRecordSearchIndexSQL(req.Name, collectionRequestColumnTypes(req.Schema))
@@ -1007,11 +1007,11 @@ func (h *Handler) DeleteCollection(c echo.Context) error {
 		return err
 	}
 
-	// 📜 Record Migration
+	// Record migration
 	dropSQL := fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE;", name)
 	description := fmt.Sprintf("delete_collection_%s", name)
 	if _, err := h.Migrations.CreateMigration(description, dropSQL); err != nil {
-		log.Printf("⚠️ Warning: Failed to record migration: %v", err)
+		log.Printf("Warning: Failed to record migration: %v", err)
 	}
 
 	h.invalidateProjectInfoCache()
@@ -1098,7 +1098,7 @@ func (h *Handler) DuplicateCollection(c echo.Context) error {
 
 	description := fmt.Sprintf("duplicate_collection_%s_to_%s", sourceName, targetName)
 	if _, err := h.Migrations.CreateMigration(description, fullSQL); err != nil {
-		log.Printf("⚠️ Warning: Failed to record migration: %v", err)
+		log.Printf("Warning: Failed to record migration: %v", err)
 	}
 
 	h.invalidateProjectInfoCache()
@@ -1198,7 +1198,7 @@ func (h *Handler) RenameCollection(c echo.Context) error {
 
 	description := fmt.Sprintf("rename_collection_%s_to_%s", sourceName, targetName)
 	if _, err := h.Migrations.CreateMigration(description, fullSQL+";"); err != nil {
-		log.Printf("⚠️ Warning: Failed to record migration: %v", err)
+		log.Printf("Warning: Failed to record migration: %v", err)
 	}
 
 	h.invalidateProjectInfoCache()
@@ -1495,10 +1495,10 @@ func (h *Handler) AddColumn(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
-	// 📜 Record Migration
+	// Record migration
 	description := fmt.Sprintf("add_column_%s_to_%s", field.Name, tableName)
 	if _, err := h.Migrations.CreateMigration(description, sql); err != nil {
-		log.Printf("⚠️ Warning: Failed to record migration: %v", err)
+		log.Printf("Warning: Failed to record migration: %v", err)
 	}
 
 	workspaceID, _ := c.Get("workspace_id").(string)
@@ -1536,7 +1536,7 @@ func (h *Handler) UpdateColumn(c echo.Context) error {
 
 	description := fmt.Sprintf("update_column_%s_in_%s", columnName, tableName)
 	if _, err := h.Migrations.CreateMigration(description, sql); err != nil {
-		log.Printf("⚠️ Warning: Failed to record migration: %v", err)
+		log.Printf("Warning: Failed to record migration: %v", err)
 	}
 
 	workspaceID, _ := c.Get("workspace_id").(string)
@@ -1575,7 +1575,7 @@ func (h *Handler) UpdateTablePrimaryKey(c echo.Context) error {
 	if strings.TrimSpace(sql) != "" {
 		description := fmt.Sprintf("set_primary_key_%s", tableName)
 		if _, err := h.Migrations.CreateMigration(description, sql); err != nil {
-			log.Printf("⚠️ Warning: Failed to record migration: %v", err)
+			log.Printf("Warning: Failed to record migration: %v", err)
 		}
 	}
 
@@ -1606,10 +1606,10 @@ func (h *Handler) DeleteColumn(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
-	// 📜 Record Migration
+	// Record migration
 	description := fmt.Sprintf("delete_column_%s_from_%s", columnName, tableName)
 	if _, err := h.Migrations.CreateMigration(description, sql); err != nil {
-		log.Printf("⚠️ Warning: Failed to record migration: %v", err)
+		log.Printf("Warning: Failed to record migration: %v", err)
 	}
 
 	workspaceID, _ := c.Get("workspace_id").(string)
@@ -3409,4 +3409,3 @@ func getTableColumnTypes(ctx context.Context, tx pgx.Tx, tableName string) (map[
 
 	return types, rows.Err()
 }
-
