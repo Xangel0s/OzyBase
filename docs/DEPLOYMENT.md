@@ -27,7 +27,7 @@ Create a local `.env` beside `docker-compose.yml` and never commit it.
 ```env
 # Core
 PORT=8090
-OZY_DEPLOYMENT_PROFILE=self_host
+OZY_DEPLOYMENT_PROFILE=single_project_local
 SITE_URL=https://api.example.com
 APP_DOMAIN=example.com
 ALLOWED_ORIGINS=https://app.example.com,https://api.example.com
@@ -86,7 +86,7 @@ Recommended for production:
 - `OZY_REALTIME_BROKER` / `REDIS_*` when realtime must fan out across multiple app instances
 
 Profile mapping:
-- `self_host`: local binary, self-managed VM, or bundled docker stack
+- `single_project_local`: local binary, self-managed VM, or bundled docker stack
 - `install_to_play`: Coolify or low-friction docker install
 - `custom`: private cloud or internal platform profile maintained outside this public repo
 

@@ -120,7 +120,7 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
                         </h1>
                         <p className="text-zinc-500 text-sm font-bold uppercase tracking-widest flex items-center justify-center gap-2">
                             <ShieldCheck size={14} className="text-primary" />
-                            {flow === 'login' ? 'Backend Fortress' : 'Identity Recovery'}
+                            {flow === 'login' ? 'Single-Project Local' : 'Identity Recovery'}
                         </p>
                     </div>
                 </div>
@@ -144,7 +144,7 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
                         {flow === 'login' && (
                             <>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] ml-1">Admin Email</label>
+                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] ml-1">BaaS Email</label>
                                     <div className="relative group">
                                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 transition-colors group-focus-within:text-primary" size={18} />
                                         <input
@@ -160,13 +160,13 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
 
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center ml-1">
-                                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Admin Password</label>
+                                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">BaaS Password</label>
                                         <button
                                             type="button"
                                             onClick={() => setFlow('request')}
                                             className="text-[9px] font-bold text-zinc-600 hover:text-primary transition-colors uppercase"
                                         >
-                                            Forgot password?
+                                            Forgot access?
                                         </button>
                                     </div>
                                     <div className="relative group">
@@ -202,7 +202,7 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
                                     />
                                 </div>
                                 <p className="ml-1 text-[10px] text-zinc-600">
-                                    Local labs print the recovery token in server logs. Production should deliver it through your configured recovery channel.
+                                    Local mode prints the recovery token in server logs. Production should deliver it through your configured recovery channel.
                                 </p>
                                 <button
                                     type="button"

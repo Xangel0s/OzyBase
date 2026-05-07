@@ -31,7 +31,7 @@ import (
 func main() {
 	logger.Init(strings.EqualFold(strings.TrimSpace(os.Getenv("DEBUG")), "true"))
 	if err := run(); err != nil {
-		logger.Log.Fatal().Err(err).Msg("startup=failed")
+		logger.Log.Fatal().Err(err).Msg("startup failed")
 	}
 }
 
@@ -54,21 +54,21 @@ func run() error {
 
 	// Initialize Logger
 	logger.Init(os.Getenv("DEBUG") == "true")
-	logger.Log.Info().Msg("startup=begin")
+	logger.Log.Info().Msg("startup begin")
 	if cfg.GeneratedJWTSecret {
-		logger.Log.Warn().Msg("jwt_secret=generated")
+		logger.Log.Warn().Msg("jwt secret generated")
 	}
 	if cfg.GeneratedAnonKey {
-		logger.Log.Warn().Msg("anon_key=generated")
+		logger.Log.Warn().Msg("anon key generated")
 	}
 	if cfg.GeneratedServiceRoleKey {
-		logger.Log.Warn().Msg("service_role_key=generated")
+		logger.Log.Warn().Msg("service role key generated")
 	}
 	if cfg.DerivedAllowedOrigin {
-		logger.Log.Info().Strs("origins", cfg.AllowedOrigins).Msg("allowed_origins=derived")
+		logger.Log.Info().Strs("origins", cfg.AllowedOrigins).Msg("allowed origins derived")
 	}
 	for _, warning := range cfg.SecurityWarnings {
-		logger.Log.Warn().Str("warning", warning).Msg("config_security=warning")
+		logger.Log.Warn().Str("warning", warning).Msg("config warning")
 	}
 
 	// Connect to database
@@ -100,7 +100,7 @@ func run() error {
 		}
 	}()
 
-	logger.Log.Info().Msg("db=connected")
+	logger.Log.Info().Msg("db connected")
 	logDatabaseIdentity(ctx, db)
 
 	// Run migrations
@@ -122,7 +122,7 @@ func run() error {
 	if shouldBootstrapAdminFromEnv() {
 		ozyauth.EnsureAdminUser(db)
 	} else {
-		logger.Log.Info().Msg("bootstrap=wizard")
+		logger.Log.Info().Msg("bootstrap wizard")
 	}
 
 	// CLI Commands handling
@@ -188,15 +188,15 @@ func run() error {
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	go func() {
-		logger.Log.Info().Str("addr", addr).Msg("server=starting")
+		logger.Log.Info().Str("addr", addr).Msg("server starting")
 		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
-			logger.Log.Fatal().Err(err).Msg("server=crashed")
+			logger.Log.Fatal().Err(err).Msg("server crashed")
 		}
 	}()
 
 	// Wait for interruption
 	<-ctx.Done()
-		logger.Log.Info().Msg("server=shutting_down")
+	logger.Log.Info().Msg("server shutting down")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -205,7 +205,7 @@ func run() error {
 		return fmt.Errorf("failed to shutdown server: %w", err)
 	}
 
-		logger.Log.Info().Msg("server=exited")
+	logger.Log.Info().Msg("server exited")
 	return nil
 }
 
@@ -236,7 +236,7 @@ func logDatabaseIdentity(ctx context.Context, db *data.DB) {
 			split_part(version(), ',', 1)::text AS version_short
 	`).Scan(&serverAddr, &serverPort, &dbName, &dbUser, &version)
 	if err != nil {
-		logger.Log.Warn().Err(err).Msg("db_identity=unresolved")
+		logger.Log.Warn().Err(err).Msg("db identity unresolved")
 		return
 	}
 
@@ -246,7 +246,7 @@ func logDatabaseIdentity(ctx context.Context, db *data.DB) {
 		Str("database", dbName).
 		Str("db_user", dbUser).
 		Str("server_version", version).
-		Msg("db_identity=resolved")
+		Msg("db identity resolved")
 }
 
 func buildMailer(db *data.DB, cfg *config.Config) mailer.Mailer {
@@ -262,9 +262,9 @@ func buildMailer(db *data.DB, cfg *config.Config) mailer.Mailer {
 	}
 
 	if fallback.Configured() {
-		logger.Log.Info().Msg("smtp_mailer=environment_fallback")
+		logger.Log.Info().Msg("smtp mailer env fallback")
 	} else {
-		logger.Log.Warn().Msg("smtp_mailer=console_fallback")
+		logger.Log.Warn().Msg("smtp mailer console fallback")
 	}
 
 	return mailer.NewRuntimeMailer(db, fallback)
@@ -283,7 +283,7 @@ func handleCLI(db *data.DB) (bool, error) {
 		if err := gen.Generate(outputPath); err != nil {
 			return true, fmt.Errorf("failed to generate types: %w", err)
 		}
-		logger.Log.Info().Str("output", outputPath).Msg("types=generated")
+		logger.Log.Info().Str("output", outputPath).Msg("types generated")
 		return true, nil
 	}
 
@@ -295,7 +295,7 @@ func handleCLI(db *data.DB) (bool, error) {
 		}
 		newPass := os.Args[2]
 
-		logger.Log.Info().Str("email", email).Msg("admin_password=resetting")
+		logger.Log.Info().Str("email", email).Msg("admin password resetting")
 
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPass), 12)
 		if err != nil {
@@ -307,7 +307,7 @@ func handleCLI(db *data.DB) (bool, error) {
 			return true, fmt.Errorf("failed to update password: %w", err)
 		}
 
-		logger.Log.Info().Str("email", email).Msg("admin_password=reset")
+		logger.Log.Info().Str("email", email).Msg("admin password reset")
 		return true, nil
 	}
 
@@ -315,12 +315,12 @@ func handleCLI(db *data.DB) (bool, error) {
 		ctx := context.Background()
 		applier := migrations.NewApplier(db.Pool, "./migrations")
 
-		logger.Log.Info().Msg("migrations=checking_pending")
+		logger.Log.Info().Msg("migrations checking pending")
 		if err := applier.ApplyPendingMigrations(ctx); err != nil {
 			return true, fmt.Errorf("migration application failed: %w", err)
 		}
 
-		logger.Log.Info().Msg("migrations=applied")
+		logger.Log.Info().Msg("migrations applied")
 		return true, nil
 	}
 
@@ -360,7 +360,7 @@ func shouldBootstrapAdminFromEnv() bool {
 
 func initOAuth() {
 	if err := core.InitOAuth(); err != nil {
-		logger.Log.Warn().Err(err).Msg("oauth=init_failed")
+		logger.Log.Warn().Err(err).Msg("oauth init failed")
 	}
 }
 
@@ -369,18 +369,18 @@ func initStorage(cfg *config.Config) (storage.Provider, error) {
 		svc, err := storage.NewS3Provider(cfg.S3Endpoint, cfg.S3AccessKey, cfg.S3SecretKey, cfg.S3UseSSL)
 		if err != nil {
 			if cfg.StorageFallbackLocal {
-				logger.Log.Warn().Err(err).Str("path", cfg.StoragePath).Msg("storage=s3_fallback_local")
+				logger.Log.Warn().Err(err).Str("path", cfg.StoragePath).Msg("storage s3 fallback local")
 				return storage.NewLocalProvider(cfg.StoragePath), nil
 			}
 			return nil, fmt.Errorf("failed to initialize S3 storage: %w", err)
 		}
-		logger.Log.Info().Msg("storage=s3")
+		logger.Log.Info().Msg("storage s3")
 		return svc, nil
 	}
 	if cfg.StorageProvider != "local" {
-		logger.Log.Warn().Str("provider", cfg.StorageProvider).Msg("storage=provider_unknown")
+		logger.Log.Warn().Str("provider", cfg.StorageProvider).Msg("storage provider unknown")
 	}
-	logger.Log.Info().Str("path", cfg.StoragePath).Msg("storage=local")
+	logger.Log.Info().Str("path", cfg.StoragePath).Msg("storage local")
 	return storage.NewLocalProvider(cfg.StoragePath), nil
 }
 
@@ -405,7 +405,7 @@ func startRealtimePipelines(ctx context.Context, db *data.DB, broker *realtime.B
 	}
 	broker.SetNodeID(nodeID)
 	if err := realtime.StartPubSubBridge(ctx, ps, broker, nodeID, channel); err != nil {
-		logger.Log.Warn().Err(err).Str("mode", ps.Mode()).Msg("realtime_pubsub=start_failed")
+		logger.Log.Warn().Err(err).Str("mode", ps.Mode()).Msg("realtime pubsub start failed")
 	}
 	if cfg.RealtimeWALBridgeEnabled {
 		err := realtime.StartLogicalWALBridge(ctx, realtime.LogicalWALBridgeConfig{
@@ -416,11 +416,11 @@ func startRealtimePipelines(ctx context.Context, db *data.DB, broker *realtime.B
 			Channel:         channel,
 		}, broker, dispatcher, ps)
 		if err != nil {
-			logger.Log.Warn().Err(err).Msg("realtime_wal=fallback_listen_notify")
+			logger.Log.Warn().Err(err).Msg("realtime wal fallback listen notify")
 			go realtime.ListenForEvents(ctx, db.Pool, broker, dispatcher, ps, nodeID, channel)
 			return
 		}
-		logger.Log.Info().Str("slot", cfg.RealtimeWALSlot).Str("publication", cfg.RealtimeWALPublication).Msg("realtime_wal=enabled")
+		logger.Log.Info().Str("slot", cfg.RealtimeWALSlot).Str("publication", cfg.RealtimeWALPublication).Msg("realtime wal enabled")
 		return
 	}
 
@@ -429,10 +429,10 @@ func startRealtimePipelines(ctx context.Context, db *data.DB, broker *realtime.B
 
 func initPubSub(cfg *config.Config, broker *realtime.Broker) realtime.PubSub {
 	if cfg.RealtimeBroker == "redis" {
-		logger.Log.Info().Msg("pubsub=redis")
+		logger.Log.Info().Msg("pubsub redis")
 		return realtime.NewRedisPubSub(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
 	}
-		logger.Log.Info().Msg("pubsub=local")
+	logger.Log.Info().Msg("pubsub local")
 	return realtime.NewLocalPubSub(broker)
 }
 
@@ -448,10 +448,7 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 		LogStatus: true,
 		LogURI:    true,
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
-			logger.Log.Info().
-				Int("status", v.Status).
-				Str("uri", v.URI).
-				Msg("request")
+			logger.Log.Info().Int("status", v.Status).Str("method", v.Method).Str("uri", v.URI).Msg("request")
 			return nil
 		},
 	}))

@@ -38,7 +38,7 @@ func Init(debug bool) {
 	if format == "console" {
 		base = base.Output(zerolog.ConsoleWriter{
 			Out:        os.Stdout,
-			TimeFormat: "15:04:05",
+			TimeFormat: time.DateTime,
 			NoColor:    false,
 			FormatLevel: func(i interface{}) string {
 				if i == nil {

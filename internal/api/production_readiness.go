@@ -33,7 +33,7 @@ func BuildProjectProductionReadiness(cfg *config.Config) ProjectProductionReadin
 		LaunchReady:        true,
 		MVPReady:           false,
 		SaaSReady:          false,
-		Profile:            "self_host",
+		Profile:            "single_project_local",
 		DeploymentMode:     "embedded_postgres",
 		StorageRuntime:     "local",
 		RealtimeRuntime:    "local",
@@ -103,10 +103,10 @@ func BuildProjectProductionReadiness(cfg *config.Config) ProjectProductionReadin
 
 func normalizeReadinessProfile(profile string) string {
 	switch strings.ToLower(strings.TrimSpace(profile)) {
-	case "self_host", "install_to_play", "azure_cloud", "custom":
+	case "single_project_local", "self_host", "install_to_play", "azure_cloud", "custom":
 		return strings.ToLower(strings.TrimSpace(profile))
 	default:
-		return "self_host"
+		return "single_project_local"
 	}
 }
 

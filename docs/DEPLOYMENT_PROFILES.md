@@ -6,7 +6,7 @@ This document maps the public release tracks to the runtime profile, branch, and
 
 ### 1. `self-host`
 - Branch: `self-host`
-- Runtime profile: `OZY_DEPLOYMENT_PROFILE=self_host`
+- Runtime profile: `OZY_DEPLOYMENT_PROFILE=single_project_local`
 - Primary path: local binary, `docker-compose.yml`, or `docker-compose.install.yml`
 - Best for: local development, labs, and self-managed servers that want a Supabase-like self-hosted flow
 

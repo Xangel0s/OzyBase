@@ -36,8 +36,8 @@ func TestBuildProjectProductionReadinessFlagsActionRequired(t *testing.T) {
 	if got.DeploymentMode != "embedded_postgres" {
 		t.Fatalf("expected embedded_postgres deployment, got %q", got.DeploymentMode)
 	}
-	if got.Profile != "self_host" {
-		t.Fatalf("expected self_host profile, got %q", got.Profile)
+	if got.Profile != "single_project_local" {
+		t.Fatalf("expected single_project_local profile, got %q", got.Profile)
 	}
 	if got.ManagedSecrets {
 		t.Fatalf("expected managed_secrets=false when keys were auto-generated")
@@ -127,7 +127,7 @@ func TestBuildProjectProductionReadinessSeparatesSingleNodeFromMVP(t *testing.T)
 	t.Setenv("DB_POOLER_URL", "")
 	cfg := &config.Config{
 		DatabaseURL:             "",
-		DeploymentProfile:       "self_host",
+		DeploymentProfile:       "single_project_local",
 		SiteURL:                 "https://ozybase.local",
 		AppDomain:               "ozybase.local",
 		StrictSecurity:          true,
@@ -137,7 +137,7 @@ func TestBuildProjectProductionReadinessSeparatesSingleNodeFromMVP(t *testing.T)
 		GeneratedJWTSecret:      false,
 		GeneratedAnonKey:        false,
 		GeneratedServiceRoleKey: false,
-		SecurityWarnings:        []string{"DATABASE_URL is not configured; OzyBase will boot with embedded PostgreSQL, which is not recommended for cloud production"},
+		SecurityWarnings:        []string{"PostgreSQL env vars are not configured; OzyBase will boot with embedded PostgreSQL, which is not recommended for cloud production"},
 	}
 
 	got := BuildProjectProductionReadiness(cfg)

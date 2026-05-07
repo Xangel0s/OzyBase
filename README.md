@@ -607,7 +607,7 @@ Use `docker-compose.coolify.yml`.
 
 Required:
 
-- `DATABASE_URL`
+- `DATABASE_URL` or `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
 - `SITE_URL`
 - `APP_DOMAIN`
 
@@ -626,6 +626,17 @@ DB_POOLER_URL=postgres://user:pass@pool.example.com:6543/ozybase?sslmode=require
 RATE_LIMIT_RPS=20
 RATE_LIMIT_BURST=20
 DEBUG=false
+```
+
+Local single-project mode also works with:
+
+```env
+OZY_DEPLOYMENT_PROFILE=single_project_local
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=secret
+DB_NAME=ozybase
 ```
 
 Useful optional settings:

@@ -31,7 +31,7 @@ SITE_URL=http://127.0.0.1:8090
 APP_DOMAIN=localhost
 ALLOWED_ORIGINS=http://127.0.0.1:5342,http://localhost:5342
 DEBUG=true
-OZY_DEPLOYMENT_PROFILE=self_host
+OZY_DEPLOYMENT_PROFILE=single_project_local
 ```
 
 ## 4. Quick Local Docker Run

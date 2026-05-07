@@ -99,7 +99,9 @@ func Load() (*Config, error) {
 	}
 
 	var dbURL string
-	if allSet {
+	if explicit := readEnv("DATABASE_URL"); explicit != "" {
+		dbURL = explicit
+	} else if allSet {
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
 			readEnv("DB_USER"),
 			readEnv("DB_PASSWORD"),
@@ -108,8 +110,6 @@ func Load() (*Config, error) {
 			readEnv("DB_NAME"),
 			getEnv("DB_SSLMODE", "disable"),
 		)
-	} else {
-		dbURL = readEnv("DATABASE_URL")
 	}
 
 	jwtSecret := readEnv("JWT_SECRET")
@@ -300,7 +300,7 @@ func getEnvAsInt(key string, defaultValue int) int {
 func resolveDeploymentProfile(debug bool, dbURL string) string {
 	raw := strings.ToLower(strings.TrimSpace(firstNonEmpty(readEnv("OZY_DEPLOYMENT_PROFILE"), readEnv("DEPLOYMENT_PROFILE"))))
 	switch raw {
-	case "self_host", "install_to_play", "azure_cloud", "custom":
+	case "single_project_local", "self_host", "install_to_play", "azure_cloud", "custom":
 		return raw
 	case "azure", "azure-container-apps", "azure_container_apps":
 		return "azure_cloud"
@@ -312,7 +312,7 @@ func resolveDeploymentProfile(debug bool, dbURL string) string {
 		return "azure_cloud"
 	}
 	if debug || strings.TrimSpace(dbURL) == "" {
-		return "self_host"
+		return "single_project_local"
 	}
 	return "custom"
 }
@@ -393,7 +393,7 @@ func validateSecurity(cfg *Config, debug, strict bool) ([]string, error) {
 	warnings := []string{}
 
 	if cfg.DatabaseURL == "" && !debug {
-		warnings = append(warnings, "DATABASE_URL is not configured; OzyBase will boot with embedded PostgreSQL, which is not recommended for cloud production")
+		warnings = append(warnings, "PostgreSQL env vars are not configured; OzyBase will boot with embedded PostgreSQL, which is not recommended for cloud production")
 	}
 
 	if cfg.GeneratedJWTSecret && !debug {
@@ -471,7 +471,7 @@ func validateSecurity(cfg *Config, debug, strict bool) ([]string, error) {
 	if !debug {
 		for _, origin := range cfg.AllowedOrigins {
 			if origin == "*" {
-			msg := "ALLOWED_ORIGINS contains '*' in non-debug mode"
+				msg := "ALLOWED_ORIGINS contains '*' in non-debug mode"
 				if strict {
 					return nil, errors.New(msg)
 				}

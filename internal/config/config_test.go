@@ -42,8 +42,8 @@ func TestLoad_GeneratesJWTSecretAndDerivesOrigins(t *testing.T) {
 	if len(cfg.AllowedOrigins) == 0 {
 		t.Fatalf("expected non-empty allowed origins")
 	}
-	if cfg.DeploymentProfile != "self_host" {
-		t.Fatalf("expected self_host deployment profile by default, got %q", cfg.DeploymentProfile)
+	if cfg.DeploymentProfile != "single_project_local" {
+		t.Fatalf("expected single_project_local deployment profile by default, got %q", cfg.DeploymentProfile)
 	}
 }
 
@@ -158,7 +158,7 @@ func TestLoad_WarnsWhenDatabaseURLIsMissingInNonDebug(t *testing.T) {
 
 	found := false
 	for _, warning := range cfg.SecurityWarnings {
-		if warning == "DATABASE_URL is not configured; OzyBase will boot with embedded PostgreSQL, which is not recommended for cloud production" {
+		if warning == "PostgreSQL env vars are not configured; OzyBase will boot with embedded PostgreSQL, which is not recommended for cloud production" {
 			found = true
 			break
 		}

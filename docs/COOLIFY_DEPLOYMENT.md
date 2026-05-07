@@ -77,7 +77,7 @@ That means your first production install can serve multiple projects without pro
 ## 6. Recommended Self-Hosted Defaults in Coolify
 
 For most users:
-- `OZY_DEPLOYMENT_PROFILE=self_host`
+- `OZY_DEPLOYMENT_PROFILE=single_project_local`
 - shared DB
 - logical projects
 - project-scoped usage and limits

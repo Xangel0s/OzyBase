@@ -127,9 +127,10 @@ const formatDeploymentProfile = (profile?: string) => {
       return "Install to Play";
     case "custom":
       return "Custom Runtime";
+    case "single_project_local":
     case "self_host":
     default:
-      return "Self-host";
+      return "Single-project local";
   }
 };
 
@@ -529,10 +530,10 @@ const Settings: React.FC<SettingsProps> = ({
               <Zap size={18} className="text-primary mt-0.5" />
               <div>
                 <h3 className="text-sm font-bold text-primary uppercase tracking-widest italic">
-                  Self-hosted project scope
+                  Single-project local scope
                 </h3>
                 <p className="text-[11px] text-zinc-400 leading-relaxed mt-2">
-                  Project scopes people, metadata, API keys, saved views and usage counters. It does not provision another PostgreSQL database or dedicated schema in self-hosted mode.
+                  Project scopes people, metadata, API keys, saved views and usage counters. It does not provision another PostgreSQL database or dedicated schema in local single-project mode.
                 </p>
               </div>
             </div>

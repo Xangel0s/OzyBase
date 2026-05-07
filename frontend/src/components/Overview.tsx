@@ -395,7 +395,7 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
     const deployCountryCode = String(projectInfo?.deploy_country_code || '').trim().toLowerCase();
     const latestCPU = getLatestNumericSample(projectInfo?.metrics?.cpu_history);
     const latestRAM = getLatestNumericSample(projectInfo?.metrics?.ram_history);
-    const productionProfile = String(projectInfo?.production?.profile || 'self_host')
+    const productionProfile = String(projectInfo?.production?.profile || 'single_project_local')
         .replace(/_/g, ' ')
         .replace(/\b\w/g, (char) => char.toUpperCase());
 

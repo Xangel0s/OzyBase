@@ -29,7 +29,7 @@ func TestProjectInfo_ReportsSelfHostedCapabilities(t *testing.T) {
 			CpuHistory:      make([]float64, 60),
 			RamHistory:      make([]float64, 60),
 		},
-		Production: ProjectProductionReadiness{Profile: "self_host"},
+		Production: ProjectProductionReadiness{Profile: "single_project_local"},
 	}
 
 	e := echo.New()
