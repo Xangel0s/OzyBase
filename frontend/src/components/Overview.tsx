@@ -626,19 +626,6 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                 </section>
             </div>
 
-            <section className="mt-10">
-                <MetricTile
-                    icon={ShieldCheck}
-                    label="Core"
-                    value={status.label}
-                    hint={status.hint}
-                    tone={status.tone}
-                    onClick={() => onViewSelect?.('tables')}
-                    testId="overview-card-core"
-                    actionLabel="Open database"
-                />
-            </section>
-
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <MetricTile
                     icon={Database}

@@ -72,6 +72,12 @@ interface StorageObject {
     is_folder?: boolean;
 }
 
+interface StorageSignedReadResponse {
+    signed_url?: string;
+    token?: string;
+    error?: string;
+}
+
 interface BucketFormState {
     name: string;
     isPublic: boolean;
@@ -171,6 +177,8 @@ const normalizeFolderInput = (raw: string): string => (
     raw.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
 );
 
+const normalizeBucketIdentifier = (raw: string): string => raw.trim().toLowerCase().replace(/\s+/g, '-');
+
 const formatDate = (value?: string): string => {
     if (!value) return 'RECENT_IO';
     const date = new Date(value);
@@ -210,6 +218,7 @@ const StorageManager = () => {
     const [movingFile, setMovingFile] = useState<StorageObject | null>(null);
     const [movingTarget, setMovingTarget] = useState('');
     const [previewObject, setPreviewObject] = useState<StorageObject | null>(null);
+    const [bucketNameError, setBucketNameError] = useState('');
 
     const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
@@ -548,16 +557,32 @@ const StorageManager = () => {
                 method: 'POST',
                 body: JSON.stringify({ operation: 'read', bucket: selectedBucketName, object_path: objectPath, expires_in: 86400 }),
             });
-            const data = await res.json();
-            const signedURL = window.location.origin + data.signed_url;
+            const data = await res.json().catch(() => null) as StorageSignedReadResponse | null;
+            const signedPath = data?.signed_url?.trim();
+            if (!res.ok || !signedPath) {
+                throw new Error(data?.error || 'URL acquisition failed');
+            }
+            const signedURL = window.location.origin + signedPath;
             await navigator.clipboard.writeText(signedURL);
             showToast('Secure link copied to buffer', 'success');
         } catch (e) { showToast('URL acquisition failed', 'error'); }
     };
 
     const handleBucketSave = async () => {
+        const cleanedName = normalizeBucketIdentifier(bucketForm.name);
+        if (!cleanedName) {
+            setBucketNameError('Bucket identifier is required');
+            showToast('Bucket identifier is required', 'warning');
+            return;
+        }
+        if (cleanedName !== bucketForm.name.trim().toLowerCase()) {
+            setBucketNameError('Use lowercase letters, numbers, dots, dashes or underscores. Spaces become dashes.');
+        } else {
+            setBucketNameError('');
+        }
+
         const payload = {
-            name: bucketForm.name,
+            name: cleanedName,
             public: bucketForm.isPublic,
             rls_enabled: bucketForm.policyProfile !== 'visibility_only',
             rls_rule: resolveBucketPolicyRule(bucketForm.policyProfile, bucketForm.rlsRule),
@@ -608,6 +633,7 @@ const StorageManager = () => {
 
     useEffect(() => {
         if (bucketDialogMode === 'edit') {
+            setBucketNameError('');
             setBucketForm({
                 name: selectedBucket.name,
                 isPublic: selectedBucket.public,
@@ -618,6 +644,7 @@ const StorageManager = () => {
                 lifecycleDeleteAfterDays: selectedBucket.lifecycle_delete_after_days ? selectedBucket.lifecycle_delete_after_days.toString() : '',
             });
         } else if (bucketDialogMode === 'create') {
+            setBucketNameError('');
             setBucketForm(EMPTY_BUCKET_FORM);
         }
     }, [bucketDialogMode, selectedBucket]);
@@ -995,10 +1022,26 @@ const StorageManager = () => {
                                         type="text" 
                                         disabled={bucketDialogMode === 'edit'}
                                         value={bucketForm.name}
-                                        onChange={(e) => setBucketForm({ ...bucketForm, name: e.target.value })}
-                                        placeholder="E.G. ASSETS_PROTOCOL..." 
+                                        onChange={(e) => {
+                                            const nextValue = e.target.value;
+                                            setBucketForm({ ...bucketForm, name: nextValue });
+                                            if (!nextValue.trim()) {
+                                                setBucketNameError('Bucket identifier is required');
+                                            } else {
+                                                setBucketNameError('');
+                                            }
+                                        }}
+                                        placeholder="e.g. assets-protocol" 
                                         className="w-full bg-transparent border-none p-0 text-lg font-bold text-white outline-none placeholder:text-zinc-700 tracking-[0.2em] font-mono uppercase" 
                                     />
+                                    <p className="mt-4 text-[10px] uppercase tracking-[0.35em] text-zinc-500 leading-5">
+                                        Spaces are converted to dashes. Use lowercase letters, numbers, dots, dashes or underscores.
+                                    </p>
+                                    {bucketNameError ? (
+                                        <p className="mt-3 text-[10px] uppercase tracking-[0.35em] text-amber-400 leading-5">
+                                            {bucketNameError}
+                                        </p>
+                                    ) : null}
                                 </div>
                              </div>
 
