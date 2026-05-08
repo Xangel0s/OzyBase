@@ -122,7 +122,7 @@ func GenerateRandomKey() (string, error) {
 func (h *Handler) ListAPIKeys(c echo.Context) error {
 	workspaceID, _ := c.Get("workspace_id").(string)
 
-	query := `SELECT id, name, prefix, role, COALESCE(security_level::text, 'libre'), is_active, expires_at, created_at, last_used_at, workspace_id, created_by_user_id, COALESCE(key_group_id::text, ''), key_version, COALESCE(rotated_to_key_id::text, ''), grace_until
+	query := `SELECT id, name, prefix, role, COALESCE((to_jsonb(_v_api_keys)->>'security_level'), 'libre'), is_active, expires_at, created_at, last_used_at, workspace_id, created_by_user_id, COALESCE(key_group_id::text, ''), key_version, COALESCE(rotated_to_key_id::text, ''), grace_until
 		FROM _v_api_keys`
 
 	var rows pgx.Rows

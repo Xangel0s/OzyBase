@@ -218,6 +218,7 @@ const StorageManager = () => {
     const [movingFile, setMovingFile] = useState<StorageObject | null>(null);
     const [movingTarget, setMovingTarget] = useState('');
     const [previewObject, setPreviewObject] = useState<StorageObject | null>(null);
+    const [previewObjectAccessUrl, setPreviewObjectAccessUrl] = useState('');
     const [bucketNameError, setBucketNameError] = useState('');
 
     const fileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -264,6 +265,53 @@ const StorageManager = () => {
             total_size: files.reduce((sum, file) => sum + file.size, 0),
         }
     ), [buckets, files, selectedBucketName]);
+
+    const resolveObjectAccessURL = useCallback(async (file: StorageObject): Promise<string> => {
+        const objectPath = resolveObjectKey(file);
+        if (!objectPath) {
+            throw new Error('Object path is invalid');
+        }
+
+        if (selectedBucket.public && !selectedBucket.rls_enabled) {
+            return file.download_url;
+        }
+
+        const res = await fetchWithAuth('/api/files/sign', {
+            method: 'POST',
+            body: JSON.stringify({ operation: 'read', bucket: selectedBucketName, object_path: objectPath, expires_in: 86400 }),
+        });
+        const data = await res.json().catch(() => null) as StorageSignedReadResponse | null;
+        const signedPath = data?.signed_url?.trim();
+        if (!res.ok || !signedPath) {
+            throw new Error(data?.error || 'URL acquisition failed');
+        }
+        return window.location.origin + signedPath;
+    }, [selectedBucket.public, selectedBucket.rls_enabled, selectedBucketName]);
+
+    useEffect(() => {
+        let cancelled = false;
+        if (!previewObject) {
+            setPreviewObjectAccessUrl('');
+            return undefined;
+        }
+
+        setPreviewObjectAccessUrl('');
+        void resolveObjectAccessURL(previewObject)
+            .then((url) => {
+                if (!cancelled) {
+                    setPreviewObjectAccessUrl(url);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setPreviewObjectAccessUrl('');
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [previewObject, resolveObjectAccessURL]);
 
     const filteredFiles = useMemo(() => {
         const prefix = currentPath.length > 0 ? currentPath.join('/') + '/' : '';
@@ -548,25 +596,26 @@ const StorageManager = () => {
 
     const handleCopyURL = async (file: StorageObject) => {
         try {
-            const objectPath = resolveObjectKey(file);
-            if (!objectPath) {
-                showToast('Object path is invalid', 'error');
-                return;
-            }
-            const res = await fetchWithAuth('/api/files/sign', {
-                method: 'POST',
-                body: JSON.stringify({ operation: 'read', bucket: selectedBucketName, object_path: objectPath, expires_in: 86400 }),
-            });
-            const data = await res.json().catch(() => null) as StorageSignedReadResponse | null;
-            const signedPath = data?.signed_url?.trim();
-            if (!res.ok || !signedPath) {
-                throw new Error(data?.error || 'URL acquisition failed');
-            }
-            const signedURL = window.location.origin + signedPath;
+            const signedURL = await resolveObjectAccessURL(file);
             await navigator.clipboard.writeText(signedURL);
             showToast('Secure link copied to buffer', 'success');
         } catch (e) { showToast('URL acquisition failed', 'error'); }
     };
+
+    const openObjectInNewTab = useCallback(async (file: StorageObject) => {
+        const url = await resolveObjectAccessURL(file);
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }, [resolveObjectAccessURL]);
+
+    const downloadObject = useCallback(async (file: StorageObject) => {
+        const url = await resolveObjectAccessURL(file);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }, [resolveObjectAccessURL]);
 
     const handleBucketSave = async () => {
         const cleanedName = normalizeBucketIdentifier(bucketForm.name);

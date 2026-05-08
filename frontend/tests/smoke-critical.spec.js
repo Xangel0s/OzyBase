@@ -6,15 +6,16 @@ test('critical UI smoke: login + modules + authenticated project endpoints', asy
   await login(page);
 
   await page.getByRole('button', { name: 'SQL Editor' }).click();
-  await expect(page.getByText(/^Community$/i)).toBeVisible({ timeout: 15000 });
-  await expect(page.getByRole('button', { name: /View running queries/i })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('button', { name: /^Templates$/i })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('button', { name: /^Quickstarts$/i })).toBeVisible({ timeout: 15000 });
 
   await page.getByRole('button', { name: 'Table Editor' }).click();
-  await expect(page.getByRole('button', { name: /Saved Views/i })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('heading', { name: /Create your first table/i })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('button', { name: /Create first table/i })).toBeVisible({ timeout: 15000 });
 
   await page.getByRole('button', { name: 'Authentication' }).click();
-  await page.getByRole('button', { name: 'Security Hub' }).click();
-  await expect(page.getByText('Global Security')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('heading', { name: /Authentication/i })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('button', { name: /RBAC Console/i })).toBeVisible({ timeout: 15000 });
 
   const projectKeysStatus = await page.evaluate(async () => {
     const token = localStorage.getItem('ozy_token');

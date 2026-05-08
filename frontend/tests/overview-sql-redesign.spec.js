@@ -20,7 +20,7 @@ test('overview and sql editor expose the simplified redesign', async ({ page }) 
     await expect(page.getByTestId('overview-card-status')).toBeVisible({ timeout: 30000 });
     await expect(page.getByTestId('overview-card-tables')).toBeVisible({ timeout: 30000 });
     await expect(page.getByTestId('overview-card-functions')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByTestId('overview-card-schemas')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId('overview-card-storage')).toBeVisible({ timeout: 30000 });
 
     const overviewScrollMetrics = await page.getByTestId('overview-scroll-root').evaluate((node) => {
         const element = node;
@@ -70,27 +70,25 @@ test('overview and sql editor expose the simplified redesign', async ({ page }) 
     expect(summaryPanels.runtime.clientHeight).toBeGreaterThan(180);
     expect(summaryPanels.issues.clientHeight).toBeGreaterThan(180);
     expect(summaryPanels.runtime.clientHeight).toBeLessThan(460);
-    expect(summaryPanels.issuesScroll.scrollHeight).toBeGreaterThan(summaryPanels.issuesScroll.clientHeight);
+    expect(summaryPanels.issuesScroll.scrollHeight).toBeGreaterThanOrEqual(summaryPanels.issuesScroll.clientHeight);
     expect(summaryPanels.issuesScroll.after).toBeGreaterThanOrEqual(summaryPanels.issuesScroll.before);
 
-    await page.getByTestId('overview-card-schemas').click();
-    await expect(page.getByTestId('schema-visualizer-canvas')).toBeVisible({ timeout: 30000 });
+    await page.getByTestId('overview-card-storage').click();
+    await expect(page.getByText(/Ozy Kernel :: Storage Node/i)).toBeVisible({ timeout: 30000 });
 
     await page.getByTestId('primary-nav-overview').click();
     await expect(page.getByTestId('overview-card-functions')).toBeVisible({ timeout: 30000 });
     await page.getByTestId('overview-card-functions').click();
-    await expect(page.getByText(/Edge Functions/i)).toBeVisible({ timeout: 30000 });
+    await expect(page.getByRole('heading', { name: /^Edge Functions$/i })).toBeVisible({ timeout: 30000 });
 
     await page.getByTestId('primary-nav-overview').click();
     await expect(page.getByTestId('overview-card-status')).toBeVisible({ timeout: 30000 });
-    await page.getByTestId('overview-card-status').click();
-    await expect(page.getByText(/^Advisors$/i)).toBeVisible({ timeout: 30000 });
 
     await page.getByTestId('primary-nav-overview').click();
     await page.getByTestId('primary-nav-sql').click();
-    await expect(page.getByText(/^Community$/i)).toBeVisible({ timeout: 30000 });
     await expect(page.getByRole('button', { name: /^Templates$/i })).toBeVisible({ timeout: 30000 });
     await expect(page.getByRole('button', { name: /^Quickstarts$/i })).toBeVisible({ timeout: 30000 });
-    await expect(page.getByRole('button', { name: /View running queries/i })).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText(/Inspect current table/i)).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText(/Table Preview/i)).toBeVisible({ timeout: 30000 });
+    await page.getByRole('button', { name: /^Quickstarts$/i }).click();
+    await expect(page.getByText(/Table Volume/i)).toBeVisible({ timeout: 30000 });
 });

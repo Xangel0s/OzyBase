@@ -12,11 +12,11 @@ test("self-hosted settings expose Usage & Limits instead of billing", async ({ p
     timeout: 30000,
   });
 
-  await page.getByRole("button", { name: /Usage & Limits/i }).first().click();
-  await expect(page.getByTestId("settings-usage-view")).toBeVisible({
+  await page.locator("aside").getByText("Usage & Limits", { exact: true }).click();
+  await expect(page.getByRole("heading", { name: /Usage & Limits/i })).toBeVisible({
     timeout: 30000,
   });
-  await expect(page.getByText(/self-hosted shared db/i)).toBeVisible({
+  await expect(page.getByText(/Single-project local scope/i)).toBeVisible({
     timeout: 30000,
   });
   await expect(page.getByTestId("settings-selfhosted-scope-note")).toContainText(
