@@ -16,10 +16,19 @@ import {
   Server,
   ShieldCheck,
   X,
+  ChevronRight,
+  Terminal,
+  MousePointerClick,
+  MonitorCheck
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
 import { fetchConnectionMetadata, revealProjectKey, verifyAdminIdentity, type ConnectionSummary } from '../services/connectionService';
 import ConfirmModal from './ConfirmModal';
+
+const buildConnectCommand = (apiUrl?: string | null) => {
+  const baseUrl = String(apiUrl || '').trim().replace(/\/$/, '');
+  return `npx ozybase connect --url ${baseUrl ? `${baseUrl}/api/project/mcp` : 'https://YOUR_DOMAIN/api/project/mcp'}`;
+};
 
 interface ConnectionModalProps {
   isOpen: boolean;
@@ -87,6 +96,7 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
   const [pendingRotateRole, setPendingRotateRole] = useState<EssentialRole | null>(null);
 
   const isVerified = Boolean(verifiedUntil && new Date(verifiedUntil).getTime() > Date.now());
+  const connectCommand = buildConnectCommand(connection?.api_url);
 
   const loadMetadata = async () => {
     setLoading(true);
@@ -131,8 +141,8 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
       setVerifiedUntil(data.verified_until);
       setVerificationToken(data.verification_token || null);
       setAdminPassword('');
-      setMessage({ tone: 'success', text: 'Admin verification confirmed.' });
-      setActiveTab('api');
+      setMessage({ tone: 'success', text: 'Admin verification confirmed. You now have temporary access to API keys.' });
+      setTimeout(() => setActiveTab('api'), 800);
     } catch (error: any) {
       console.error('Failed to verify admin password:', error);
       setMessage({ tone: 'error', text: error.message || 'The current admin password was rejected.' });
@@ -144,7 +154,7 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
   const revealKey = async (role: EssentialRole) => {
     if (!isVerified) {
       setActiveTab('access');
-      setMessage({ tone: 'error', text: 'Verify the admin password first.' });
+      setMessage({ tone: 'error', text: 'Please unlock access with your admin password first.' });
       return;
     }
     setLoadingRole(role);
@@ -162,7 +172,7 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
   const rotateKey = async (role: EssentialRole) => {
     if (!isVerified || !verificationToken) {
       setActiveTab('access');
-      setMessage({ tone: 'error', text: 'Verify the admin password first.' });
+      setMessage({ tone: 'error', text: 'Please unlock access with your admin password first.' });
       return;
     }
     setRotatingRole(role);
@@ -190,217 +200,322 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
-      <div className="w-full max-w-5xl rounded-lg border border-zinc-800 bg-[#09090b] shadow-2xl overflow-hidden">
-        <div className="border-b border-zinc-800 px-6 py-5 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary">Connection Center</p>
-            <h1 className="mt-2 text-2xl font-semibold text-white">Project connection and API keys</h1>
-            <p className="mt-2 text-sm text-zinc-500">View connection details, verify access, reveal keys, and rotate secrets.</p>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-black/60 transition-opacity duration-300">
+      <div className="w-full max-w-5xl rounded-3xl border border-white/[0.08] bg-[#111111] shadow-[0_0_100px_rgba(16,185,129,0.05)] overflow-hidden flex flex-col max-h-[90vh]">
+        
+        {/* Header Area */}
+        <div className="relative border-b border-white/[0.05] bg-gradient-to-b from-white/[0.03] to-transparent px-8 py-6 flex items-start justify-between gap-4">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay pointer-events-none"></div>
+          <div className="relative z-10">
+            <div className="inline-flex items-center gap-2 mb-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.6)]"></span>
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-400">Connection Center</p>
+            </div>
+            <h1 className="text-3xl font-semibold text-white tracking-tight">Project connection & API keys</h1>
+            <p className="mt-1 text-sm text-zinc-400">Manage your workspace configuration, verify database access, and rotate secrets securely.</p>
           </div>
-          <button onClick={onClose} className="rounded-md border border-zinc-700 px-3 py-2 text-zinc-400 hover:text-white hover:bg-zinc-900">
-            <X size={16} />
+          <button onClick={onClose} className="relative z-10 rounded-full bg-white/5 p-2.5 text-zinc-400 transition-all hover:bg-white/10 hover:text-white hover:rotate-90">
+            <X size={18} />
           </button>
         </div>
 
-        <div className="border-b border-zinc-800 px-6 py-3 flex flex-wrap gap-2">
-          {[
-            { id: 'connection', label: 'Connection' },
-            { id: 'api', label: 'API Keys' },
-            { id: 'access', label: 'Access' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`rounded-md border px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
-                activeTab === tab.id
-                  ? 'border-primary/40 bg-primary/10 text-primary'
-                  : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* Tab Navigation */}
+        <div className="px-8 pt-6 pb-2">
+          <div className="inline-flex p-1.5 rounded-2xl bg-white/[0.03] border border-white/[0.05] w-full sm:w-auto overflow-x-auto no-scrollbar">
+            {[
+              { id: 'connection', label: 'Connection Status', icon: <Server size={14} /> },
+              { id: 'api', label: 'API Keys', icon: <Key size={14} /> },
+              { id: 'access', label: 'Security Access', icon: <LockKeyhole size={14} /> },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                className={`relative flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-xs font-semibold tracking-wide transition-all duration-300 whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'bg-emerald-500/15 text-emerald-300 shadow-[0_2px_10px_rgba(16,185,129,0.1)]'
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="p-6 space-y-6 max-h-[78vh] overflow-y-auto">
+        {/* Content Area */}
+        <div className="p-8 overflow-y-auto flex-1 custom-scrollbar">
           {message ? (
-            <div className={`rounded-md border px-4 py-3 text-sm ${message.tone === 'success' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200' : 'border-red-500/20 bg-red-500/10 text-red-200'}`}>
-              {message.text}
+            <div className={`mb-6 flex items-start gap-3 rounded-2xl border px-5 py-4 text-sm animate-in fade-in slide-in-from-top-2 ${
+              message.tone === 'success' 
+                ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200' 
+                : 'border-red-500/20 bg-red-500/10 text-red-200'
+            }`}>
+              {message.tone === 'success' ? <Check size={18} className="mt-0.5" /> : <AlertTriangle size={18} className="mt-0.5" />}
+              <p className="leading-relaxed">{message.text}</p>
             </div>
           ) : null}
 
+          {/* CONNECTION TAB */}
           {activeTab === 'connection' ? (
-            <div className="space-y-4">
-              <div className="rounded-md border border-primary/20 bg-primary/5 p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
+              
+              {/* Setup Flow */}
+              <div className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 lg:p-8 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+                
+                <div className="flex flex-wrap items-center justify-between gap-4 relative z-10">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary">Recommended setup</p>
-                    <h2 className="mt-2 text-lg font-semibold text-white">One-time project connection</h2>
-                    <p className="mt-2 text-sm text-zinc-400">Run the npm bootstrap in your project terminal, confirm in the browser, and keep the MCP wired locally for every IDE.</p>
+                    <h2 className="text-xl font-semibold text-white tracking-tight flex items-center gap-2">
+                      <Terminal size={20} className="text-emerald-400" />
+                      One-time project connection
+                    </h2>
+                    <p className="mt-1.5 text-sm text-zinc-400 max-w-xl">Run the npm bootstrap in your project terminal, confirm in the browser, and keep the MCP wired locally for every IDE.</p>
                   </div>
-                  <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-emerald-200">
-                    {connection?.last_verified_at ? 'Connected' : 'Not linked yet'}
+                  <div className={`rounded-xl border px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 ${
+                    connection?.last_verified_at 
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' 
+                      : 'border-zinc-700 bg-zinc-800 text-zinc-400'
+                  }`}>
+                    {connection?.last_verified_at ? <><span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span> Connected</> : 'Not linked yet'}
                   </div>
                 </div>
 
-                <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-4">
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
                   {[
-                    'Run `npx ozybase connect` in the project terminal.',
-                    'Review the summary in the browser confirmation.',
-                    'Approve once and persist the local project link.',
-                    'Let the IDE use the local MCP stdio endpoint.',
-                  ].map((step, index) => (
-                    <div key={step} className="rounded-md border border-zinc-800 bg-black/30 p-4">
-                      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-[10px] text-white">{index + 1}</span>
-                        <ArrowRight size={12} />
+                    { title: 'Run local command', desc: 'npx ozybase connect', icon: <Terminal size={16} />, badge: 'Terminal' },
+                    { title: 'Browser approval', desc: 'Review connection summary', icon: <MousePointerClick size={16} />, badge: 'Browser' },
+                    { title: 'Persist state', desc: 'Save project link locally', icon: <Database size={16} />, badge: 'Local' },
+                    { title: 'MCP Ready', desc: 'IDE uses local stdio', icon: <MonitorCheck size={16} />, badge: 'Stdio' },
+                  ].map((step, index, arr) => (
+                    <div key={index} className="relative group">
+                      <div className="h-full rounded-2xl border border-white/[0.05] bg-[#151515] p-5 transition-all duration-300 hover:bg-[#1a1a1a] hover:border-white/[0.1] hover:shadow-lg hover:-translate-y-1">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.05] text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
+                            {step.icon}
+                          </div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">Step {index + 1}</span>
+                        </div>
+                        <h3 className="text-sm font-semibold text-white mb-1">{step.title}</h3>
+                        <p className="text-xs text-zinc-400 font-mono">{step.desc}</p>
+                        <div className="mt-4">
+                          <span className="inline-block rounded-md bg-white/[0.05] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-zinc-500">{step.badge}</span>
+                        </div>
                       </div>
-                      <p className="mt-3 text-sm text-zinc-200 leading-relaxed">{step}</p>
+                      {index < arr.length - 1 && (
+                        <div className="hidden lg:block absolute top-1/2 -right-3 -translate-y-1/2 z-20 text-zinc-700">
+                          <ChevronRight size={20} />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-widest">
-                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-zinc-300">Terminal first</span>
-                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-zinc-300">Browser approval</span>
-                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-zinc-300">Local state persisted</span>
-                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-zinc-300">MCP by stdio</span>
+                <div className="mt-6 rounded-2xl border border-emerald-500/15 bg-black/40 p-4 relative z-10">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-400">Copy command</p>
+                      <p className="mt-1 text-sm text-zinc-400">Paste this in your project terminal to start the guided connection flow.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void copyValue(connectCommand, 'connect-command')}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-white/[0.1]"
+                    >
+                      {copied === 'connect-command' ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                      {copied === 'connect-command' ? 'Copied' : 'Copy command'}
+                    </button>
+                  </div>
+                  <code className="mt-4 block rounded-xl border border-white/[0.06] bg-[#0b0b0b] px-4 py-3 text-sm font-mono text-emerald-300 break-all">
+                    {connectCommand}
+                  </code>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <StatCard icon={<Database size={16} />} label="Database" value={connection?.connection?.database || 'Not loaded'} />
                 <StatCard icon={<Server size={16} />} label="Host" value={connection?.connection?.host || 'Not loaded'} />
                 <StatCard icon={<Globe size={16} />} label="API URL" value={connection?.api_url || 'Not loaded'} />
-                <StatCard icon={<Hash size={16} />} label="SSL" value={connection?.connection?.ssl ? 'Enabled' : 'Disabled'} />
+                <StatCard icon={<Hash size={16} />} label="SSL Status" value={connection?.connection?.ssl ? 'Enabled' : 'Disabled'} isActive={connection?.connection?.ssl} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatCard icon={<ShieldCheck size={16} />} label="Last verified" value={formatTimestamp(connection?.last_verified_at)} />
+                <StatCard icon={<ShieldCheck size={16} />} label="Last verified" value={formatTimestamp(connection?.last_verified_at)} highlight />
                 <StatCard icon={<Key size={16} />} label="Edge functions" value={String(connection?.edge_functions_count ?? '0')} />
                 <StatCard icon={<Database size={16} />} label="Schemas" value={String(connection?.schemas_count ?? '0')} />
               </div>
-              <div className="rounded-md border border-zinc-800 bg-[#0d0d0d] p-5 text-sm text-zinc-400">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle size={16} className="mt-0.5 text-amber-300" />
-                  <p>Connection metadata is read-only here. Use the API Keys and Access tabs for reveal and verification actions.</p>
-                </div>
-              </div>
+              
             </div>
           ) : null}
 
+          {/* API KEYS TAB */}
           {activeTab === 'api' ? (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              {KEY_ORDER.map((role) => {
-                const summary = keysByRole[role];
-                const revealed = revealedByRole[role];
-                const meta = ROLE_LABELS[role];
-                const isBusy = loadingRole === role || rotatingRole === role;
+            <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+              {!isVerified && (
+                <div className="rounded-3xl border border-amber-500/20 bg-amber-500/5 p-8 text-center flex flex-col items-center justify-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/10 mb-4">
+                    <LockKeyhole size={28} className="text-amber-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-white mb-2">Keys are currently locked</h3>
+                  <p className="text-sm text-zinc-400 max-w-md mb-6">For security reasons, API keys are hidden. You must verify your admin identity to reveal or rotate project keys.</p>
+                  <button 
+                    onClick={() => setActiveTab('access')}
+                    className="rounded-xl bg-amber-500 hover:bg-amber-400 px-6 py-3 text-xs font-bold uppercase tracking-widest text-black transition-colors flex items-center gap-2 shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                  >
+                    Go to Security Access <ArrowRight size={14} />
+                  </button>
+                </div>
+              )}
 
-                return (
-                  <div key={role} className="rounded-md border border-zinc-800 bg-[#0d0d0d] overflow-hidden">
-                    <div className="border-b border-zinc-800 px-5 py-4 flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-[10px] font-medium text-zinc-500">{meta.badge}</p>
-                        <h3 className="mt-1 text-base font-bold text-white">{meta.title}</h3>
-                        <p className="mt-1 text-[11px] text-zinc-500">{meta.note}</p>
-                      </div>
-                      <div className="rounded-md border border-zinc-800 bg-black/40 px-3 py-2 text-[10px] font-medium text-zinc-300">v{revealed?.key ? 'active' : 'locked'}</div>
-                    </div>
-                    <div className="p-5 space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <InfoPill label="Prefix" value={summary?.prefix || revealed?.prefix || 'Unavailable'} />
-                        <InfoPill label="Last used" value={formatTimestamp(undefined)} />
-                      </div>
-                      <div className="rounded-md border border-zinc-800 bg-black/40 p-4">
-                        <p className="text-[10px] font-medium text-zinc-500 mb-2">Current key</p>
-                        <div className="flex items-center justify-between gap-4">
-                          <code className="text-xs text-white break-all">{revealed?.key || formatMaskedValue(summary?.prefix)}</code>
-                          <button
-                            onClick={() => {
-                              if (revealed?.key) {
-                                setRevealedByRole((current) => ({ ...current, [role]: undefined }));
-                                return;
-                              }
-                              void revealKey(role);
-                            }}
-                            disabled={isBusy}
-                            className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-200 hover:text-white disabled:opacity-60 flex items-center gap-2"
-                          >
-                            {isBusy && loadingRole === role ? <Loader2 size={12} className="animate-spin" /> : revealed?.key ? <EyeOff size={12} /> : <Eye size={12} />}
-                            {revealed?.key ? 'Hide' : 'Reveal'}
-                          </button>
+              {isVerified && (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  {KEY_ORDER.map((role) => {
+                    const summary = keysByRole[role];
+                    const revealed = revealedByRole[role];
+                    const meta = ROLE_LABELS[role];
+                    const isBusy = loadingRole === role || rotatingRole === role;
+                    const isAnon = role === 'anon';
+
+                    return (
+                      <div key={role} className="rounded-3xl border border-white/[0.05] bg-[#151515] overflow-hidden flex flex-col transition-all hover:border-white/[0.08]">
+                        <div className={`border-b border-white/[0.05] px-6 py-5 flex items-start justify-between gap-4 ${isAnon ? 'bg-emerald-500/[0.02]' : 'bg-blue-500/[0.02]'}`}>
+                          <div>
+                            <span className={`inline-block rounded-md px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest mb-3 ${isAnon ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                              {meta.badge}
+                            </span>
+                            <h3 className="text-lg font-semibold text-white">{meta.title}</h3>
+                            <p className="mt-1 text-xs text-zinc-400 max-w-[280px] leading-relaxed">{meta.note}</p>
+                          </div>
+                          <div className={`rounded-xl border border-white/[0.05] bg-black/40 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${revealed?.key ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                            {revealed?.key ? <ShieldCheck size={12} /> : <LockKeyhole size={12} />}
+                            {revealed?.key ? 'Revealed' : 'Masked'}
+                          </div>
+                        </div>
+                        <div className="p-6 space-y-5 flex-1 flex flex-col">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <InfoPill label="Prefix" value={summary?.prefix || revealed?.prefix || 'Unavailable'} />
+                            <InfoPill label="Last used" value={formatTimestamp(undefined)} />
+                          </div>
+                          
+                          <div className="rounded-2xl border border-white/[0.05] bg-black/50 p-5 mt-auto">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-3">Current Secret Key</p>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                              <code className="text-sm font-mono text-white/90 break-all bg-white/[0.02] px-3 py-2 rounded-lg border border-white/[0.02] flex-1 w-full sm:w-auto">
+                                {revealed?.key || formatMaskedValue(summary?.prefix)}
+                              </code>
+                              <div className="flex gap-2 w-full sm:w-auto">
+                                <button
+                                  onClick={() => {
+                                    if (revealed?.key) {
+                                      setRevealedByRole((current) => ({ ...current, [role]: undefined }));
+                                      return;
+                                    }
+                                    void revealKey(role);
+                                  }}
+                                  disabled={isBusy}
+                                  className={`flex-1 sm:flex-none rounded-xl border border-white/[0.1] bg-white/[0.05] px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-200 hover:bg-white/[0.1] hover:text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2`}
+                                >
+                                  {isBusy && loadingRole === role ? <Loader2 size={14} className="animate-spin" /> : revealed?.key ? <EyeOff size={14} /> : <Eye size={14} />}
+                                  {revealed?.key ? 'Hide' : 'Reveal'}
+                                </button>
+                                {revealed?.key && (
+                                  <button
+                                    onClick={() => void copyValue(revealed?.key, `${role}-secret`)}
+                                    className="flex-1 sm:flex-none rounded-xl bg-white/[0.08] hover:bg-white/[0.12] px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition-colors flex items-center justify-center gap-2"
+                                  >
+                                    {copied === `${role}-secret` ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                                    {copied === `${role}-secret` ? 'Copied' : 'Copy'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="pt-2 flex justify-end">
+                             <button
+                              onClick={() => setPendingRotateRole(role)}
+                              disabled={isBusy}
+                              className="rounded-xl border border-rose-500/20 text-rose-400 hover:bg-rose-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors disabled:opacity-50 flex items-center gap-2"
+                            >
+                              {rotatingRole === role ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                              Rotate Key
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-3">
-                        <button
-                          onClick={() => void copyValue(revealed?.key, `${role}-secret`)}
-                          disabled={!revealed?.key}
-                          className="rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-200 hover:text-white disabled:opacity-40 flex items-center gap-2"
-                        >
-                          {copied === `${role}-secret` ? <Check size={12} /> : <Copy size={12} />}
-                          {copied === `${role}-secret` ? 'Copied' : 'Copy'}
-                        </button>
-                        <button
-                          onClick={() => setPendingRotateRole(role)}
-                          disabled={isBusy}
-                          className="rounded-md border border-amber-500/25 bg-amber-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-amber-200 hover:bg-amber-500/15 disabled:opacity-60 flex items-center gap-2"
-                        >
-                          {rotatingRole === role ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
-                          Rotate
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ) : null}
 
+          {/* ACCESS TAB */}
           {activeTab === 'access' ? (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="rounded-md border border-zinc-800 bg-[#0d0d0d] p-5">
-                <div className="flex items-start gap-3">
-                  <LockKeyhole size={16} className="mt-0.5 text-primary" />
+            <div className="max-w-2xl mx-auto mt-4 space-y-6 animate-in fade-in zoom-in-95 duration-300">
+              
+              <div className="rounded-3xl border border-white/[0.05] bg-[#151515] p-8 overflow-hidden relative shadow-lg">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+                
+                <div className="flex items-start gap-4 mb-8 relative z-10">
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${isVerified ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/[0.05] text-zinc-400'}`}>
+                    <ShieldCheck size={24} />
+                  </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white uppercase tracking-widest">Verify admin</h3>
-                    <p className="mt-1 text-sm text-zinc-500">Unlock the key actions with the current admin password.</p>
+                    <h3 className="text-xl font-semibold text-white tracking-tight">Security Access</h3>
+                    <p className="mt-1 text-sm text-zinc-400">Unlock project keys and critical settings by confirming your admin privileges.</p>
                   </div>
                 </div>
-                <form onSubmit={handleVerifyIdentity} className="mt-5 space-y-4">
-                  <input
-                    type="password"
-                    required
-                    autoFocus
-                    value={adminPassword}
-                    onChange={(event) => setAdminPassword(event.target.value)}
-                    placeholder="Current admin password"
-                    className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/40"
-                  />
-                  <button
-                    type="submit"
-                    disabled={verifying}
-                    className="rounded-md bg-primary px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-black disabled:opacity-60 flex items-center gap-2"
-                  >
-                    {verifying ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
-                    {verifying ? 'Verifying' : 'Unlock'}
-                  </button>
-                </form>
+
+                {isVerified ? (
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 relative z-10 flex flex-col items-center justify-center text-center">
+                    <div className="h-16 w-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
+                      <Check size={32} className="text-emerald-400" />
+                    </div>
+                    <h4 className="text-lg font-medium text-white mb-2">Identity Verified</h4>
+                    <p className="text-sm text-emerald-200/70 mb-6">Your session is unlocked until {formatTimestamp(verifiedUntil)}. You can now view and manage API keys.</p>
+                    <button
+                      onClick={() => setActiveTab('api')}
+                      className="rounded-xl bg-emerald-500 hover:bg-emerald-400 px-6 py-3 text-xs font-bold uppercase tracking-widest text-black transition-colors"
+                    >
+                      Manage API Keys
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleVerifyIdentity} className="space-y-5 relative z-10">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-widest text-zinc-500 mb-2 pl-1">Admin Password</label>
+                      <input
+                        type="password"
+                        required
+                        autoFocus
+                        value={adminPassword}
+                        onChange={(event) => setAdminPassword(event.target.value)}
+                        placeholder="Enter your current admin password"
+                        className="w-full rounded-2xl border border-white/[0.1] bg-black/40 px-5 py-4 text-sm text-white focus:outline-none focus:border-emerald-500/50 focus:bg-black/60 transition-all placeholder:text-zinc-600"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={verifying || !adminPassword}
+                      className="w-full rounded-2xl bg-white text-black hover:bg-zinc-200 px-5 py-4 text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50 disabled:hover:bg-white flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                    >
+                      {verifying ? <Loader2 size={16} className="animate-spin" /> : <LockKeyhole size={16} />}
+                      {verifying ? 'Verifying Identity...' : 'Unlock Access'}
+                    </button>
+                  </form>
+                )}
               </div>
 
-              <div className="rounded-md border border-zinc-800 bg-[#0d0d0d] p-5 space-y-4">
-                <div className="flex items-start gap-3">
-                  <ShieldCheck size={16} className="mt-0.5 text-emerald-300" />
-                  <div>
-                    <h3 className="text-sm font-bold text-white uppercase tracking-widest">Session</h3>
-                    <p className="mt-1 text-sm text-zinc-500">{isVerified ? `Unlocked until ${formatTimestamp(verifiedUntil)}` : 'Locked until verification completes.'}</p>
-                  </div>
-                </div>
-                <div className="rounded-md border border-zinc-800 bg-black/40 px-4 py-3 text-[11px] text-zinc-400 leading-relaxed">
-                  Successful verification enables key reveal and rotation for a short window.
-                </div>
+              <div className="rounded-3xl border border-white/[0.02] bg-white/[0.01] p-6 flex items-start gap-4">
+                 <AlertTriangle size={20} className="text-amber-400 shrink-0" />
+                 <div>
+                   <h4 className="text-sm font-medium text-white mb-1">Why is this required?</h4>
+                   <p className="text-xs text-zinc-500 leading-relaxed">To prevent unauthorized exposure of your essential keys, OzyBase requires short-lived verification for viewing or rotating sensitive secrets. This verification token expires automatically.</p>
+                 </div>
               </div>
+
             </div>
           ) : null}
         </div>
@@ -411,8 +526,8 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
         onClose={() => setPendingRotateRole(null)}
         onConfirm={() => (pendingRotateRole ? rotateKey(pendingRotateRole) : Promise.resolve())}
         title={pendingRotateRole ? `Rotate ${ROLE_LABELS[pendingRotateRole].title}` : 'Rotate key'}
-        message="This will issue a fresh key and immediately invalidate the previous one."
-        confirmText={rotatingRole ? 'Rotating' : 'Rotate now'}
+        message="This will issue a fresh key and immediately invalidate the previous one. Applications using the old key will lose access immediately."
+        confirmText={rotatingRole ? 'Rotating...' : 'Yes, Rotate Key'}
         type="danger"
         closeOnConfirm={false}
       />
@@ -420,20 +535,21 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
   );
 };
 
-const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({ icon, label, value }) => (
-  <div className="rounded-md border border-zinc-800 bg-[#0d0d0d] p-4">
-    <div className="flex items-center gap-2 text-zinc-500">
+const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string; isActive?: boolean; highlight?: boolean }> = ({ icon, label, value, isActive, highlight }) => (
+  <div className={`rounded-2xl border p-5 transition-all duration-300 hover:bg-white/[0.03] ${highlight ? 'border-emerald-500/20 bg-emerald-500/[0.02]' : 'border-white/[0.05] bg-[#151515]'}`}>
+    <div className={`flex items-center gap-2 mb-3 ${highlight ? 'text-emerald-400' : 'text-zinc-500'}`}>
       {icon}
       <p className="text-[10px] font-bold uppercase tracking-widest">{label}</p>
+      {isActive && <span className="ml-auto flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>}
     </div>
-    <p className="mt-3 text-sm text-white break-all">{value}</p>
+    <p className={`text-sm font-medium break-all ${highlight ? 'text-emerald-100' : 'text-white/90'}`}>{value}</p>
   </div>
 );
 
 const InfoPill: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-md border border-zinc-800 bg-black/40 p-4">
-    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{label}</p>
-    <p className="mt-2 text-sm text-white break-all">{value}</p>
+  <div className="rounded-2xl border border-white/[0.03] bg-white/[0.02] p-4">
+    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">{label}</p>
+    <p className="text-sm font-medium text-white/80 break-all">{value}</p>
   </div>
 );
 

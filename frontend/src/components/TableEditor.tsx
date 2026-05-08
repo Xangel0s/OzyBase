@@ -226,6 +226,13 @@ const TableEditor: React.FC<TableEditorProps> = ({
     return saved && ROW_DENSITY_OPTIONS[saved] ? saved : "standard";
   });
   const isDenseViewport = useDenseDesktopViewport();
+  const hasTables = Array.isArray(allTables) && allTables.length > 0;
+  const availableTables = hasTables
+    ? allTables
+        .map((table: any) => String(table?.name || "").trim())
+        .filter(Boolean)
+        .slice(0, 8)
+    : [];
 
   // Pagination State
   const [pageSize, setPageSize] = useState(100);
@@ -440,6 +447,62 @@ const TableEditor: React.FC<TableEditorProps> = ({
     }),
     [filters, sorts, searchTerm, pageSize],
   );
+
+  if (!tableName) {
+    return (
+      <div className="flex h-full min-h-0 items-center justify-center bg-[#0c0c0c] px-6 py-10 overflow-hidden">
+        <div className="w-full max-w-2xl rounded-3xl border border-white/[0.05] bg-[#121212] px-8 py-10 text-center shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Database size={22} />
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-500">Table Editor</p>
+          <h2 className="mt-3 text-2xl font-semibold text-white">
+            {hasTables ? "Select a table to start editing" : "Create your first table"}
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+            {hasTables
+              ? "Pick an existing table below or switch back to the overview to continue."
+              : "This project has no tables yet. Create the first table to begin storing data."}
+          </p>
+
+          {hasTables ? (
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              {availableTables.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => onTableSelect(name)}
+                  className="rounded-full border border-border bg-[#171717] px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => onOpenCreateTable?.()}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 text-xs font-bold uppercase tracking-widest text-black transition-colors hover:bg-primary/90"
+            >
+              <Plus size={14} />
+              Create first table
+            </button>
+            {hasTables ? (
+              <button
+                type="button"
+                onClick={() => onViewSelect?.("overview")}
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-[#171717] px-5 py-3 text-xs font-bold uppercase tracking-widest text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
+              >
+                Open overview
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleCreateView = useCallback(async () => {
     if (!tableName || !viewName.trim()) {
