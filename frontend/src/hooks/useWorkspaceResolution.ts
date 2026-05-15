@@ -71,6 +71,13 @@ export const useWorkspaceResolution = (isAuthenticated: boolean) => {
 
     const resolveWorkspaceContext = useCallback(async (signal?: AbortSignal) => {
         try {
+            // In single-tenant mode, skip workspace listing and go directly to bootstrap
+            const storedId = normalizeWorkspaceId(localStorage.getItem('ozy_workspace_id'));
+            if (storedId) {
+                setWorkspaceAccessIssue(null);
+                return persistWorkspace(storedId);
+            }
+
             const workspacesResponse = await fetchWithAuth('/api/workspaces', { signal });
             const workspacesPayload = await (workspacesResponse.ok ? workspacesResponse.json() : Promise.resolve([]));
             if (signal?.aborted) {

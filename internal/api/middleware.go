@@ -194,7 +194,9 @@ func RLSMiddleware(db *data.DB) echo.MiddlewareFunc {
 }
 
 // WorkspaceMiddleware ensures the user has access to the requested workspace
-func WorkspaceMiddleware(db *data.DB, jwtSecret string) echo.MiddlewareFunc {
+// In single-tenant mode, if no workspace header is provided, it auto-resolves
+// to the default workspace.
+func WorkspaceMiddleware(db *data.DB, jwtSecret string, isSingleTenant bool) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			requestedWorkspaceID := strings.TrimSpace(c.Request().Header.Get("X-Workspace-Id"))
@@ -205,6 +207,13 @@ func WorkspaceMiddleware(db *data.DB, jwtSecret string) echo.MiddlewareFunc {
 			workspaceID := requestedWorkspaceID
 			if workspaceID == "" {
 				workspaceID = strings.TrimSpace(boundWorkspaceID)
+			}
+			if workspaceID == "" && isSingleTenant {
+				// In single-tenant mode, auto-resolve to the default workspace
+				defaultID, err := db.EnsureDefaultWorkspace(c.Request().Context())
+				if err == nil && defaultID != "" {
+					workspaceID = defaultID
+				}
 			}
 			if workspaceID == "" {
 				// We don't block if no workspace is provided (might be public or global API)
@@ -287,6 +296,25 @@ func WorkspaceMiddleware(db *data.DB, jwtSecret string) echo.MiddlewareFunc {
 			c.Set("workspace_id", workspaceID)
 			c.Set("workspace_role", role)
 
+			return next(c)
+		}
+	}
+}
+
+// SingleTenantGuard blocks workspace mutations (create/delete/update) when the
+// instance is running in single-tenant mode (self_host or single_project_local).
+func SingleTenantGuard(isSingleTenant bool) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if !isSingleTenant {
+				return next(c)
+			}
+			method := c.Request().Method
+			if method == http.MethodPost || method == http.MethodDelete {
+				return c.JSON(http.StatusForbidden, map[string]string{
+					"error": "workspace creation and deletion are disabled in single-tenant mode",
+				})
+			}
 			return next(c)
 		}
 	}

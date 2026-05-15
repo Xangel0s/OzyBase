@@ -33,33 +33,29 @@ The repo is designed for self-hosting first: local binary, Docker, install-to-pl
 | Target | Status | Recommended for | Notes |
 | --- | --- | --- | --- |
 | Local PC | Stable | Development, QA, demos | Run API + frontend locally with one PostgreSQL instance. |
-| Self-hosted Docker | Stable | Real apps on a single node | Shared DB runtime, full admin panel, quotas, storage, realtime. |
+| Self-hosted Docker | Stable | Real apps on a single node | `bash deploy/setup.sh` — one command deploys everything. |
 | Coolify | Recommended | The default production path for most users | OzyBase is intentionally optimized for Coolify-style managed Postgres + persistent volumes. |
 | Cloud / enterprise control plane | Future track | Dedicated DB, managed billing, PITR UX, replicas | Not part of the self-hosted OSS contract today. |
 
-## Self-Hosted Project Model
+## Self-Hosted (Single-Tenant Mode)
 
-In self-hosted mode, OzyBase keeps `workspace` as an internal backend entity but presents it as `Project` in the UI.
+In self-hosted mode, OzyBase runs as a **single-tenant** instance. Workspace management is fully automated:
 
 | Concept | Self-hosted behavior |
 | --- | --- |
-| Project | Logical scope only |
+| Project | Auto-created "Default" on first boot |
 | PostgreSQL database | Shared physical DB for the whole installation |
-| Schema provisioning | Not automatic |
-| Bucket provisioning | Not automatic |
-| Team members | Scoped by project |
-| API keys | Scoped by project |
-| Saved views | Scoped by project |
-| Project context | Scoped by project |
-| Usage & limits | Scoped by project |
+| Schema introspection | Centralized in `ozy_internal` schema |
+| Team members | Managed via admin panel |
+| API keys | Scoped to the single project |
+| Usage & limits | Global to the instance |
+| Backups | Automated daily (14-day retention) |
 
 What this means in practice:
-- selecting a project stores `ozy_workspace_id` in the frontend
-- frontend sends the project context on internal requests
-- backend validates membership and role
-- reads, metadata, keys, usage, and quotas are applied inside that scope
-
-This gives self-hosted users one installation that can serve multiple projects without pretending that every project is a separate PostgreSQL deployment.
+- no project selector — the dashboard shows the default project directly
+- no multi-tenant complexity — you own the whole instance
+- one-command deploy — `bash deploy/setup.sh` generates secrets and runs everything
+- backups live in `./backups/` and are accessible without Docker commands
 
 ## Documentation Map
 
@@ -67,6 +63,7 @@ This gives self-hosted users one installation that can serve multiple projects w
 | --- | --- |
 | Local development on your PC | [docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md) |
 | Coolify deployment | [docs/COOLIFY_DEPLOYMENT.md](./docs/COOLIFY_DEPLOYMENT.md) |
+| **Self-hosting guide (quick start)** | **[SELF_HOSTING.md](./SELF_HOSTING.md)** |
 | Self-hosted project/workspace model | [docs/SELF_HOSTED_PROJECTS.md](./docs/SELF_HOSTED_PROJECTS.md) |
 | Usage, quotas, and limits | [docs/USAGE_LIMITS.md](./docs/USAGE_LIMITS.md) |
 | Feature matrix and frontend-admin surfaces | [docs/FEATURE_MATRIX.md](./docs/FEATURE_MATRIX.md) |

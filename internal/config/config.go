@@ -278,6 +278,13 @@ func isPlaceholderSecretValue(value string) bool {
 	return false
 }
 
+// IsSingleTenant returns true when the deployment profile is self-hosted or
+// single-project local — meaning workspace management is simplified and
+// multi-tenancy UI/API is disabled.
+func (c *Config) IsSingleTenant() bool {
+	return c.DeploymentProfile == "self_host" || c.DeploymentProfile == "single_project_local"
+}
+
 func getEnv(key, defaultValue string) string {
 	if value := readEnv(key); value != "" {
 		return value

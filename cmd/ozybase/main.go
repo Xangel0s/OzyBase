@@ -590,7 +590,7 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 
 	apiGroup := e.Group("/api")
 	apiGroup.Use(api.MetricsMiddleware(h))
-	apiGroup.Use(api.WorkspaceMiddleware(h.DB, cfg.JWTSecret))
+	apiGroup.Use(api.WorkspaceMiddleware(h.DB, cfg.JWTSecret, cfg.IsSingleTenant()))
 	apiGroup.Use(api.LimitsEnforcementMiddleware(h.DB, cfg.LimitsEnforcementV2))
 	{
 		apiGroup.GET("/health", h.Health)
@@ -616,7 +616,7 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 		keysGroup.POST("/:id/rotate", h.RotateAPIKey)
 
 		// Workspaces
-		workspacesGroup := apiGroup.Group("/workspaces", authRequired)
+		workspacesGroup := apiGroup.Group("/workspaces", authRequired, api.SingleTenantGuard(cfg.IsSingleTenant()))
 		workspacesGroup.POST("", workspaceHandler.Create)
 		workspacesGroup.POST("/bootstrap", workspaceHandler.Bootstrap)
 		workspacesGroup.POST("/request-access", workspaceHandler.RequestAccess)

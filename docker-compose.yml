@@ -46,6 +46,10 @@ services:
       - ./functions:/app/functions
     networks:
       - ozy_network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   db:
     image: postgres:15-alpine
@@ -63,6 +67,31 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - ozy_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  db-backup:
+    image: prodrigestivill/postgres-backup-local:15
+    container_name: ozybase-db-backup
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backups:/backups
+    environment:
+      TZ: ${TZ:-UTC}
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${DB_NAME:?set DB_NAME}
+      POSTGRES_USER: ${DB_USER:?set DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+      POSTGRES_BACKUP_PRUNE_DAYS: 14
+      SCHEDULE: "@daily"
+      BACKUP_COMPRESSION: gzip
     networks:
       - ozy_network
 

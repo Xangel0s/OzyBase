@@ -10,6 +10,7 @@ import {
     Lock
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
+import { useDeploymentProfile } from '../hooks/useDeploymentProfile';
 import ConfirmModal from './ConfirmModal';
 import ModulePageHero from './ModulePageHero';
 import ModuleScrollContainer from './ModuleScrollContainer';
@@ -69,6 +70,14 @@ const WorkspaceSettings: React.FC<WorkspaceSettingsProps> = ({
     onViewSelect,
     onWorkspaceChange
 }) => {
+    const { isSingleTenant } = useDeploymentProfile();
+    if (isSingleTenant) {
+        return (
+            <ModulePageHero icon={Settings} title="Project Settings" description="Self-hosted mode: project settings are managed globally.">
+                <p className="text-zinc-500 text-sm mt-4">Team management and project deletion are not available in single-tenant mode.</p>
+            </ModulePageHero>
+        );
+    }
     const [workspace, setWorkspace] = useState<Workspace | null>(null);
     const [members, setMembers] = useState<WorkspaceMember[]>([]);
     const [loading, setLoading] = useState(true);

@@ -14,6 +14,7 @@ import {
     Command
 } from 'lucide-react';
 import { fetchWithAuth, isAbortLikeError } from '../utils/api';
+import { useDeploymentProfile } from '../hooks/useDeploymentProfile';
 
 interface Workspace {
     id: string;
@@ -38,6 +39,7 @@ const normalizeWorkspaceId = (value: unknown): string | null => {
 };
 
 const WorkspaceSwitcher = ({ onWorkspaceChange, onViewSelect, isExpanded = false, workspaceId = null, onOpenStateChange }: WorkspaceSwitcherProps) => {
+    const { isSingleTenant, loading: profileLoading } = useDeploymentProfile();
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
     const [isOpen, setIsOpen] = useState(false);
@@ -156,6 +158,32 @@ const WorkspaceSwitcher = ({ onWorkspaceChange, onViewSelect, isExpanded = false
         const colorIdx = (name.length % colors.length);
         return { char: firstChar, style: colors[colorIdx] };
     };
+
+    // In single-tenant mode, render a static project name without dropdown
+    if (isSingleTenant && !profileLoading) {
+        const name = activeWorkspace?.name || 'Default';
+        const icon = activeWorkspace ? activeWorkspace.name.charAt(0).toUpperCase() : 'O';
+        return (
+            <div className={`w-full transition-all duration-300 ${isExpanded ? 'px-4 mb-6' : 'px-1 mb-4'}`}>
+                <div className={`flex items-center transition-all ${isExpanded ? 'gap-4 p-3' : 'justify-center p-2'}`}>
+                    <div className={`rounded-md flex items-center justify-center transition-all shrink-0 ${
+                        isExpanded ? 'w-12 h-12 bg-primary/10 border border-primary/20 text-primary' : 'w-9 h-9 bg-primary/20 border border-primary/30 text-primary'
+                    }`}>
+                        <span className={`${isExpanded ? 'text-sm' : 'text-[10px]'} font-medium`}>{icon}</span>
+                    </div>
+                    {isExpanded && (
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-[10px] font-bold text-white uppercase tracking-[0.2em] leading-none mb-1.5">Project</h3>
+                            <div className="flex items-center gap-2 text-zinc-500">
+                                <Globe size={12} className="text-primary/50" />
+                                <span className="text-[11px] font-bold uppercase tracking-widest truncate">{name}</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={`relative w-full transition-all duration-300 ${isExpanded ? 'px-4 mb-6' : 'px-1 mb-4'}`} ref={dropdownRef}>

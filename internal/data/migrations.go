@@ -24,6 +24,10 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 			SELECT NULLIF(current_setting('request.jwt.claims', true)::json->'app_metadata'->>'workspace_id', '')::uuid;
 		$$ LANGUAGE SQL STABLE`,
 
+		`CREATE SCHEMA IF NOT EXISTS ozy_internal`,
+		`REVOKE ALL ON SCHEMA ozy_internal FROM PUBLIC`,
+		`GRANT USAGE ON SCHEMA ozy_internal TO service_role`,
+
 		// Internal schemas and tables
 		`CREATE TABLE IF NOT EXISTS _v_users (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

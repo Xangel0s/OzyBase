@@ -1,133 +1,51 @@
 # Self-Hosted Projects in OzyBase
 
-This document explains how `workspace` works internally and why the self-hosted UI presents it as `Project`.
+OzyBase in self-hosted mode runs as a **single-tenant** instance.
+There is exactly one project ("Default"), created automatically on first boot.
 
-## 1. Core Positioning
+## 1. Single-Tenant Contract
 
-In self-hosted OSS, a project is:
-- a logical scope
-- not a new PostgreSQL database
-- not an automatically provisioned schema
-- not an automatically provisioned physical bucket
+| Property | Behavior |
+|---|---|
+| Number of projects | 1 (auto-created "Default") |
+| Project selector in UI | Hidden (static display only) |
+| Workspace API | POST/DELETE disabled (HTTP 403) |
+| Default workspace | Auto-created via `EnsureDefaultWorkspace()` |
+| Bootstrap | `POST /api/workspaces/bootstrap` always returns the default |
+| Backups | Daily, 14-day retention, stored in `./backups/` |
 
-That is deliberate.
+## 2. Project Scope
 
-The self-hosted contract is:
-- one OzyBase installation
-- one shared PostgreSQL runtime
-- one shared storage runtime
-- multiple projects scoped by context, membership, keys, and limits
-
-## 2. What a Project Actually Scopes
-
-Projects currently scope:
-- memberships and team access
+The single project scopes:
 - collection metadata
 - API keys
 - saved views
-- dashboard context
 - usage counters
-- project limits and warnings
-
-Projects do not automatically create:
-- another PostgreSQL database
-- another schema
-- another storage bucket
-- another region deployment
+- storage
 
 ## 3. Request Flow
 
-When a user selects a project:
-1. the frontend stores `ozy_workspace_id`
-2. frontend requests include `X-Workspace-Id`
-3. backend validates membership and role
-4. handlers respond or enforce behavior inside that project scope
+On every authenticated request:
+1. `WorkspaceMiddleware` checks for `X-Workspace-Id` header
+2. If absent in single-tenant mode, auto-resolves to the default workspace
+3. Backend validates membership (admin is auto-assigned as owner)
+4. Handlers respond inside the project scope
 
-Relevant implementation surfaces:
-- [frontend/src/components/WorkspaceManager.tsx](C:/Users/lunax/OneDrive/Documentos/broo/OzyBase-Core/frontend/src/components/WorkspaceManager.tsx)
-- [frontend/src/components/WorkspaceSettings.tsx](C:/Users/lunax/OneDrive/Documentos/broo/OzyBase-Core/frontend/src/components/WorkspaceSettings.tsx)
-- [frontend/src/components/Settings.tsx](C:/Users/lunax/OneDrive/Documentos/broo/OzyBase-Core/frontend/src/components/Settings.tsx)
-- [internal/api/workspace.go](C:/Users/lunax/OneDrive/Documentos/broo/OzyBase-Core/internal/api/workspace.go)
-- [internal/core/workspace.go](C:/Users/lunax/OneDrive/Documentos/broo/OzyBase-Core/internal/core/workspace.go)
-- [internal/core/workspace_limits.go](C:/Users/lunax/OneDrive/Documentos/broo/OzyBase-Core/internal/core/workspace_limits.go)
+## 4. What Changed from Multi-Tenant
 
-## 3.1 Runtime vs Control Plane Ownership
+| Aspect | Before | After |
+|---|---|---|
+| UI selector | Dropdown with project list | Static project name display |
+| Project creation | Via UI or API | Disabled (403) |
+| Project deletion | Via Danger Zone | Disabled (403) |
+| Access requests | Full workflow | Disabled |
+| Workspace bootstrap | Multiple workspaces possible | Always returns Default |
 
-The self-hosted product is easier to reason about when this split stays explicit:
+## 5. Relevant Source Files
 
-| Area | Runtime plane | Control plane |
-| --- | --- | --- |
-| Auth execution | Yes | No |
-| Table/record CRUD | Yes | No |
-| SQL execution | Yes | No |
-| Storage operations | Yes | No |
-| Realtime delivery | Yes | No |
-| Function invocation | Yes | No |
-| Project lifecycle | No | Yes |
-| Members and roles | No | Yes |
-| Usage accounting | No | Yes |
-| Limits and warnings | Runtime consumes rules | Yes |
-| Capabilities contract | Runtime reads it | Yes |
-| Future provisioning | No | Yes |
-
-## 4. Why This Model Makes Sense in Self-Hosted
-
-If every project created a new physical DB in self-hosted mode, OzyBase would have to own:
-- DB provisioning
-- connection management per project
-- migrations per project
-- backup/restore per project
-- pooling and secrets per project
-
-That is a cloud or enterprise control-plane problem, not a good default for OSS self-hosted installs.
-
-The current project model gives real value without over-promising:
-- separation for teams
-- separation for keys
-- separation for metadata
-- separation for quotas
-- one admin surface for many projects
-
-## 5. Example: One Installation, Three Projects
-
-Imagine one self-hosted install serving:
-- `Marketing Site`
-- `Internal Ops`
-- `Client Portal`
-
-All three use the same PostgreSQL server.
-
-What differs per project:
-- members
-- API keys
-- collection metadata tracked by project
-- saved table views
-- usage and limits
-
-What stays shared:
-- physical PostgreSQL instance
-- runtime process
-- deployment topology
-- storage provider
-
-## 6. What Comes Later in Cloud / Enterprise
-
-These are not part of the current self-hosted OSS contract:
-- dedicated schema per project
-- dedicated DB per project
-- managed billing
-- managed PITR UX
-- read replicas UI
-- failover UX
-
-Those belong to a cloud / enterprise roadmap, not to the self-hosted baseline.
-
-## 7. Next Structural Step
-
-The recommended next step is not to remove `workspace`.
-
-It is to keep `Project` as the stable product term and, in a later phase, extract governance concerns into a more explicit control-plane module so runtime features keep consuming one source of truth for:
-- capabilities
-- usage
-- limits
-- project lifecycle policy
+- `internal/data/db.go` — `EnsureDefaultWorkspace()`
+- `internal/config/config.go` — `IsSingleTenant()`
+- `internal/api/middleware.go` — `WorkspaceMiddleware`, `SingleTenantGuard`
+- `frontend/src/components/WorkspaceSwitcher.tsx` — Static display in single-tenant
+- `frontend/src/hooks/useWorkspaceResolution.ts` — Simplified resolution
+- `deploy/setup.sh` — One-command deployment

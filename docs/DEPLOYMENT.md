@@ -1,6 +1,7 @@
 ﻿# OzyBase Production Deployment Guide
 
-This guide is the canonical runbook to deploy OzyBase in production with Docker, domain, TLS, and hardened auth behavior.
+> **Quick start:** See [SELF_HOSTING.md](../SELF_HOSTING.md) for the one-command
+> setup using `bash deploy/setup.sh`. This document covers the manual runbook.
 
 Quick links:
 - local PC development: [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md)
@@ -11,6 +12,7 @@ Quick links:
 ## 1. Architecture
 - `ozybase` container serves API + embedded frontend on port `8090`.
 - `ozybase-db` container runs PostgreSQL 15.
+- `ozybase-db-backup` container runs daily backups (14-day retention).
 - Reverse proxy (Nginx/Caddy/Traefik) terminates TLS and forwards to OzyBase.
 - PostgreSQL should remain private (no public host port exposure in production).
 
@@ -21,7 +23,11 @@ Quick links:
 - TLS certificates (Let's Encrypt recommended)
 - Backup strategy for PostgreSQL data volume
 
-## 3. Required Environment Variables
+## 3. Environment Variables
+
+> **Automatic generation:** Run `bash deploy/setup.sh` to generate a `.env` with
+> unique secrets automatically. The steps below are for manual configuration.
+
 Create a local `.env` beside `docker-compose.yml` and never commit it.
 
 ```env

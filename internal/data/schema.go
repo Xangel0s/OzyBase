@@ -20,32 +20,6 @@ type FieldSchema struct {
 	References string `json:"references,omitempty"` // format: "table.column"
 }
 
-type tableDefinitionColumn struct {
-	Name       string
-	Type       string
-	NotNull    bool
-	DefaultSQL *string
-}
-
-type tableDefinitionConstraint struct {
-	Name       string
-	Definition string
-}
-
-type tableDefinitionIndex struct {
-	Name       string
-	Definition string
-}
-
-type tableDefinitionPolicy struct {
-	Name       string
-	Permissive string
-	Command    string
-	Roles      []string
-	UsingExpr  *string
-	WithCheck  *string
-}
-
 type UpdateColumnOptions struct {
 	NextName    string
 	Type        string
@@ -255,19 +229,33 @@ func (db *DB) GetTableSchema(ctx context.Context, tableName string) ([]FieldSche
 		return nil, fmt.Errorf("invalid table name: %s", tableName)
 	}
 
-	query := `
-		SELECT column_name, data_type, udt_name, is_nullable, column_default
-		FROM information_schema.columns
-		WHERE table_name = $1
-		  AND table_schema = 'public'
-		ORDER BY ordinal_position
-	`
-
-	rows, err := db.Pool.Query(ctx, query, tableName)
+	rows, err := db.Pool.Query(ctx, `SELECT name, type, udt, nullable, default_value, is_pk FROM ozy_internal.get_table_columns($1)`, tableName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query table schema: %w", err)
 	}
 	defer rows.Close()
+
+	var fields []FieldSchema
+	for rows.Next() {
+		var colName, dataType, udtName string
+		var nullable bool
+		var columnDefault *string
+		var isPk bool
+
+		if err := rows.Scan(&colName, &dataType, &udtName, &nullable, &columnDefault, &isPk); err != nil {
+			return nil, fmt.Errorf("failed to scan column schema: %w", err)
+		}
+
+		// A field is only strictly required if it is NOT NULL AND has no default value.
+		isRequired := !nullable && (columnDefault == nil)
+
+		fields = append(fields, FieldSchema{
+			Name:     colName,
+			Type:     mapPostgresTypeToOzyWithUDT(dataType, udtName),
+			Required: isRequired,
+			Default:  columnDefault,
+		})
+	}
 
 	var schema []FieldSchema
 	for rows.Next() {
@@ -289,64 +277,11 @@ func (db *DB) GetTableSchema(ctx context.Context, tableName string) ([]FieldSche
 		})
 	}
 
-	if len(schema) == 0 {
+	if len(fields) == 0 {
 		return nil, fmt.Errorf("table not found or has no columns: %s", tableName)
 	}
 
-	return schema, nil
-}
-
-func quotedPublicTableName(tableName string) string {
-	return QuoteIdentifier("public") + "." + QuoteIdentifier(tableName)
-}
-
-func terminateSQLStatement(statement string) string {
-	trimmed := strings.TrimSpace(statement)
-	if trimmed == "" {
-		return ""
-	}
-	if strings.HasSuffix(trimmed, ";") {
-		return trimmed
-	}
-	return trimmed + ";"
-}
-
-func quoteRoleName(role string) string {
-	trimmed := strings.TrimSpace(role)
-	if trimmed == "" {
-		return ""
-	}
-	if strings.EqualFold(trimmed, "public") {
-		return "PUBLIC"
-	}
-	return QuoteIdentifier(trimmed)
-}
-
-func buildCreatePolicySQL(tableName string, policy tableDefinitionPolicy) string {
-	parts := []string{
-		fmt.Sprintf("CREATE POLICY %s ON %s", QuoteIdentifier(policy.Name), quotedPublicTableName(tableName)),
-		fmt.Sprintf("AS %s", strings.ToUpper(strings.TrimSpace(policy.Permissive))),
-		fmt.Sprintf("FOR %s", strings.ToUpper(strings.TrimSpace(policy.Command))),
-	}
-
-	roles := make([]string, 0, len(policy.Roles))
-	for _, role := range policy.Roles {
-		if rendered := quoteRoleName(role); rendered != "" {
-			roles = append(roles, rendered)
-		}
-	}
-	if len(roles) > 0 {
-		parts = append(parts, "TO "+strings.Join(roles, ", "))
-	}
-
-	if policy.UsingExpr != nil && strings.TrimSpace(*policy.UsingExpr) != "" {
-		parts = append(parts, fmt.Sprintf("USING (%s)", strings.TrimSpace(*policy.UsingExpr)))
-	}
-	if policy.WithCheck != nil && strings.TrimSpace(*policy.WithCheck) != "" {
-		parts = append(parts, fmt.Sprintf("WITH CHECK (%s)", strings.TrimSpace(*policy.WithCheck)))
-	}
-
-	return strings.Join(parts, " ")
+	return fields, nil
 }
 
 // GetTableDefinitionSQL returns a schema script for the selected table.
@@ -354,189 +289,12 @@ func (db *DB) GetTableDefinitionSQL(ctx context.Context, tableName string) (stri
 	if !IsValidIdentifier(tableName) {
 		return "", fmt.Errorf("invalid table name: %s", tableName)
 	}
-
-	columnRows, err := db.Pool.Query(ctx, `
-		SELECT
-			a.attname,
-			pg_catalog.format_type(a.atttypid, a.atttypmod) AS formatted_type,
-			a.attnotnull,
-			pg_get_expr(ad.adbin, ad.adrelid) AS column_default
-		FROM pg_attribute a
-		JOIN pg_class c ON c.oid = a.attrelid
-		JOIN pg_namespace n ON n.oid = c.relnamespace
-		LEFT JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
-		WHERE n.nspname = 'public'
-		  AND c.relname = $1
-		  AND a.attnum > 0
-		  AND NOT a.attisdropped
-		ORDER BY a.attnum
-	`, tableName)
+	var ddl string
+	err := db.Pool.QueryRow(ctx, `SELECT ozy_internal.get_table_ddl($1)`, tableName).Scan(&ddl)
 	if err != nil {
-		return "", fmt.Errorf("failed to query table columns: %w", err)
+		return "", fmt.Errorf("failed to get table DDL: %w", err)
 	}
-	defer columnRows.Close()
-
-	columns := make([]tableDefinitionColumn, 0, 8)
-	for columnRows.Next() {
-		var column tableDefinitionColumn
-		if err := columnRows.Scan(&column.Name, &column.Type, &column.NotNull, &column.DefaultSQL); err != nil {
-			return "", fmt.Errorf("failed to scan table column: %w", err)
-		}
-		columns = append(columns, column)
-	}
-	if err := columnRows.Err(); err != nil {
-		return "", fmt.Errorf("failed to read table columns: %w", err)
-	}
-	if len(columns) == 0 {
-		return "", fmt.Errorf("table not found: %s", tableName)
-	}
-
-	constraintRows, err := db.Pool.Query(ctx, `
-		SELECT
-			con.conname,
-			pg_get_constraintdef(con.oid, true) AS definition
-		FROM pg_constraint con
-		JOIN pg_class c ON c.oid = con.conrelid
-		JOIN pg_namespace n ON n.oid = c.relnamespace
-		WHERE n.nspname = 'public'
-		  AND c.relname = $1
-		  AND con.contype IN ('p', 'u', 'f', 'c', 'x')
-		ORDER BY
-			CASE con.contype
-				WHEN 'p' THEN 0
-				WHEN 'u' THEN 1
-				WHEN 'f' THEN 2
-				WHEN 'c' THEN 3
-				WHEN 'x' THEN 4
-				ELSE 5
-			END,
-			con.conname
-	`, tableName)
-	if err != nil {
-		return "", fmt.Errorf("failed to query table constraints: %w", err)
-	}
-	defer constraintRows.Close()
-
-	constraints := make([]tableDefinitionConstraint, 0, 8)
-	for constraintRows.Next() {
-		var constraint tableDefinitionConstraint
-		if err := constraintRows.Scan(&constraint.Name, &constraint.Definition); err != nil {
-			return "", fmt.Errorf("failed to scan table constraint: %w", err)
-		}
-		constraints = append(constraints, constraint)
-	}
-	if err := constraintRows.Err(); err != nil {
-		return "", fmt.Errorf("failed to read table constraints: %w", err)
-	}
-
-	indexRows, err := db.Pool.Query(ctx, `
-		SELECT
-			ci.relname,
-			pg_get_indexdef(i.indexrelid, 0, true) AS definition
-		FROM pg_index i
-		JOIN pg_class c ON c.oid = i.indrelid
-		JOIN pg_namespace n ON n.oid = c.relnamespace
-		JOIN pg_class ci ON ci.oid = i.indexrelid
-		LEFT JOIN pg_constraint con ON con.conindid = i.indexrelid
-		WHERE n.nspname = 'public'
-		  AND c.relname = $1
-		  AND con.oid IS NULL
-		ORDER BY ci.relname
-	`, tableName)
-	if err != nil {
-		return "", fmt.Errorf("failed to query table indexes: %w", err)
-	}
-	defer indexRows.Close()
-
-	indexes := make([]tableDefinitionIndex, 0, 8)
-	for indexRows.Next() {
-		var index tableDefinitionIndex
-		if err := indexRows.Scan(&index.Name, &index.Definition); err != nil {
-			return "", fmt.Errorf("failed to scan table index: %w", err)
-		}
-		indexes = append(indexes, index)
-	}
-	if err := indexRows.Err(); err != nil {
-		return "", fmt.Errorf("failed to read table indexes: %w", err)
-	}
-
-	var rlsEnabled bool
-	var forceRLS bool
-	if err := db.Pool.QueryRow(ctx, `
-		SELECT c.relrowsecurity, c.relforcerowsecurity
-		FROM pg_class c
-		JOIN pg_namespace n ON n.oid = c.relnamespace
-		WHERE n.nspname = 'public'
-		  AND c.relname = $1
-	`, tableName).Scan(&rlsEnabled, &forceRLS); err != nil {
-		return "", fmt.Errorf("failed to query table security metadata: %w", err)
-	}
-
-	policies := make([]tableDefinitionPolicy, 0, 8)
-	if rlsEnabled {
-		policyRows, err := db.Pool.Query(ctx, `
-			SELECT policyname, permissive, roles, cmd, qual, with_check
-			FROM pg_policies
-			WHERE schemaname = 'public' AND tablename = $1
-			ORDER BY policyname
-		`, tableName)
-		if err != nil {
-			return "", fmt.Errorf("failed to query table policies: %w", err)
-		}
-		defer policyRows.Close()
-
-		for policyRows.Next() {
-			var policy tableDefinitionPolicy
-			if err := policyRows.Scan(&policy.Name, &policy.Permissive, &policy.Roles, &policy.Command, &policy.UsingExpr, &policy.WithCheck); err != nil {
-				return "", fmt.Errorf("failed to scan table policy: %w", err)
-			}
-			policies = append(policies, policy)
-		}
-		if err := policyRows.Err(); err != nil {
-			return "", fmt.Errorf("failed to read table policies: %w", err)
-		}
-	}
-
-	definitionLines := make([]string, 0, len(columns)+len(constraints)+len(indexes)+len(policies)+12)
-	definitionLines = append(definitionLines, fmt.Sprintf("CREATE TABLE %s (", quotedPublicTableName(tableName)))
-
-	tableItems := make([]string, 0, len(columns)+len(constraints))
-	for _, column := range columns {
-		item := fmt.Sprintf("    %s %s", QuoteIdentifier(column.Name), column.Type)
-		if column.DefaultSQL != nil && strings.TrimSpace(*column.DefaultSQL) != "" {
-			item += " DEFAULT " + strings.TrimSpace(*column.DefaultSQL)
-		}
-		if column.NotNull {
-			item += " NOT NULL"
-		}
-		tableItems = append(tableItems, item)
-	}
-	for _, constraint := range constraints {
-		tableItems = append(tableItems, fmt.Sprintf("    CONSTRAINT %s %s", QuoteIdentifier(constraint.Name), strings.TrimSpace(constraint.Definition)))
-	}
-
-	definitionLines = append(definitionLines, strings.Join(tableItems, ",\n"))
-	definitionLines = append(definitionLines, ");")
-
-	if len(indexes) > 0 {
-		definitionLines = append(definitionLines, "", "-- Indexes")
-		for _, index := range indexes {
-			definitionLines = append(definitionLines, terminateSQLStatement(index.Definition))
-		}
-	}
-
-	if rlsEnabled {
-		definitionLines = append(definitionLines, "", "-- Row level security")
-		definitionLines = append(definitionLines, fmt.Sprintf("ALTER TABLE %s ENABLE ROW LEVEL SECURITY;", quotedPublicTableName(tableName)))
-		if forceRLS {
-			definitionLines = append(definitionLines, fmt.Sprintf("ALTER TABLE %s FORCE ROW LEVEL SECURITY;", quotedPublicTableName(tableName)))
-		}
-		for _, policy := range policies {
-			definitionLines = append(definitionLines, terminateSQLStatement(buildCreatePolicySQL(tableName, policy)))
-		}
-	}
-
-	return strings.Join(definitionLines, "\n"), nil
+	return ddl, nil
 }
 
 // NormalizePostgresTypeToOzy converts PostgreSQL type metadata into OzyBase canonical type keys.
@@ -661,27 +419,20 @@ func (db *DB) GetDatabaseSchema(ctx context.Context) (*DatabaseSchema, error) {
 
 	// 2. Get columns for each table
 	for _, tableName := range tables {
-		// reuse GetTableSchema logic but include system cols for visualization
-		query := `
-			SELECT column_name, data_type, udt_name, is_nullable
-			FROM information_schema.columns
-			WHERE table_name = $1
-			  AND table_schema = 'public'
-			ORDER BY ordinal_position
-		`
-		rows, err := db.Pool.Query(ctx, query, tableName)
+		rows, err := db.Pool.Query(ctx, `SELECT name, type, udt, nullable FROM ozy_internal.get_table_columns($1)`, tableName)
 		if err != nil {
 			continue // skip table on error
 		}
 
 		var cols []FieldSchema
 		for rows.Next() {
-			var colName, dataType, udtName, isNullable string
-			if err := rows.Scan(&colName, &dataType, &udtName, &isNullable); err == nil {
+			var colName, dataType, udtName string
+			var nullable bool
+			if err := rows.Scan(&colName, &dataType, &udtName, &nullable); err == nil {
 				cols = append(cols, FieldSchema{
 					Name:     colName,
 					Type:     mapPostgresTypeToOzyWithUDT(dataType, udtName),
-					Required: isNullable == "NO",
+					Required: !nullable,
 				})
 			}
 		}
@@ -695,24 +446,7 @@ func (db *DB) GetDatabaseSchema(ctx context.Context) (*DatabaseSchema, error) {
 	}
 
 	// 3. Get relationships (Foreign Keys)
-	relQuery := `
-		SELECT
-			tc.table_name,
-			kcu.column_name,
-			ccu.table_name AS foreign_table_name,
-			ccu.column_name AS foreign_column_name
-		FROM
-			information_schema.table_constraints AS tc
-			JOIN information_schema.key_column_usage AS kcu
-			  ON tc.constraint_name = kcu.constraint_name
-			  AND tc.table_schema = kcu.table_schema
-			JOIN information_schema.constraint_column_usage AS ccu
-			  ON ccu.constraint_name = tc.constraint_name
-			  AND ccu.table_schema = tc.table_schema
-		WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public';
-	`
-
-	rows, err := db.Pool.Query(ctx, relQuery)
+	rows, err := db.Pool.Query(ctx, `SELECT from_table, from_col, to_table, to_col FROM ozy_internal.get_all_foreign_keys()`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch relationships: %w", err)
 	}
@@ -937,10 +671,8 @@ func (db *DB) SetTablePrimaryKey(ctx context.Context, tableName string, columns 
 		var existingCount int
 		if err := tx.QueryRow(ctx, `
 			SELECT COUNT(*)
-			FROM information_schema.columns
-			WHERE table_schema = 'public'
-			  AND table_name = $1
-			  AND column_name = ANY($2::text[])
+			FROM ozy_internal.get_table_columns($1)
+			WHERE name = ANY($2::text[])
 		`, tableName, targetColumns).Scan(&existingCount); err != nil {
 			return "", fmt.Errorf("failed to validate primary key columns: %w", err)
 		}

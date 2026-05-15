@@ -13,6 +13,7 @@ import {
     Sparkles
 } from 'lucide-react';
 import { fetchWithAuth } from '../utils/api';
+import { useDeploymentProfile } from '../hooks/useDeploymentProfile';
 import ModulePageHero from './ModulePageHero';
 import ModuleScrollContainer from './ModuleScrollContainer';
 import ModuleSegmentedNav from './ModuleSegmentedNav';
@@ -24,6 +25,14 @@ const WORKSPACE_MANAGER_TABS = [
 ] as const;
 
 const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview' }: any) => {
+    const { isSingleTenant } = useDeploymentProfile();
+    if (isSingleTenant) {
+        return (
+            <ModulePageHero icon={Briefcase} title="Projects" description="Single-tenant mode: only one project is available.">
+                <p className="text-zinc-500 text-sm mt-4">Project management is disabled in self-hosted mode. All resources belong to the default project.</p>
+            </ModulePageHero>
+        );
+    }
     const [workspaces, setWorkspaces] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');

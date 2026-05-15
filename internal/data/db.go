@@ -93,14 +93,10 @@ func (db *DB) ListSchemas(ctx context.Context) ([]string, error) {
 	return schemas, nil
 }
 
-// ListTables returns a list of table names in the public schema
+// ListTables returns a list of user table names in the public schema
 func (db *DB) ListTables(ctx context.Context) ([]string, error) {
 	rows, err := db.Pool.Query(ctx, `
-		SELECT table_name
-		FROM information_schema.tables
-		WHERE table_schema = 'public'
-		  AND table_name NOT LIKE '_v_%'
-		  AND table_schema NOT IN ('auth', 'ozy_internal')
+		SELECT name FROM ozy_internal.list_tables() WHERE NOT is_system
 	`)
 	if err != nil {
 		return nil, err
@@ -122,9 +118,7 @@ func (db *DB) HasColumn(ctx context.Context, tableName, columnName string) bool 
 	var exists bool
 	err := db.Pool.QueryRow(ctx, `
 		SELECT EXISTS (
-			SELECT 1 
-			FROM information_schema.columns 
-			WHERE table_name = $1 AND column_name = $2
+			SELECT 1 FROM ozy_internal.get_table_columns($1) WHERE name = $2
 		)
 	`, tableName, columnName).Scan(&exists)
 	if err != nil {
@@ -144,9 +138,7 @@ func (db *DB) GetTableColumns(ctx context.Context, tableName string) (map[string
 	}
 
 	rows, err := db.Pool.Query(ctx, `
-		SELECT column_name, data_type
-		FROM information_schema.columns 
-		WHERE table_name = $1 AND table_schema = 'public'
+		SELECT name, type FROM ozy_internal.get_table_columns($1)
 	`, tableName)
 	if err != nil {
 		return nil, err
@@ -197,16 +189,7 @@ func (db *DB) GetSinglePrimaryKeyColumn(ctx context.Context, tableName string) (
 	}
 
 	rows, err := db.Pool.Query(ctx, `
-		SELECT kcu.column_name
-		FROM information_schema.table_constraints AS tc
-		JOIN information_schema.key_column_usage AS kcu
-		  ON tc.constraint_name = kcu.constraint_name
-		 AND tc.table_schema = kcu.table_schema
-		 AND tc.table_name = kcu.table_name
-		WHERE tc.table_schema = 'public'
-		  AND tc.table_name = $1
-		  AND tc.constraint_type = 'PRIMARY KEY'
-		ORDER BY kcu.ordinal_position
+		SELECT name FROM ozy_internal.get_table_columns($1) WHERE is_pk
 	`, tableName)
 	if err != nil {
 		return "", err
@@ -298,4 +281,47 @@ func cloneStringMap(input map[string]string) map[string]string {
 		out[key] = value
 	}
 	return out
+}
+
+// EnsureDefaultWorkspace checks if at least one workspace exists in single-tenant mode.
+// If none exist, it creates a "Default" workspace and assigns the first admin user as owner.
+func (db *DB) EnsureDefaultWorkspace(ctx context.Context) (string, error) {
+	var workspaceID string
+	err := db.Pool.QueryRow(ctx, `SELECT id::text FROM _v_workspaces ORDER BY created_at LIMIT 1`).Scan(&workspaceID)
+	if err == nil {
+		return workspaceID, nil
+	}
+
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO _v_workspaces (name, slug, config)
+		VALUES ('Default', 'default', '{"is_default":true}')
+		ON CONFLICT (slug) DO UPDATE SET name = 'Default'
+		RETURNING id::text
+	`).Scan(&workspaceID); err != nil {
+		return "", fmt.Errorf("failed to create default workspace: %w", err)
+	}
+
+	// Find the first admin user and assign as owner
+	var userID string
+	if err := tx.QueryRow(ctx, `
+		SELECT id::text FROM _v_users WHERE role = 'admin' ORDER BY created_at LIMIT 1
+	`).Scan(&userID); err == nil {
+		_, _ = tx.Exec(ctx, `
+			INSERT INTO _v_workspace_members (workspace_id, user_id, role)
+			VALUES ($1, $2, 'owner')
+			ON CONFLICT (workspace_id, user_id) DO NOTHING
+		`, workspaceID, userID)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return "", fmt.Errorf("failed to commit default workspace: %w", err)
+	}
+
+	return workspaceID, nil
 }
