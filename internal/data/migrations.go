@@ -26,7 +26,16 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 
 		`CREATE SCHEMA IF NOT EXISTS ozy_internal`,
 		`REVOKE ALL ON SCHEMA ozy_internal FROM PUBLIC`,
-		`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role; END IF; END $$`,
+		`CREATE OR REPLACE FUNCTION ozy_internal.create_service_role_if_missing()
+RETURNS void AS $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
+        CREATE ROLE service_role;
+    END IF;
+END;
+$$ LANGUAGE plpgsql`,
+		`SELECT ozy_internal.create_service_role_if_missing()`,
+		`DROP FUNCTION IF EXISTS ozy_internal.create_service_role_if_missing()`,
 		`GRANT USAGE ON SCHEMA ozy_internal TO service_role`,
 
 		// Internal schemas and tables
