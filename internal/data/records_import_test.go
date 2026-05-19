@@ -187,6 +187,9 @@ func setupBulkImportTestDB(t *testing.T) *DB {
 
 	db, err := Connect(ctx, databaseURL)
 	if err != nil {
+		if strings.Contains(err.Error(), "dial error") || strings.Contains(err.Error(), "connection refused") {
+			t.Skipf("postgres not reachable at %s: %v", databaseURL, err)
+		}
 		t.Fatalf("connect bulk import test db: %v", err)
 	}
 	t.Cleanup(db.Close)
