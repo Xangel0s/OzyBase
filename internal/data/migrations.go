@@ -26,6 +26,7 @@ func (db *DB) RunMigrations(ctx context.Context) error {
 
 		`CREATE SCHEMA IF NOT EXISTS ozy_internal`,
 		`REVOKE ALL ON SCHEMA ozy_internal FROM PUBLIC`,
+		`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role; END IF; END $$`,
 		`GRANT USAGE ON SCHEMA ozy_internal TO service_role`,
 
 		// Internal schemas and tables
