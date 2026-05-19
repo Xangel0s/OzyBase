@@ -16,13 +16,14 @@ interface HeroStat {
 }
 
 interface ModulePageHeroProps {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   description: string;
   icon?: LucideIcon;
   pills?: readonly HeroPill[];
   stats?: readonly HeroStat[];
   actions?: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
   dense?: boolean;
 }
@@ -43,6 +44,7 @@ const ModulePageHero: React.FC<ModulePageHeroProps> = ({
   pills = [],
   stats = [],
   actions,
+  children,
   className = "",
   dense,
 }) => {
@@ -109,6 +111,12 @@ const ModulePageHero: React.FC<ModulePageHeroProps> = ({
             </div>
           ) : null}
         </div>
+
+        {children ? (
+          <div className={isDenseViewport ? "mt-4" : "mt-5"}>
+            {children}
+          </div>
+        ) : null}
 
         {stats.length > 0 ? (
           <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${
