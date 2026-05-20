@@ -257,26 +257,6 @@ func (db *DB) GetTableSchema(ctx context.Context, tableName string) ([]FieldSche
 		})
 	}
 
-	var schema []FieldSchema
-	for rows.Next() {
-		var colName, dataType, udtName, isNullable string
-		var columnDefault *string
-
-		if err := rows.Scan(&colName, &dataType, &udtName, &isNullable, &columnDefault); err != nil {
-			return nil, fmt.Errorf("failed to scan column schema: %w", err)
-		}
-
-		// A field is only strictly required if it is NOT NULL AND has NO default value.
-		isRequired := (isNullable == "NO") && (columnDefault == nil)
-
-		schema = append(schema, FieldSchema{
-			Name:     colName,
-			Type:     mapPostgresTypeToOzyWithUDT(dataType, udtName),
-			Required: isRequired,
-			Default:  columnDefault,
-		})
-	}
-
 	if len(fields) == 0 {
 		return nil, fmt.Errorf("table not found or has no columns: %s", tableName)
 	}

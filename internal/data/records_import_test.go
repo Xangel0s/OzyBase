@@ -213,8 +213,7 @@ func setupBulkImportTestDB(t *testing.T) *DB {
 func startTestContainerDB(ctx context.Context, t *testing.T) *DB {
 	t.Helper()
 
-	postgresContainer, err := postgres.RunContainer(ctx,
-		testcontainers.WithImage("postgres:15-alpine"),
+	postgresContainer, err := postgres.Run(ctx, "postgres:15-alpine",
 		postgres.WithDatabase("ozybase_test"),
 		postgres.WithUsername("postgres"),
 		postgres.WithPassword("password"),
@@ -235,7 +234,9 @@ func startTestContainerDB(ctx context.Context, t *testing.T) *DB {
 	t.Cleanup(func() {
 		terminateCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		postgresContainer.Terminate(terminateCtx)
+		if err := postgresContainer.Terminate(terminateCtx); err != nil {
+			t.Logf("failed to terminate postgres container: %v", err)
+		}
 	})
 
 	connStr, err := postgresContainer.ConnectionString(ctx, "sslmode=disable")
