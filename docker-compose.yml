@@ -9,7 +9,7 @@ services:
     ports:
       - "${PORT:-8090}:8090"
     environment:
-      DATABASE_URL: postgres://${DB_USER:?set DB_USER}:${DB_PASSWORD:?set DB_PASSWORD}@db:5432/${DB_NAME:?set DB_NAME}?sslmode=${DB_SSLMODE:-disable}
+      DATABASE_URL: postgres://${DB_USER:-postgres}:${DB_PASSWORD:-ozybase}@db:5432/${DB_NAME:-ozybase}?sslmode=${DB_SSLMODE:-disable}
       DB_POOLER_URL: ${DB_POOLER_URL:-}
       OZY_DEPLOYMENT_PROFILE: ${OZY_DEPLOYMENT_PROFILE:-single_project_local}
       PORT: "8090"
@@ -56,17 +56,17 @@ services:
     container_name: ozybase-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USER:?set DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME:?set DB_NAME}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ozybase}
+      POSTGRES_DB: ${DB_NAME:-ozybase}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        ["CMD-SHELL", "pg_isready -U ${DB_USER:?set DB_USER} -d ${DB_NAME:?set DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-ozybase}"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
       - ozy_network
     deploy:
@@ -86,9 +86,9 @@ services:
     environment:
       TZ: ${TZ:-UTC}
       POSTGRES_HOST: db
-      POSTGRES_DB: ${DB_NAME:?set DB_NAME}
-      POSTGRES_USER: ${DB_USER:?set DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-ozybase}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ozybase}
       POSTGRES_BACKUP_PRUNE_DAYS: 14
       SCHEDULE: "@daily"
       BACKUP_COMPRESSION: gzip
