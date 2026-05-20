@@ -706,8 +706,8 @@ const StorageManager = () => {
             <aside className="w-72 border-r border-white/5 bg-linear-to-b from-white/2 to-transparent flex flex-col relative z-10 shrink-0">
                 <div className="p-6 border-b border-white/5 flex items-center justify-between">
                     <div>
-                        <h2 className="text-[11px] font-bold text-white uppercase tracking-[0.3em] italic leading-none">Buckets</h2>
-                        <p className="mt-2 text-[9px] font-bold text-zinc-300 uppercase tracking-widest leading-none">Storage Registry</p>
+                        <h2 className="text-[11px] font-bold text-white uppercase tracking-widest leading-none">Buckets</h2>
+                        <p className="mt-2 text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none">Storage</p>
                     </div>
                     <button 
                         onClick={() => setBucketDialogMode('create')}
@@ -719,7 +719,7 @@ const StorageManager = () => {
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
                     {loadingBuckets ? (
-                        <div className="py-12 text-center text-zinc-400 font-bold text-[9px] uppercase tracking-[0.4em] animate-pulse italic">Resolving Nodes...</div>
+                        <div className="py-12 text-center text-zinc-500 font-bold text-[9px] uppercase tracking-widest animate-pulse">Loading buckets...</div>
                     ) : buckets.map((bucket) => (
                         <div 
                             key={bucket.id} 
@@ -753,12 +753,12 @@ const StorageManager = () => {
                                     </button>
                                 </div>
                             </div>
-                            <h3 className={`text-sm font-bold italic tracking-tight uppercase leading-none truncate ${selectedBucketName === bucket.name ? 'text-black' : 'text-white'}`}>
+                            <h3 className={`text-sm font-bold tracking-tight leading-none truncate ${selectedBucketName === bucket.name ? 'text-black' : 'text-white'}`}>
                                 {bucket.name}
                             </h3>
                             <div className="mt-2 flex items-center justify-between">
-                                <span className={`text-[9px] font-bold uppercase tracking-widest ${selectedBucketName === bucket.name ? 'text-black/40' : 'text-zinc-300'}`}>{bucket.object_count} OBS</span>
-                                <span className={`text-[9px] font-bold italic tabular-nums ${selectedBucketName === bucket.name ? 'text-black' : 'text-zinc-300'}`}>{formatSize(bucket.total_size)}</span>
+                                <span className={`text-[9px] font-bold uppercase tracking-widest ${selectedBucketName === bucket.name ? 'text-black/40' : 'text-zinc-500'}`}>{bucket.object_count} files</span>
+                                <span className={`text-[9px] font-bold tabular-nums ${selectedBucketName === bucket.name ? 'text-black' : 'text-zinc-500'}`}>{formatSize(bucket.total_size)}</span>
                             </div>
                         </div>
                     ))}
@@ -773,17 +773,17 @@ const StorageManager = () => {
                         <div className="w-16 h-16 rounded-md bg-primary/20 border border-primary/30 flex items-center justify-center text-primary shadow-[0_0_50px_rgba(254,254,0,0.1)] relative z-10">
                             <FolderOpen size={28} strokeWidth={1} />
                         </div>
-                        <div className="relative z-10">
-                             <p className="text-[10px] font-bold tracking-[0.4em] text-zinc-300 uppercase italic">Ozy Kernel :: Storage Node</p>
-                             <h1 className="mt-2 text-3xl font-bold text-white uppercase italic tracking-tighter leading-none">{selectedBucket.name}</h1>
-                             <div className="mt-6 flex items-center gap-6">
-                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest italic border ${selectedBucket.public ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
-                                    {selectedBucket.public ? 'Public_Access_Unlocked' : 'Encrypted_Vault_Locked'}
-                                </span>
-                                <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
-                                <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-[0.2em]">{selectedBucket.object_count} REGISTERED_BLOBS</span>
-                             </div>
-                        </div>
+                         <div className="relative z-10">
+                              <p className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase leading-none">Storage</p>
+                              <h1 className="mt-2 text-3xl font-bold text-white leading-none">{selectedBucket.name}</h1>
+                              <div className="mt-6 flex items-center gap-6">
+                                 <span className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest border ${selectedBucket.public ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
+                                     {selectedBucket.public ? 'Public' : 'Private'}
+                                 </span>
+                                 <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
+                                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{selectedBucket.object_count} files</span>
+                              </div>
+                         </div>
                     </div>
 
                     <div className="flex items-center gap-4">
@@ -794,7 +794,7 @@ const StorageManager = () => {
                         <button 
                              onClick={() => fileInputRef.current?.click()}
                              disabled={isUploading}
-                             className={`h-11 flex items-center gap-4 px-8 rounded-md font-bold text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg group ${isUploading ? 'bg-zinc-800 text-zinc-400 cursor-not-allowed' : 'bg-white text-black hover:scale-105 active:scale-95'}`}
+                              className={`h-11 flex items-center gap-4 px-8 rounded-md font-bold text-[10px] uppercase tracking-widest transition-all shadow-lg group ${isUploading ? 'bg-zinc-800 text-zinc-400 cursor-not-allowed' : 'bg-white text-black hover:scale-105 active:scale-95'}`}
                         >
                             {isUploading ? (
                                 <RefreshCw size={18} strokeWidth={3} className="animate-spin" />
@@ -816,7 +816,7 @@ const StorageManager = () => {
                     <div className="flex items-center gap-3 px-2 py-1 bg-white/2 rounded-md border border-white/5 w-fit">
                         <button 
                             onClick={() => setCurrentPath([])}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-tighter transition-all ${currentPath.length === 0 ? 'text-primary bg-primary/10 shadow-[0_0_15px_rgba(254,254,0,0.1)]' : 'text-zinc-500 hover:text-zinc-300'}`}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${currentPath.length === 0 ? 'text-primary bg-primary/10 shadow-[0_0_15px_rgba(210,242,11,0.1)]' : 'text-zinc-500 hover:text-zinc-300'}`}
                         >
                             <Database size={12} />
                             Root Level
@@ -826,7 +826,7 @@ const StorageManager = () => {
                                 <ChevronRight size={12} className="text-zinc-700" />
                                 <button 
                                     onClick={() => setCurrentPath(currentPath.slice(0, index + 1))}
-                                    className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-tighter transition-all ${index === currentPath.length - 1 ? 'text-primary bg-primary/10' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                    className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${index === currentPath.length - 1 ? 'text-primary bg-primary/10' : 'text-zinc-500 hover:text-zinc-300'}`}
                                 >
                                     {part}
                                 </button>
@@ -855,13 +855,12 @@ const StorageManager = () => {
                             </button>
                             <div className="flex items-center gap-6 py-3 px-8 bg-[#131313] border border-white/5 rounded-md">
                                 <div className="text-center">
-                                    <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest leading-none">Weight</p>
-                                    <p className="text-sm font-bold text-zinc-300 italic tabular-nums mt-2">{formatSize(selectedBucket.total_size)}</p>
+                                    <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest leading-none">Size</p>
+                                    <p className="text-sm font-bold text-zinc-300 tabular-nums mt-2">{formatSize(selectedBucket.total_size)}</p>
                                 </div>
-                                <div className="w-px h-8 bg-white/5" />
-                                <div className="text-center">
-                                    <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest leading-none">Health</p>
-                                    <p className="text-sm font-bold text-emerald-500 italic uppercase mt-2">NOMINAL</p>
+                                <div>
+                                    <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest leading-none">Status</p>
+                                    <p className="text-sm font-bold text-emerald-500 uppercase mt-2">Healthy</p>
                                 </div>
                             </div>
                         </div>
@@ -870,14 +869,14 @@ const StorageManager = () => {
                     {loadingFiles ? (
                         <div className="flex-1 flex flex-col items-center justify-center gap-4 opacity-50 grayscale animate-pulse py-20">
                             <Activity size={48} className="text-primary" />
-                            <span className="text-[10px] font-bold uppercase tracking-[0.4em] italic">Scanning_Kernel_Storage...</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest">Loading files...</span>
                         </div>
                     ) : filteredFiles.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/5 rounded-[48px] bg-white/1 gap-8 py-32 opacity-70 grayscale hover:opacity-100 transition-opacity">
                             <Database size={64} strokeWidth={1} />
                             <div className="text-center">
-                                <h4 className="text-[12px] font-bold text-white uppercase tracking-[0.5em] italic">No Objects Detected</h4>
-                                <p className="mt-4 text-[9px] font-medium text-zinc-400 uppercase tracking-widest">Vault perimeter is currently vacant of registered vectors.</p>
+                                <h4 className="text-[12px] font-bold text-white uppercase tracking-widest">No files yet</h4>
+                                <p className="mt-4 text-[9px] font-medium text-zinc-500 uppercase tracking-widest">Upload files to get started.</p>
                             </div>
                         </div>
                     ) : viewMode === 'grid' ? (
@@ -912,18 +911,18 @@ const StorageManager = () => {
                                              </div>
                                          </div>
                                      </div>
-                                     <h4 className="text-[13px] font-bold text-white italic tracking-tight uppercase truncate leading-none mb-3">{file.name}</h4>
+                                      <h4 className="text-[13px] font-bold text-white tracking-tight truncate leading-none mb-3">{file.name}</h4>
                                      {!file.is_folder && (
                                          <div className="flex items-center justify-between">
                                              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest truncate max-w-[120px]">{file.content_type}</span>
-                                             <span className="text-[10px] font-bold text-zinc-400 italic tabular-nums">{formatSize(file.size)}</span>
+                                              <span className="text-[10px] font-bold text-zinc-500 tabular-nums">{formatSize(file.size)}</span>
                                          </div>
                                      )}
                                      <div className="mt-5 pt-4 border-t border-white/5 opacity-40 flex items-center justify-between">
-                                         <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">{file.created_at ? new Date(file.created_at).toLocaleDateString() : 'UNKNOWN_TIMESTAMP'}</span>
+                                          <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">{file.created_at ? new Date(file.created_at).toLocaleDateString() : 'Unknown'}</span>
                                          {!file.is_folder && (
                                              <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-all">
-                                                <span className="text-[8px] font-bold text-primary uppercase italic">Synchronized</span>
+                                                 <span className="text-[8px] font-bold text-primary uppercase">Synced</span>
                                                 <Zap size={8} className="text-primary" />
                                              </div>
                                          )}
@@ -936,10 +935,10 @@ const StorageManager = () => {
                             <table className="w-full text-left">
                                 <thead>
                                     <tr className="bg-white/3 border-b border-white/5">
-                                        <th className="px-10 py-6 text-[9px] font-bold text-zinc-400 uppercase tracking-[0.4em] italic">Vector_Identity</th>
-                                        <th className="px-10 py-6 text-[9px] font-bold text-zinc-400 uppercase tracking-[0.4em] italic">Classification</th>
-                                        <th className="px-10 py-6 text-[9px] font-bold text-zinc-400 uppercase tracking-[0.4em] italic">Scale</th>
-                                        <th className="px-10 py-6 text-[9px] font-bold text-zinc-400 uppercase tracking-[0.4em] italic text-right">Sequence</th>
+                                        <th className="px-10 py-6 text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Name</th>
+                                        <th className="px-10 py-6 text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Type</th>
+                                        <th className="px-10 py-6 text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Size</th>
+                                        <th className="px-10 py-6 text-[9px] font-bold text-zinc-400 uppercase tracking-widest text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
@@ -966,11 +965,11 @@ const StorageManager = () => {
                                                     <div className={`transition-all ${file.is_folder ? 'text-primary' : 'text-zinc-600 group-hover:text-primary'}`}>
                                                         {file.is_folder ? <FolderOpen size={18} /> : file.content_type?.startsWith('image/') ? <ImageIcon size={18} /> : <FileIcon size={18} />}
                                                     </div>
-                                                    <span className="text-[12px] font-bold text-white italic tracking-tight truncate max-w-sm uppercase">{file.name}</span>
+                                                    <span className="text-[12px] font-bold text-white tracking-tight truncate max-w-sm">{file.name}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-10 py-5 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{file.is_folder ? 'DIRECTORY_KERNEL' : file.content_type}</td>
-                                            <td className="px-10 py-5 text-[11px] text-zinc-200 font-bold tabular-nums italic">{file.is_folder ? '--' : formatSize(file.size)}</td>
+                                            <td className="px-10 py-5 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{file.is_folder ? 'Folder' : file.content_type}</td>
+                                            <td className="px-10 py-5 text-[11px] text-zinc-200 font-bold tabular-nums">{file.is_folder ? '--' : formatSize(file.size)}</td>
                                             <td className="px-10 py-5 text-right">
                                                 <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all">
                                                     <button onClick={(e) => { e.stopPropagation(); window.open(file.download_url); }} className="p-2.5 rounded-md bg-white/5 text-zinc-500 hover:text-white transition-all"><Download size={14} /></button>
@@ -990,8 +989,8 @@ const StorageManager = () => {
                             <div className="absolute inset-0 bg-linear-to-br from-indigo-500/3 to-transparent pointer-events-none" />
                             <div className="flex items-start justify-between mb-8 relative z-10">
                                 <div>
-                                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-[0.4em] italic leading-none">Access Control Matrix</p>
-                                    <h3 className="mt-3 text-xl font-bold text-white uppercase italic tracking-tighter">Bucket Identity</h3>
+                                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none">Access Control</p>
+                                    <h3 className="mt-3 text-xl font-bold text-white tracking-tight">Bucket Details</h3>
                                 </div>
                                 <div className="w-10 h-10 rounded-md bg-indigo-500/5 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
                                     <Shield size={20} />
@@ -999,15 +998,15 @@ const StorageManager = () => {
                             </div>
                             <div className="space-y-3 relative z-10">
                                 <div className="flex items-center justify-between p-5 rounded-md bg-black/40 border border-white/5">
-                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Visibility_Mode</span>
-                                    <span className={`text-[10px] font-bold uppercase italic tracking-widest ${selectedBucket.public ? 'text-primary' : 'text-zinc-500'}`}>{selectedBucket.public ? 'PUBLIC_READS' : 'PRIVATE'}</span>
+                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Visibility</span>
+                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${selectedBucket.public ? 'text-primary' : 'text-zinc-500'}`}>{selectedBucket.public ? 'Public' : 'Private'}</span>
                                 </div>
                                 <div className="flex items-center justify-between p-5 rounded-md bg-black/40 border border-white/5">
-                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">ACL_Enforcement</span>
-                                    <span className={`text-[10px] font-bold uppercase italic tracking-widest ${selectedBucket.rls_enabled ? 'text-emerald-500' : 'text-zinc-500'}`}>{selectedBucket.rls_enabled ? 'RLS_ACTIVE' : 'OFF'}</span>
+                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">RLS Policy</span>
+                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${selectedBucket.rls_enabled ? 'text-emerald-500' : 'text-zinc-500'}`}>{selectedBucket.rls_enabled ? 'Enabled' : 'Disabled'}</span>
                                 </div>
                                 <div className="p-5 rounded-md bg-black border border-white/5 font-mono">
-                                     <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mb-2 italic">Active_Kernel_Rule</p>
+                                      <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Current Rule</p>
                                      <code className="text-[10px] text-zinc-400 break-all">{selectedBucket.rls_rule || 'TRUE'}</code>
                                 </div>
                             </div>
@@ -1017,8 +1016,8 @@ const StorageManager = () => {
                             <div className="absolute inset-0 bg-linear-to-br from-red-500/3 to-transparent pointer-events-none" />
                             <div className="flex items-start justify-between mb-8 relative z-10">
                                 <div>
-                                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-[0.4em] italic leading-none">Resource Quotas</p>
-                                    <h3 className="mt-3 text-xl font-bold text-white uppercase italic tracking-tighter">Enforced Limits</h3>
+                                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none">Storage Limits</p>
+                                    <h3 className="mt-3 text-xl font-bold text-white tracking-tight">Quotas</h3>
                                 </div>
                                 <div className="w-10 h-10 rounded-md bg-red-500/5 border border-red-500/20 flex items-center justify-center text-red-500">
                                     <Activity size={20} />
@@ -1026,18 +1025,18 @@ const StorageManager = () => {
                             </div>
                             <div className="space-y-3 relative z-10">
                                 <div className="flex items-center justify-between p-5 rounded-md bg-black/40 border border-white/5">
-                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Transmission_Cap</span>
-                                    <span className="text-[10px] font-bold text-white uppercase italic tracking-widest tabular-nums">{selectedBucket.max_file_size_bytes > 0 ? formatSize(selectedBucket.max_file_size_bytes) : 'INF'}</span>
+                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Max File Size</span>
+                                    <span className="text-[10px] font-bold text-white uppercase tracking-widest tabular-nums">{selectedBucket.max_file_size_bytes > 0 ? formatSize(selectedBucket.max_file_size_bytes) : 'Unlimited'}</span>
                                 </div>
                                 <div className="flex items-center justify-between p-5 rounded-md bg-black/40 border border-white/5">
-                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Aggregate_Quota</span>
-                                    <span className="text-[10px] font-bold text-white uppercase italic tracking-widest tabular-nums">{selectedBucket.max_total_size_bytes > 0 ? formatSize(selectedBucket.max_total_size_bytes) : 'ELASTIC'}</span>
+                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Total Quota</span>
+                                    <span className="text-[10px] font-bold text-white uppercase tracking-widest tabular-nums">{selectedBucket.max_total_size_bytes > 0 ? formatSize(selectedBucket.max_total_size_bytes) : 'Unlimited'}</span>
                                 </div>
                                 <div className="p-5 rounded-md bg-black/60 border border-white/5 flex flex-col items-center gap-3">
                                      <div className="w-full bg-white/2 h-1.5 rounded-full overflow-hidden border border-white/5">
                                         <div className="bg-primary h-full transition-all duration-1000 shadow-[0_0_10px_rgba(254,254,0,0.3)]" style={{ width: `${selectedBucket.usage_ratio_pct || 0}%` }} />
                                      </div>
-                                     <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest italic">{selectedBucket.usage_ratio_pct || 0}% CONSUMED</p>
+                                      <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{selectedBucket.usage_ratio_pct || 0}% used</p>
                                 </div>
                             </div>
                          </section>
@@ -1047,26 +1046,26 @@ const StorageManager = () => {
 
             {/* Bucket Dialog (Modal) */}
             {bucketDialogMode && (
-                <div className="fixed inset-0 z-120 flex items-center justify-center p-6 bg-black/95 backdrop-blur-xl animate-in fade-in duration-500">
+                <div className="fixed inset-0 z-120 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
                      <div className="absolute inset-0 pointer-events-auto" onClick={() => !isSavingBucket && setBucketDialogMode(null)} />
-                     <div className="relative w-full max-w-4xl bg-[#131313] border border-white/10 rounded-[48px] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)] animate-in zoom-in-95 duration-700">
-                         <header className="px-12 py-10 border-b border-white/5 flex items-center justify-between bg-white/2">
-                            <div className="flex items-center gap-5">
-                                <div className="w-14 h-14 rounded-[22px] bg-primary/5 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_20px_rgba(254,254,0,0.1)]">
-                                    <HardDrive size={28} strokeWidth={1.5} />
+                     <div className="relative w-full max-w-lg bg-[#131313] border border-white/10 rounded-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+                         <header className="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-white/2">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-center text-primary">
+                                    <HardDrive size={18} strokeWidth={1.5} />
                                 </div>
                                  <div>
-                                    <h2 className="text-3xl font-bold text-white italic tracking-tighter uppercase leading-none">{bucketDialogMode === 'create' ? 'Provision_Bucket' : 'Reconfigure_Node'}</h2>
-                                    <p className="text-[10px] text-zinc-400 uppercase font-bold mt-3 tracking-widest leading-none">Registering edge-compatible storage namespace</p>
+                                    <h2 className="text-lg font-bold text-white tracking-tight leading-none">{bucketDialogMode === 'create' ? 'Create Bucket' : 'Edit Bucket'}</h2>
+                                    <p className="text-[9px] text-zinc-500 uppercase font-bold mt-1 tracking-widest leading-none">Configure storage bucket settings</p>
                                 </div>
                             </div>
-                            <button onClick={() => !isSavingBucket && setBucketDialogMode(null)} className="px-6 py-2 rounded-md bg-white/3 text-zinc-500 hover:text-white transition-all text-[10px] font-bold uppercase tracking-widest border border-white/5">CANCEL</button>
+                            <button onClick={() => !isSavingBucket && setBucketDialogMode(null)} className="px-4 py-1.5 rounded-md bg-white/3 text-zinc-500 hover:text-white transition-all text-[9px] font-bold uppercase tracking-widest border border-white/5">CANCEL</button>
                          </header>
 
-                         <div className="p-12 space-y-10 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                             <div className="space-y-4">
-                                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.4em] italic leading-none ml-2">Bucket Identifier</label>
-                                <div className={`p-8 rounded-2xl bg-black border border-white/5 shadow-inner transition-opacity ${bucketDialogMode === 'edit' ? 'opacity-40' : ''}`}>
+                         <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                             <div className="space-y-2">
+                                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none ml-1">Bucket Name</label>
+                                <div className={`p-4 rounded-xl bg-black border border-white/5 shadow-inner transition-opacity ${bucketDialogMode === 'edit' ? 'opacity-40' : ''}`}>
                                     <input 
                                         type="text" 
                                         disabled={bucketDialogMode === 'edit'}
@@ -1081,78 +1080,78 @@ const StorageManager = () => {
                                             }
                                         }}
                                         placeholder="e.g. assets-protocol" 
-                                        className="w-full bg-transparent border-none p-0 text-lg font-bold text-white outline-none placeholder:text-zinc-700 tracking-[0.2em] font-mono uppercase" 
+                                        className="w-full bg-transparent border-none p-0 text-sm font-bold text-white outline-none placeholder:text-zinc-700 tracking-widest font-mono uppercase" 
                                     />
-                                    <p className="mt-4 text-[10px] uppercase tracking-[0.35em] text-zinc-500 leading-5">
+                                    <p className="mt-2 text-[9px] uppercase tracking-widest text-zinc-600 leading-relaxed">
                                         Spaces are converted to dashes. Use lowercase letters, numbers, dots, dashes or underscores.
                                     </p>
                                     {bucketNameError ? (
-                                        <p className="mt-3 text-[10px] uppercase tracking-[0.35em] text-amber-400 leading-5">
+                                        <p className="mt-2 text-[9px] uppercase tracking-widest text-amber-400 leading-relaxed">
                                             {bucketNameError}
                                         </p>
                                     ) : null}
                                 </div>
                              </div>
 
-                              <div className="grid grid-cols-2 gap-10">
-                                <div className="space-y-4">
-                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.4em] italic leading-none ml-2">Visibility_Vector</label>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none ml-1">Visibility</label>
                                     <div 
                                         onClick={() => setBucketForm({ ...bucketForm, isPublic: !bucketForm.isPublic })}
-                                        className={`p-8 rounded-[32px] border cursor-pointer transition-all ${bucketForm.isPublic ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-black border-white/5 text-zinc-500 hover:text-zinc-300'}`}
+                                        className={`p-4 rounded-xl border cursor-pointer transition-all ${bucketForm.isPublic ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-black border-white/5 text-zinc-500 hover:text-zinc-300'}`}
                                     >
                                         <div className="flex items-center justify-between">
-                                            <span className="text-sm font-bold uppercase italic tracking-widest">{bucketForm.isPublic ? 'PUBLIC_ACCESS' : 'PRIVATE_VAULT'}</span>
-                                            {bucketForm.isPublic ? <Globe size={20} /> : <Lock size={20} />}
+                                            <span className="text-xs font-bold uppercase tracking-widest">{bucketForm.isPublic ? 'Public' : 'Private'}</span>
+                                            {bucketForm.isPublic ? <Globe size={16} /> : <Lock size={16} />}
                                         </div>
                                     </div>
                                 </div>
-                                <div className="space-y-4">
-                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.4em] italic leading-none ml-2">ACL_Profile</label>
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none ml-1">Access Policy</label>
                                     <OzySelect
                                         value={bucketForm.policyProfile}
                                         onChange={(e: any) => setBucketForm({ ...bucketForm, policyProfile: e.target.value as BucketPolicyProfile })}
-                                        wrapperClassName="rounded-[32px] border-white/5 bg-black overflow-hidden"
-                                        selectClassName="h-20 px-8 text-sm font-bold uppercase tracking-widest italic text-zinc-200"
+                                        wrapperClassName="rounded-xl border-white/5 bg-black overflow-hidden"
+                                        selectClassName="h-12 px-4 text-xs font-bold uppercase tracking-widest text-zinc-200"
                                     >
-                                        <option value="visibility_only">VISIBILITY_ONLY</option>
-                                        <option value="owner_only">OWNER_ISOLATION</option>
-                                        <option value="admin_only">ADMIN_CONSOLE_ONLY</option>
-                                        <option value="deny_all">SEALED_NODE</option>
+                                        <option value="visibility_only">Public Read</option>
+                                        <option value="owner_only">Owner Only</option>
+                                        <option value="admin_only">Admin Only</option>
+                                        <option value="deny_all">Deny All</option>
                                     </OzySelect>
                                 </div>
                              </div>
 
-                              <div className="grid grid-cols-3 gap-6">
-                                <div className="space-y-4">
-                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.4em] italic leading-none ml-2">Max_Object (MB)</label>
-                                    <div className="p-6 bg-black border border-white/5 rounded-2xl">
-                                        <input type="number" value={bucketForm.maxFileSizeMB} onChange={(e) => setBucketForm({ ...bucketForm, maxFileSizeMB: e.target.value })} placeholder="0_INF" className="w-full bg-transparent border-none text-base font-bold text-white font-mono text-center focus:outline-none placeholder:text-zinc-800" />
+                              <div className="grid grid-cols-3 gap-3">
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none ml-1">Max File Size (MB)</label>
+                                    <div className="p-3 bg-black border border-white/5 rounded-xl">
+                                        <input type="number" value={bucketForm.maxFileSizeMB} onChange={(e) => setBucketForm({ ...bucketForm, maxFileSizeMB: e.target.value })} placeholder="0_INF" className="w-full bg-transparent border-none text-sm font-bold text-white font-mono text-center focus:outline-none placeholder:text-zinc-800" />
                                     </div>
                                 </div>
-                                <div className="space-y-4">
-                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.4em] italic leading-none ml-2">Quota (MB)</label>
-                                    <div className="p-6 bg-black border border-white/5 rounded-2xl">
-                                        <input type="number" value={bucketForm.maxTotalSizeMB} onChange={(e) => setBucketForm({ ...bucketForm, maxTotalSizeMB: e.target.value })} placeholder="0_INF" className="w-full bg-transparent border-none text-base font-bold text-white font-mono text-center focus:outline-none placeholder:text-zinc-800" />
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none ml-1">Total Quota (MB)</label>
+                                    <div className="p-3 bg-black border border-white/5 rounded-xl">
+                                        <input type="number" value={bucketForm.maxTotalSizeMB} onChange={(e) => setBucketForm({ ...bucketForm, maxTotalSizeMB: e.target.value })} placeholder="0_INF" className="w-full bg-transparent border-none text-sm font-bold text-white font-mono text-center focus:outline-none placeholder:text-zinc-800" />
                                     </div>
                                 </div>
-                                <div className="space-y-4">
-                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.4em] italic leading-none ml-2">Retention (Days)</label>
-                                    <div className="p-6 bg-black border border-white/5 rounded-2xl">
-                                        <input type="number" value={bucketForm.lifecycleDeleteAfterDays} onChange={(e) => setBucketForm({ ...bucketForm, lifecycleDeleteAfterDays: e.target.value })} placeholder="0_INF" className="w-full bg-transparent border-none text-base font-bold text-white font-mono text-center focus:outline-none placeholder:text-zinc-800" />
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest italic leading-none ml-1">Retention (Days)</label>
+                                    <div className="p-3 bg-black border border-white/5 rounded-xl">
+                                        <input type="number" value={bucketForm.lifecycleDeleteAfterDays} onChange={(e) => setBucketForm({ ...bucketForm, lifecycleDeleteAfterDays: e.target.value })} placeholder="0_INF" className="w-full bg-transparent border-none text-sm font-bold text-white font-mono text-center focus:outline-none placeholder:text-zinc-800" />
                                     </div>
                                 </div>
                              </div>
                          </div>
 
-                         <footer className="p-12 bg-black/40 border-t border-white/5">
+                         <footer className="p-4 bg-black/40 border-t border-white/5">
                              <button
                                 onClick={handleBucketSave}
                                 disabled={isSavingBucket}
-                                className="w-full h-16 bg-white text-black rounded-[32px] font-bold text-[12px] uppercase tracking-[0.4em] hover:scale-[1.02] active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-4 italic disabled:opacity-50"
+                                className="w-full h-12 bg-white text-black rounded-xl font-bold text-[11px] uppercase tracking-widest hover:scale-[1.01] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3 disabled:opacity-50"
                              >
-                                {isSavingBucket ? <RefreshCw className="animate-spin" size={20} /> : <Zap size={20} fill="currentColor" />}
-                                {isSavingBucket ? 'SYNCHRONIZING_NODE...' : bucketDialogMode === 'create' ? 'CREATE BUCKET' : 'SAVE CHANGES'}
+                                {isSavingBucket ? <RefreshCw className="animate-spin" size={16} /> : <Zap size={16} fill="currentColor" />}
+                                {isSavingBucket ? 'Creating...' : bucketDialogMode === 'create' ? 'Create Bucket' : 'Save Changes'}
                              </button>
                          </footer>
                      </div>
@@ -1163,9 +1162,9 @@ const StorageManager = () => {
                 isOpen={!!bucketPendingDelete}
                 onClose={() => setBucketPendingDelete(null)}
                 onConfirm={handleDeleteBucket}
-                title="PURGE_BUCKET_ENCLAVE"
-                message={`CRITICAL: This will immediately delete [${bucketPendingDelete?.name || ''}] and all contained objects. This action is irreversible within the current storage cycle.`}
-                confirmText="Purge Enclave"
+                title="Delete Bucket"
+                message={`This will permanently delete [${bucketPendingDelete?.name || ''}] and all contained files. This action cannot be undone.`}
+                confirmText="Delete Bucket"
                 type="danger"
             />
 
@@ -1173,9 +1172,9 @@ const StorageManager = () => {
                 isOpen={!!filePendingDelete}
                 onClose={() => setFilePendingDelete(null)}
                 onConfirm={handleDeleteFile}
-                title="RELEASE_OBJECT_VECTOR"
-                message={`Unregister [${filePendingDelete?.name || ''}] from edge storage?`}
-                confirmText="Unregister Object"
+                title="Delete File"
+                message={`Delete [${filePendingDelete?.name || ''}] from storage?`}
+                confirmText="Delete File"
                 type="danger"
             />
 
@@ -1187,7 +1186,7 @@ const StorageManager = () => {
                         style={{ top: contextMenu.y, left: contextMenu.x }}
                     >
                         <div className="p-2 border-b border-white/5 bg-white/2">
-                            <p className="px-4 py-2 text-[8px] font-bold text-zinc-500 uppercase tracking-widest leading-none">{contextMenu.file.is_folder ? 'DIRECTORY_KERNEL' : 'OBJECT_VECTOR'}</p>
+                            <p className="px-4 py-2 text-[8px] font-bold text-zinc-500 uppercase tracking-widest leading-none">{contextMenu.file.is_folder ? 'Folder' : 'File'}</p>
                             <p className="px-4 pb-2 text-[10px] font-bold text-white truncate max-w-[200px] leading-none mt-1">{contextMenu.file.name}</p>
                         </div>
                         <div className="p-1.5">
@@ -1196,7 +1195,7 @@ const StorageManager = () => {
                                     <button onClick={() => { handleCopyURL(contextMenu.file); setContextMenu(null); }} className="w-full flex items-center justify-between px-4 py-3 rounded-md hover:bg-white/5 transition-colors group">
                                         <div className="flex items-center gap-3">
                                             <ExternalLink size={14} className="text-zinc-500 group-hover:text-primary transition-colors" />
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Get_URL</span>
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Copy URL</span>
                                         </div>
                                         <Copy size={12} className="text-zinc-700 opacity-40" />
                                     </button>
@@ -1217,14 +1216,14 @@ const StorageManager = () => {
                             <button onClick={() => { setMovingFile(contextMenu.file); setMovingTarget(''); setContextMenu(null); }} className="w-full flex items-center justify-between px-4 py-3 rounded-md hover:bg-white/5 transition-colors group">
                                 <div className="flex items-center gap-3">
                                     <MoveHorizontal size={14} className="text-zinc-500 group-hover:text-primary transition-colors" />
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Relocate</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300">Move</span>
                                 </div>
                             </button>
                             <div className="my-1 border-t border-white/5" />
                             <button onClick={() => { setFilePendingDelete(contextMenu.file); setContextMenu(null); }} className="w-full flex items-center justify-between px-4 py-3 rounded-md hover:bg-red-500/10 transition-colors group">
                                 <div className="flex items-center gap-3">
                                     <Trash2 size={14} className="text-red-500/50 group-hover:text-red-500 transition-colors" />
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-red-500/70 group-hover:text-red-500">Purge</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-red-500/70 group-hover:text-red-500">Delete</span>
                                 </div>
                             </button>
                         </div>
@@ -1236,7 +1235,7 @@ const StorageManager = () => {
             {renamingFile && (
                 <div className="fixed inset-0 z-200 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-[#131313] border border-white/10 rounded-[32px] p-10 w-full max-w-md shadow-2xl">
-                        <h3 className="text-xl font-bold text-white italic uppercase tracking-tighter mb-6 underline decoration-primary/30 decoration-4 underline-offset-8">Rename Object</h3>
+                        <h3 className="text-xl font-bold text-white tracking-tight mb-6">Rename File</h3>
                         <div className="p-5 bg-black border border-white/5 rounded-md mb-8">
                             <input 
                                 type="text"
@@ -1250,7 +1249,7 @@ const StorageManager = () => {
                         </div>
                         <div className="flex gap-4">
                             <button onClick={() => setRenamingFile(null)} className="flex-1 h-14 rounded-md bg-white/5 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-all border border-white/5">Cancel</button>
-                            <button onClick={handleRename} className="flex-1 h-14 rounded-md bg-primary text-black text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-primary/10">Save Name</button>
+                            <button onClick={handleRename} className="flex-1 h-14 rounded-md bg-primary text-black text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-primary/10">Save</button>
                         </div>
                     </div>
                 </div>
@@ -1260,8 +1259,8 @@ const StorageManager = () => {
             {movingFile && (
                 <div className="fixed inset-0 z-200 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-[#131313] border border-white/10 rounded-[32px] p-10 w-full max-w-md shadow-2xl">
-                        <h3 className="text-xl font-bold text-white italic uppercase tracking-tighter mb-6 underline decoration-emerald-500/30 decoration-4 underline-offset-8">Move Object</h3>
-                        <p className="text-[9px] text-zinc-500 uppercase tracking-widest mb-4 font-bold">Target Namespace (e.g. storage/assets)</p>
+                        <h3 className="text-xl font-bold text-white tracking-tight mb-6">Move File</h3>
+                        <p className="text-[9px] text-zinc-500 uppercase tracking-widest mb-4 font-bold">Destination path (e.g. storage/assets)</p>
                         <div className="p-5 bg-black border border-white/5 rounded-md mb-8">
                             <input 
                                 type="text"
@@ -1275,7 +1274,7 @@ const StorageManager = () => {
                         </div>
                         <div className="flex gap-4">
                             <button onClick={() => setMovingFile(null)} className="flex-1 h-14 rounded-md bg-white/5 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-all border border-white/5">Cancel</button>
-                            <button onClick={handleMove} className="flex-1 h-14 rounded-md bg-primary text-black text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-primary/10">Move Object</button>
+                            <button onClick={handleMove} className="flex-1 h-14 rounded-md bg-primary text-black text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-primary/10">Move</button>
                         </div>
                     </div>
                 </div>
@@ -1285,7 +1284,7 @@ const StorageManager = () => {
             {showNewFolderModal && (
                 <div className="fixed inset-0 z-200 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="bg-[#131313] border border-white/10 rounded-[32px] p-10 w-full max-w-md shadow-2xl">
-                        <h3 className="text-xl font-bold text-white italic uppercase tracking-tighter mb-6 underline decoration-indigo-500/30 decoration-4 underline-offset-8">Create Folder</h3>
+                        <h3 className="text-xl font-bold text-white tracking-tight mb-6">Create Folder</h3>
                         <div className="p-5 bg-black border border-white/5 rounded-md mb-8">
                             <input 
                                 type="text"
@@ -1299,7 +1298,7 @@ const StorageManager = () => {
                         </div>
                         <div className="flex gap-4">
                             <button onClick={() => setShowNewFolderModal(false)} className="flex-1 h-14 rounded-md bg-white/5 text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-all border border-white/5">Cancel</button>
-                            <button onClick={handleCreateFolder} className="flex-1 h-14 rounded-md bg-primary text-black text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-primary/10">Create Folder</button>
+                            <button onClick={handleCreateFolder} className="flex-1 h-14 rounded-md bg-primary text-black text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-primary/10">Create</button>
                         </div>
                     </div>
                 </div>
@@ -1334,7 +1333,7 @@ const StorageManager = () => {
 
                         {/* Controls/Info */}
                         <div className="flex flex-col items-center gap-4 bg-[#131313] border border-white/10 p-6 rounded-[24px] shadow-2xl min-w-[340px]">
-                            <h4 className="text-sm font-bold text-white uppercase tracking-widest italic">{previewObject.name}</h4>
+                            <h4 className="text-sm font-bold text-white tracking-widest">{previewObject.name}</h4>
                             <div className="flex items-center gap-6">
                                 <div className="text-center">
                                     <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">Type</p>
@@ -1342,7 +1341,7 @@ const StorageManager = () => {
                                 </div>
                                 <div className="w-px h-6 bg-white/10" />
                                 <div className="text-center">
-                                    <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">Scale</p>
+                                    <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">Size</p>
                                     <p className="text-[10px] font-bold text-zinc-300 mt-1 tabular-nums">{formatSize(previewObject.size)}</p>
                                 </div>
                             </div>

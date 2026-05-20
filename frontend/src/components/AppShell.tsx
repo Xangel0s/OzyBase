@@ -1,7 +1,8 @@
-import React, { Suspense, lazy, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import Layout from './Layout';
 import { getViewMeta } from '../viewRegistry';
 import { useTableTabs } from '../hooks/useTableTabs';
+import { useViewRouting } from '../hooks/useViewRouting';
 
 const lazyAny = (
   loader: () => Promise<{ default: React.ComponentType<any> }>,
@@ -47,6 +48,8 @@ const AppShell: React.FC<AppShellProps> = ({
     [tables],
   );
 
+  const [, setUrlView] = useViewRouting();
+
   const {
     selectedView,
     setSelectedView,
@@ -61,6 +64,11 @@ const AppShell: React.FC<AppShellProps> = ({
     scopeKey: workspaceId ? `workspace_${workspaceId}` : 'workspace_none',
     availableTables: availableTableNames,
   });
+
+  // Sync selectedView to URL
+  useEffect(() => {
+    setUrlView(selectedView);
+  }, [selectedView, setUrlView]);
 
   const [isCreateTableModalOpen, setIsCreateTableModalOpen] = useState(false);
   const [tableModalMode, setTableModalMode] = useState<'create' | 'edit'>(
@@ -184,7 +192,9 @@ const AppShell: React.FC<AppShellProps> = ({
       onWorkspaceChange={onWorkspaceChange}
       onMenuViewSelect={(view: string) => {
         setSelectedView(view);
-        setSelectedTable(null);
+        if (view !== 'visualizer') {
+          setSelectedTable(null);
+        }
       }}
       isCreateTableModalOpen={isCreateTableModalOpen}
       setIsCreateTableModalOpen={setIsCreateTableModalOpen}
@@ -212,5 +222,3 @@ const AppShell: React.FC<AppShellProps> = ({
 };
 
 export default AppShell;
-
-

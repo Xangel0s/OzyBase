@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { HashRouter } from 'react-router-dom';
 import AppShell from './components/AppShell';
 import Login from './components/Login';
 import NoProjectAccessState from './components/NoProjectAccessState';
@@ -9,7 +10,7 @@ import { useWorkspaceResolution } from './hooks/useWorkspaceResolution';
 import { fetchWithAuth, isAbortLikeError } from './utils/api';
 import { addProjectSyncListener } from './utils/projectEvents';
 
-function App() {
+function AppContent() {
     const { isAuthenticated, setIsAuthenticated } = useAuthSession();
     const { checkingSystem, isSystemInitialized, setIsSystemInitialized } = useSystemStatus();
     const {
@@ -138,16 +139,21 @@ function App() {
     }
 
     return (
-        <>
-            <AppShell
-                tables={tables}
-                workspaceId={workspaceId}
-                refreshTables={loadTables}
-                onWorkspaceChange={setWorkspaceId}
-            />
-        </>
+        <AppShell
+            tables={tables}
+            workspaceId={workspaceId}
+            refreshTables={loadTables}
+            onWorkspaceChange={setWorkspaceId}
+        />
+    );
+}
+
+function App() {
+    return (
+        <HashRouter>
+            <AppContent />
+        </HashRouter>
     );
 }
 
 export default App;
-

@@ -349,7 +349,7 @@ const TableEditorToolbar: React.FC<TableEditorToolbarProps> = ({
                     <div className="relative">
                         <button
                             onClick={() => setIsInsertDropdownOpen(!isInsertDropdownOpen)}
-                            className="flex items-center gap-2 rounded-lg bg-[#facc15] hover:bg-[#eab308] px-4 py-1.5 text-xs font-bold text-black transition-all shadow-[0_2px_10px_rgba(250,204,21,0.2)] ml-2"
+                            className="flex items-center gap-2 rounded-lg bg-[#d2f20b] hover:bg-[#c0e00a] px-4 py-1.5 text-xs font-bold text-black transition-all shadow-[0_2px_10px_rgba(210,242,11,0.2)] ml-2"
                         >
                             <Plus size={14} strokeWidth={3} />
                             Insert

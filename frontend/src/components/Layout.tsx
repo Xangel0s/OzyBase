@@ -188,7 +188,6 @@ const Layout: React.FC<LayoutProps> = ({
     const [activeTableMenu, setActiveTableMenu] = useState<string | null>(null);
     const [explorerSearchTerm, setExplorerSearchTerm] = useState('');
     const [docsFilter, setDocsFilter] = useState('all');
-    const [isSystemTablesExpanded, setIsSystemTablesExpanded] = useState(false);
     const [activeWorkspaceMeta, setActiveWorkspaceMeta] = useState<ActiveWorkspaceMeta | null>(null);
     const [pendingAccessRequestsCount, setPendingAccessRequestsCount] = useState(0);
     const [systemPulse, setSystemPulse] = useState<SystemPulseOverall>('unknown');
@@ -286,20 +285,16 @@ const Layout: React.FC<LayoutProps> = ({
     }, [isProjectSwitcherOpen, isSidebarHovered, isSidebarPinned]);
 
     // Pre-calculate and memoize filtered table lists for performance (js-combine-iterations)
-    const { filteredUserTables, filteredSystemTables } = useMemo(() => {
+    const filteredUserTables = useMemo(() => {
         const lowerSearch = explorerSearchTerm.toLowerCase();
         const user: any[] = [];
-        const system: any[] = [];
 
         tables.forEach((t: any) => {
             const isSystem = t.is_system || t.name?.startsWith('_v_') || t.name?.startsWith('_ozy_');
             const label = (t.display_name || t.name || '').toLowerCase();
             const matchesSearch = label.includes(lowerSearch) || t.name?.toLowerCase().includes(lowerSearch);
 
-            if (matchesSearch) {
-                if (isSystem) system.push(t);
-                else user.push(t);
-            }
+            if (matchesSearch && !isSystem) user.push(t);
         });
 
         // Sort alphabetically by name (or display name if available)
@@ -309,10 +304,7 @@ const Layout: React.FC<LayoutProps> = ({
             return nameA.localeCompare(nameB);
         };
 
-        return { 
-            filteredUserTables: user.sort(sortFn), 
-            filteredSystemTables: system.sort(sortFn) 
-        };
+        return user.sort(sortFn);
     }, [tables, explorerSearchTerm]);
 
     const showToast = React.useCallback((message: any, type: any = 'success') => {
@@ -1165,37 +1157,6 @@ const Layout: React.FC<LayoutProps> = ({
                                 </div>
                             </div>
 
-                            <div className="border-t border-border pt-4">
-                                <button
-                                    onClick={() => setIsSystemTablesExpanded(!isSystemTablesExpanded)}
-                                    className="w-full flex items-center justify-between px-3 mb-2 group"
-                                >
-                                    <h4 className="text-[9px] font-bold text-zinc-600 uppercase tracking-[0.2em] group-hover:text-zinc-400 transition-colors flex items-center gap-2">
-                                        {isSystemTablesExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
-                                        System Tables ({filteredSystemTables.length})
-                                    </h4>
-                                </button>
-
-                                {isSystemTablesExpanded && (
-                                    <div className="space-y-0.5 animate-in slide-in-from-top-1 duration-200">
-                                        {filteredSystemTables.map((t: any) => (
-                                            <button
-                                                key={t.name}
-                                                onClick={() => onTableSelect(t.name)}
-                                                className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-md text-xs transition-all group ${selectedTable === t.name
-                                                    ? 'bg-zinc-900 text-primary font-bold border border-border/50 shadow-xl'
-                                                    : 'text-zinc-600/60 hover:text-zinc-300 hover:bg-zinc-900/40 border border-transparent'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center gap-3 truncate">
-                                                    <Lock size={12} className={selectedTable === t.name ? 'text-primary' : 'text-zinc-800 group-hover:text-zinc-500'} />
-                                                    <span className="truncate font-mono opacity-80">{t.display_name || t.name}</span>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -1545,7 +1506,7 @@ const Layout: React.FC<LayoutProps> = ({
 
                             <div className="relative" ref={userDropdownRef}>
                                 <div
-                                    className="w-9 h-9 rounded-md bg-black/40 border border-white/5 flex items-center justify-center text-yellow-400 text-[11px] font-bold cursor-pointer hover:border-white/20 transition-all shadow-inner font-mono"
+                                    className="w-9 h-9 rounded-md bg-black/40 border border-white/5 flex items-center justify-center text-[#d2f20b] text-[11px] font-bold cursor-pointer hover:border-white/20 transition-all shadow-inner font-mono"
                                     onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
                                 >
                                     {user?.email?.charAt(0).toUpperCase() || 'K'}

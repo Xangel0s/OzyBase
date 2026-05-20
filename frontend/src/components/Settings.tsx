@@ -346,9 +346,9 @@ const Settings: React.FC<SettingsProps> = ({
                   <span className="text-[10px] font-bold uppercase tracking-wider text-green-500">API Active</span>
               </div>
           ) : (
-              <div className="flex items-center gap-2 py-1 px-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
-                  <AlertTriangle size={12} className="text-yellow-500" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-yellow-500">API Missing</span>
+              <div className="flex items-center gap-2 py-1 px-3 bg-[#d2f20b]/10 border border-[#d2f20b]/20 rounded-md">
+                  <AlertTriangle size={12} className="text-[#d2f20b]" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#d2f20b]">API Missing</span>
               </div>
           )}
       </header>

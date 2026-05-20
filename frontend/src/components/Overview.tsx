@@ -511,7 +511,7 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                             icon={Database}
                             label="Tables"
                             value={`${projectInfo?.user_table_count || 0}`}
-                            hint={`${projectInfo?.system_table_count || 0} system tables detected in this database.`}
+                            hint="User tables in the public schema."
                             onClick={() => onViewSelect?.('tables')}
                             testId="overview-card-tables"
                             actionLabel="Open tables"

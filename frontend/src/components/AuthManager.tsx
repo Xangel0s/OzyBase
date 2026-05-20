@@ -366,7 +366,7 @@ const AuthManager: React.FC<AuthManagerProps> = ({
             </button>
             <button
               onClick={() => setShowCreateUser(true)}
-              className="flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-[10px] font-bold tracking-wider text-black uppercase transition-all hover:bg-yellow-400 active:scale-95"
+              className="flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-[10px] font-bold tracking-wider text-black uppercase transition-all hover:bg-[#d2f20b] active:scale-95"
             >
               <UserPlus size={14} strokeWidth={2.5} />
               Add User
@@ -786,7 +786,7 @@ const AuthManager: React.FC<AuthManagerProps> = ({
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-[10px] font-bold text-black uppercase tracking-wider transition-all hover:bg-yellow-400 disabled:opacity-60"
+                className="flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-[10px] font-bold text-black uppercase tracking-wider transition-all hover:bg-[#d2f20b] disabled:opacity-60"
               >
                 {submitting ? (
                   <Loader2 size={12} className="animate-spin" />

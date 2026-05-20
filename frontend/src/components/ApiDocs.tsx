@@ -31,7 +31,7 @@ const ApiDocs = ({ page = 'intro', onViewSelect }: any) => {
 
     const getColumnIcon = (type: any) => {
         const t = (type || '').toLowerCase();
-        if (t.includes('uuid')) return <Key size={14} className="text-yellow-500" />;
+        if (t.includes('uuid')) return <Key size={14} className="text-[#d2f20b]" />;
         if (t.includes('int') || t.includes('num')) return <Hash size={14} className="text-blue-400" />;
         if (t.includes('bool')) return <ToggleLeft size={14} className="text-green-400" />;
         if (t.includes('time') || t.includes('date')) return <Calendar size={14} className="text-purple-400" />;
@@ -351,12 +351,12 @@ const ApiDocs = ({ page = 'intro', onViewSelect }: any) => {
                                         </div>
                                         <div className="p-4 overflow-x-auto">
                                             <pre className="text-[11px] font-mono leading-relaxed">
-                                                <code className="text-blue-400">const</code> <code className="text-white">source = </code> <code className="text-blue-400">new</code> <code className="text-yellow-400">EventSource</code>( <code className="text-green-400">'/api/realtime'</code> );<br/>
+                                                <code className="text-blue-400">const</code> <code className="text-white">source = </code> <code className="text-blue-400">new</code> <code className="text-[#d2f20b]">EventSource</code>( <code className="text-green-400">'/api/realtime'</code> );<br/>
                                                 <br/>
-                                                <code className="text-white">source.</code><code className="text-yellow-400">onmessage</code> <code className="text-white">= (event) ={'>'} {'{'}</code><br/>
+                                                <code className="text-white">source.</code><code className="text-[#d2f20b]">onmessage</code> <code className="text-white">= (event) ={'>'} {'{'}</code><br/>
                                                 <code className="text-zinc-500">  // Payload format: {"{ table: string, data: any }"}</code><br/>
-                                                <code className="text-blue-400">  const</code> <code className="text-white">payload = JSON.</code><code className="text-yellow-400">parse</code>(event.data);<br/>
-                                                <code className="text-white">  console.</code><code className="text-yellow-400">log</code>(<code className="text-green-400">'Table:'</code>, payload.table, payload.data);<br/>
+                                                <code className="text-blue-400">  const</code> <code className="text-white">payload = JSON.</code><code className="text-[#d2f20b]">parse</code>(event.data);<br/>
+                                                <code className="text-white">  console.</code><code className="text-[#d2f20b]">log</code>(<code className="text-green-400">'Table:'</code>, payload.table, payload.data);<br/>
                                                 <code className="text-white">{'}'};</code>
                                             </pre>
                                         </div>
@@ -413,12 +413,12 @@ const ApiDocs = ({ page = 'intro', onViewSelect }: any) => {
                                         <div className="p-5 overflow-x-auto">
                                             <pre className="text-[11px] font-mono leading-relaxed">
                                                 <code className="text-zinc-500">// Fetch current stock from DB</code><br/>
-                                                <code className="text-blue-400">const</code> <code className="text-white">items = ozy.</code><code className="text-yellow-400">query</code>(<code className="text-green-400">"SELECT * FROM products WHERE id = $1"</code>, body.product_id);<br/>
+                                                <code className="text-blue-400">const</code> <code className="text-white">items = ozy.</code><code className="text-[#d2f20b]">query</code>(<code className="text-green-400">"SELECT * FROM products WHERE id = $1"</code>, body.product_id);<br/>
                                                 <br/>
                                                 <code className="text-blue-400">if</code> (items && items.length {'>'} <code className="text-orange-400">0</code> && items[<code className="text-orange-400">0</code>].stock {'>'} <code className="text-orange-400">0</code>) {'{'}<br/>
                                                 <code className="text-blue-400">  return</code> {'{'} success: <code className="text-blue-400">true</code>, message: <code className="text-green-400">"Stock confirmed"</code> {'}'};<br/>
                                                 {'}'} <code className="text-blue-400">else</code> {'{'}<br/>
-                                                <code className="text-blue-400">  throw new</code> <code className="text-yellow-400">Error</code>(<code className="text-green-400">"Out of stock"</code>);<br/>
+                                                <code className="text-blue-400">  throw new</code> <code className="text-[#d2f20b]">Error</code>(<code className="text-green-400">"Out of stock"</code>);<br/>
                                                 {'}'}
                                             </pre>
                                         </div>
@@ -451,7 +451,7 @@ const ApiDocs = ({ page = 'intro', onViewSelect }: any) => {
                                     <div className="px-4 py-3 bg-[#131313] border-b border-border flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <div className="w-2 h-2 rounded-full bg-red-500" />
-                                            <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                                            <div className="w-2 h-2 rounded-full bg-[#d2f20b]" />
                                             <div className="w-2 h-2 rounded-full bg-green-500" />
                                             <span className="ml-2 text-[9px] font-medium text-zinc-600">OzyClient.js</span>
                                         </div>
@@ -461,23 +461,23 @@ const ApiDocs = ({ page = 'intro', onViewSelect }: any) => {
                                     </div>
                                     <div className="p-5 overflow-x-auto">
                                         <pre className="text-[11px] font-mono leading-relaxed">
-                                            <code className="text-blue-400">class</code> <code className="text-yellow-400">OzyClient</code> {'{'}<br/>
+                                            <code className="text-blue-400">class</code> <code className="text-[#d2f20b]">OzyClient</code> {'{'}<br/>
                                             <code className="text-blue-400">  constructor</code>(url, apiKey) {'{'}<br/>
                                             <code className="text-blue-400">    this</code>.url = url;<br/>
                                             <code className="text-blue-400">    this</code>.apiKey = apiKey;<br/>
                                             <code className="text-white">  {'}'}</code><br/>
                                             <br/>
-                                            <code className="text-blue-400">  async</code> <code className="text-yellow-400">from</code>(table) {'{'}<br/>
-                                            <code className="text-blue-400">    const</code> res = <code className="text-blue-400">await</code> <code className="text-yellow-400">fetch</code>(`$<code className="text-white">{'{this.url}'}</code>/api/tables/$<code className="text-white">{'{table}'}</code>`, {'{'}<br/>
+                                            <code className="text-blue-400">  async</code> <code className="text-[#d2f20b]">from</code>(table) {'{'}<br/>
+                                            <code className="text-blue-400">    const</code> res = <code className="text-blue-400">await</code> <code className="text-[#d2f20b]">fetch</code>(`$<code className="text-white">{'{this.url}'}</code>/api/tables/$<code className="text-white">{'{table}'}</code>`, {'{'}<br/>
                                             <code className="text-white">      headers: </code><code className="text-blue-400">this</code>.apiKey ? {'{'} <code className="text-green-400">'apikey'</code>: <code className="text-blue-400">this</code>.apiKey {'}'} : {'{'}{'}'}<br/>
                                             <code className="text-white">    {'}'}</code>);<br/>
-                                            <code className="text-blue-400">    return</code> res.<code className="text-yellow-400">json</code>();<br/>
+                                            <code className="text-blue-400">    return</code> res.<code className="text-[#d2f20b]">json</code>();<br/>
                                             <code className="text-white">  {'}'}</code><br/>
                                             <code className="text-white">{'}'}</code><br/>
                                             <br/>
                                             <code className="text-zinc-500">// Usage</code><br/>
-                                            <code className="text-blue-400">const</code> <code className="text-white">ozy = </code> <code className="text-blue-400">new</code> <code className="text-yellow-400">OzyClient</code>(<code className="text-green-400">'https://api.ozy.io'</code>, <code className="text-green-400">'YOUR_API_KEY'</code>);<br/>
-                                            <code className="text-blue-400">const</code> <code className="text-white">{'{ data }'} = </code> <code className="text-blue-400">await</code> ozy.<code className="text-yellow-400">from</code>(<code className="text-green-400">'users'</code>);
+                                            <code className="text-blue-400">const</code> <code className="text-white">ozy = </code> <code className="text-blue-400">new</code> <code className="text-[#d2f20b]">OzyClient</code>(<code className="text-green-400">'https://api.ozy.io'</code>, <code className="text-green-400">'YOUR_API_KEY'</code>);<br/>
+                                            <code className="text-blue-400">const</code> <code className="text-white">{'{ data }'} = </code> <code className="text-blue-400">await</code> ozy.<code className="text-[#d2f20b]">from</code>(<code className="text-green-400">'users'</code>);
                                         </pre>
                                     </div>
                                 </div>

@@ -332,7 +332,7 @@ const SchemaVisualizer = ({ viewMode = 'user' }: any) => {
 
     const getColumnIcon = (type: string) => {
         const columnType = String(type || '').toLowerCase();
-        if (columnType.includes('uuid')) return <Key size={10} className="text-yellow-500" />;
+        if (columnType.includes('uuid')) return <Key size={10} className="text-[#d2f20b]" />;
         if (columnType.includes('int') || columnType.includes('num')) return <Hash size={10} className="text-blue-400" />;
         if (columnType.includes('bool')) return <ToggleLeft size={10} className="text-green-400" />;
         if (columnType.includes('time') || columnType.includes('date')) return <Calendar size={10} className="text-purple-400" />;

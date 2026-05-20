@@ -36,7 +36,7 @@ const NotificationCenter = ({ isOpen, onClose, issues, onIssueAction, onReviewIs
         >
             <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-background">
                 <div className="flex items-center gap-2">
-                    <Bell size={16} className="text-yellow-400" />
+                    <Bell size={16} className="text-[#d2f20b]" />
                     <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Notifications</h3>
                 </div>
                 <div className="flex items-center gap-3">

@@ -67,10 +67,11 @@ export const useTableTabs = ({ scopeKey, availableTables = [] }: UseTableTabsOpt
         if (selectedTable.startsWith('__visualizer')) return;
         if (availableTableSet.has(selectedTable)) return;
         setSelectedTable(null);
+        // Only reset view if currently on a table view, not on other modules like sql/auth/etc
         if (selectedView === 'table') {
             setSelectedView('overview');
         }
-    }, [availableTableSet, selectedTable, selectedView]);
+    }, [availableTableSet, selectedTable]);
 
     const handleTableSelect = useCallback((tableName: string | null) => {
         if (

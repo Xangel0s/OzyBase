@@ -196,7 +196,7 @@ const RealtimeInspector: React.FC<RealtimeInspectorProps> = ({ view = 'inspector
                         <span className="text-[9px] font-bold text-zinc-400 tabular-nums">BUFFER: {filteredEvents.length}/50</span>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-3 bg-[url('https://www.transparenttextures.com/patterns/black-linen.png')] bg-fixed">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-3 bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.02)_0%,_transparent_70%)]">
                         {filteredEvents.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full opacity-70 grayscale gap-6">
                                 <Monitor size={64} strokeWidth={1} />
