@@ -11,6 +11,17 @@ interface LoginProps {
 const MIN_RUNTIME_PASSWORD_LENGTH = 8;
 const MIN_SETUP_PASSWORD_LENGTH = 12;
 
+const decodeWorkspaceIdFromToken = (token: string): string | null => {
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        return payload?.app_metadata?.workspace_id || null;
+    } catch {
+        return null;
+    }
+};
+
 const GoogleMark = () => (
     <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
         <path fill="#EA4335" d="M12 10.2v3.9h5.4c-.2 1.3-1.5 3.9-5.4 3.9-3.2 0-5.9-2.7-5.9-6s2.7-6 5.9-6c1.8 0 3 .8 3.7 1.4l2.5-2.4C16.5 3.5 14.4 2.6 12 2.6 6.9 2.6 2.8 6.8 2.8 12s4.1 9.4 9.2 9.4c5.3 0 8.8-3.7 8.8-8.9 0-.6-.1-1.1-.1-1.5H12z" />
@@ -60,7 +71,11 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
 
                 if (data.error) throw new Error(data.error);
 
-                if (data.token) localStorage.setItem('ozy_token', data.token);
+                if (data.token) {
+                    localStorage.setItem('ozy_token', data.token);
+                    const wsId = decodeWorkspaceIdFromToken(data.token);
+                    if (wsId) localStorage.setItem('ozy_workspace_id', wsId);
+                }
                 localStorage.removeItem('ozy_api_key');
                 if (data.user) localStorage.setItem('ozy_user', JSON.stringify(data.user));
                 onLoginSuccess();
@@ -69,7 +84,11 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
                 const data = await verifyMfa(mfaUser, mfaCode);
                 if (data.error) throw new Error(data.error);
 
-                if (data.token) localStorage.setItem('ozy_token', data.token);
+                if (data.token) {
+                    localStorage.setItem('ozy_token', data.token);
+                    const wsId = decodeWorkspaceIdFromToken(data.token);
+                    if (wsId) localStorage.setItem('ozy_workspace_id', wsId);
+                }
                 localStorage.removeItem('ozy_api_key');
                 localStorage.setItem('ozy_user', JSON.stringify(data.user ?? null));
                 onLoginSuccess();

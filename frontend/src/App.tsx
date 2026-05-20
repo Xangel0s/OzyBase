@@ -106,6 +106,7 @@ function App() {
                     setWorkspaceId(nextWorkspaceId);
                     if (token) {
                         localStorage.setItem('ozy_token', token);
+                        if (nextWorkspaceId) localStorage.setItem('ozy_workspace_id', nextWorkspaceId);
                         setIsAuthenticated(true);
                     }
                     setIsSystemInitialized(true);
