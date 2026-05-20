@@ -89,6 +89,32 @@ frontend/test_error*.txt
 frontend/test_results.txt
 frontend/*_output.txt
 frontend/report.json
+frontend/tmp-*.png
+frontend/tests/screenshots/
+frontend/tests/gen-token.js
+frontend/src/components/*.py
+
+# Dated audit/roadmap/worklog docs (consolidate into STATUS.md or ROADMAP.md instead)
+docs/*_AUDIT_*.md
+docs/*_VALIDATION_*.md
+docs/*_IMPLEMENTATION_*.md
+docs/*_STATUS_*.md
+docs/WORKLOG_*.md
+docs/ROADMAP_*.md
+
+# Test/experiment migrations (only keep real schema migrations)
+migrations/*nodenode*.sql
+migrations/*jijjojs*.sql
+migrations/*cosonuevo*.sql
+
+# Redundant deploy/validation scripts (keep only install.sh, build_releases.ps1, smoke_*, sync_frontend_*)
+scripts/canary_verify.sh
+scripts/deploy_canary.sh
+scripts/disaster_drill.sh
+scripts/validate_external_stack.ps1
+scripts/validate_multinode_stack.ps1
+scripts/validate_https_smtp_stack.ps1
+scripts/validate_local_real_app.ps1
 
 # Local one-off patch/work artifacts
 patch_*.py

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Xangel0s/OzyBase/internal/core"
 	"github.com/Xangel0s/OzyBase/internal/data"
 	"github.com/labstack/echo/v4"
 )
@@ -88,13 +87,6 @@ func (h *Handler) CreateRecord(c echo.Context) error {
 	ownerField, ownerID := h.extractRlsOwnerInfo(c)
 	if ownerField != "" && ownerID != "" && h.DB.HasColumn(ctx, collectionName, ownerField) {
 		payload = applyOwnerFieldDefault(payload, ownerField, ownerID)
-	}
-	if err := validateWorkspaceRowLimit(ctx, h.DB, c, 1); err != nil {
-		var limitErr *core.WorkspaceLimitExceededError
-		if errors.As(err, &limitErr) {
-			return c.JSON(http.StatusConflict, map[string]string{"error": err.Error()})
-		}
-		return internalAPIError(c, http.StatusInternalServerError, "records.create.validate_workspace_limit", err, "Unable to validate project limits right now.")
 	}
 
 	// Insert the record
@@ -371,13 +363,6 @@ func (h *Handler) ImportRecords(c echo.Context) error {
 			records[index] = applyOwnerFieldDefault(record, ownerField, ownerID)
 		}
 	}
-	if err := validateWorkspaceRowLimit(ctx, h.DB, c, int64(len(records))); err != nil {
-		var limitErr *core.WorkspaceLimitExceededError
-		if errors.As(err, &limitErr) {
-			return c.JSON(http.StatusConflict, map[string]string{"error": err.Error()})
-		}
-		return internalAPIError(c, http.StatusInternalServerError, "records.import.validate_workspace_limit", err, "Unable to validate project limits right now.")
-	}
 
 	if err := h.DB.BulkInsertRecord(ctx, collectionName, records); err != nil {
 		var importErr *data.BulkImportError
@@ -392,13 +377,4 @@ func (h *Handler) ImportRecords(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"message": fmt.Sprintf("Imported %d records", len(records))})
-}
-
-func validateWorkspaceRowLimit(ctx context.Context, db *data.DB, c echo.Context, additionalRows int64) error {
-	workspaceID, _ := c.Get("workspace_id").(string)
-	workspaceID = strings.TrimSpace(workspaceID)
-	if workspaceID == "" || additionalRows <= 0 {
-		return nil
-	}
-	return core.NewWorkspaceService(db).EnforceRowLimit(ctx, workspaceID, additionalRows)
 }

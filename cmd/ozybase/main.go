@@ -591,7 +591,6 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 	apiGroup := e.Group("/api")
 	apiGroup.Use(api.MetricsMiddleware(h))
 	apiGroup.Use(api.WorkspaceMiddleware(h.DB, cfg.JWTSecret, cfg.IsSingleTenant()))
-	apiGroup.Use(api.LimitsEnforcementMiddleware(h.DB, cfg.LimitsEnforcementV2))
 	{
 		apiGroup.GET("/health", h.Health)
 		apiGroup.GET("/project/metrics", h.GetPrometheusMetrics) // Enterprise Phase 1
@@ -622,9 +621,6 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 		workspacesGroup.POST("/request-access", workspaceHandler.RequestAccess)
 		workspacesGroup.GET("", workspaceHandler.List)
 		workspacesGroup.PATCH("/:id", workspaceHandler.Update)
-		workspacesGroup.GET("/:id/usage", workspaceHandler.GetUsage)
-		workspacesGroup.GET("/:id/limits", workspaceHandler.GetLimits)
-		workspacesGroup.PATCH("/:id/limits", workspaceHandler.UpdateLimits)
 		workspacesGroup.DELETE("/:id", workspaceHandler.Delete)
 		workspacesGroup.GET("/:id/members", workspaceHandler.ListMembers)
 		workspacesGroup.POST("/:id/members", workspaceHandler.AddMember)
@@ -680,6 +676,7 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 		apiGroup.PATCH("/functions/:name/config", functionsHandler.PatchConfig, authRequired, adminOnly)
 		apiGroup.DELETE("/functions/:name", functionsHandler.Delete, authRequired, adminOnly)
 		apiGroup.POST("/functions/:name/invoke", functionsHandler.Invoke)
+		apiGroup.GET("/functions/:name/invoke", functionsHandler.Invoke)
 		apiGroup.POST("/functions/:name/invoke-async", functionsHandler.InvokeAsync, authRequired)
 		apiGroup.GET("/functions/jobs/:id", functionsHandler.GetJob, authRequired)
 		apiGroup.POST("/functions/:name/secrets", functionsHandler.UpsertSecret, authRequired, adminOnly)

@@ -596,9 +596,9 @@ const StorageManager = () => {
 
     const handleCopyURL = async (file: StorageObject) => {
         try {
-            const signedURL = await resolveObjectAccessURL(file);
-            await navigator.clipboard.writeText(signedURL);
-            showToast('Secure link copied to buffer', 'success');
+            const rawUrl = window.location.origin + file.download_url;
+            await navigator.clipboard.writeText(rawUrl);
+            showToast(selectedBucket.public ? 'Public link copied' : 'Private link copied (requires auth)', 'success');
         } catch (e) { showToast('URL acquisition failed', 'error'); }
     };
 
@@ -723,7 +723,7 @@ const StorageManager = () => {
                     ) : buckets.map((bucket) => (
                         <div 
                             key={bucket.id} 
-                            onClick={() => setSelectedBucketName(bucket.name)}
+                            onClick={() => { setSelectedBucketName(bucket.name); setCurrentPath([]); }}
                             className={`group relative rounded-md border p-4 cursor-pointer transition-all duration-500 ${selectedBucketName === bucket.name ? 'bg-primary border-primary shadow-[0_20px_40px_rgba(254,254,0,0.15)]' : 'bg-white/2 border-white/5 hover:border-white/20'}`}
                         >
                             <div className="flex items-start justify-between mb-4">
@@ -766,7 +766,7 @@ const StorageManager = () => {
             </aside>
 
             {/* Main Object Explorer */}
-            <main className="flex-1 flex flex-col min-w-0 relative z-10">
+            <main className="flex-1 flex flex-col min-w-0 min-h-0 relative z-10">
                 <header className="px-8 py-10 border-b border-white/5 flex items-end justify-between gap-8 bg-linear-to-b from-zinc-900/50 to-transparent relative overflow-hidden">
                     <div className="absolute inset-0 bg-linear-to-r from-primary/5 to-transparent pointer-events-none" />
                     <div className="flex items-center gap-8">
@@ -811,9 +811,9 @@ const StorageManager = () => {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-8">
+                <div className="relative flex-1 min-h-0 overflow-hidden flex flex-col p-8 gap-8">
                     {/* Breadcrumbs */}
-                    <div className="flex items-center gap-3 px-2 py-1 bg-white/2 rounded-md border border-white/5 w-fit">
+                    <div className="shrink-0 flex items-center gap-3 px-2 py-1 bg-white/2 rounded-md border border-white/5 w-fit">
                         <button 
                             onClick={() => setCurrentPath([])}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${currentPath.length === 0 ? 'text-primary bg-primary/10 shadow-[0_0_15px_rgba(210,242,11,0.1)]' : 'text-zinc-500 hover:text-zinc-300'}`}
@@ -834,19 +834,19 @@ const StorageManager = () => {
                         ))}
                     </div>
 
-                    <div className="flex items-center justify-between gap-8">
-                         <div className="flex-1 h-11 bg-black/40 rounded-md border border-white/5 flex items-center px-5 gap-4 group focus-within:border-primary/30 transition-all shadow-inner">
+                    <div className="shrink-0 flex items-center justify-between gap-8">
+                        <div className="flex-1 h-11 bg-black/40 rounded-md border border-white/5 flex items-center px-5 gap-4 group focus-within:border-primary/30 transition-all shadow-inner">
                             <Search size={18} className="text-zinc-700 group-focus-within:text-primary transition-colors" />
-                            <input 
-                                type="text" 
-                                placeholder="Identify object vector..." 
-                                value={searchQuery} 
-                                onChange={(e) => setSearchQuery(e.target.value)} 
-                                className="bg-transparent border-none text-[11px] font-bold text-white focus:outline-none w-full uppercase tracking-widest placeholder:text-zinc-600" 
+                            <input
+                                type="text"
+                                placeholder="Identify object vector..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="bg-transparent border-none text-[11px] font-bold text-white focus:outline-none w-full uppercase tracking-widest placeholder:text-zinc-600"
                             />
                         </div>
                         <div className="flex items-center gap-4">
-                            <button 
+                            <button
                                 onClick={() => setShowNewFolderModal(true)}
                                 className="h-11 flex items-center gap-3 bg-white/5 border border-white/10 text-zinc-400 px-6 rounded-md font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all group"
                             >
@@ -866,6 +866,8 @@ const StorageManager = () => {
                         </div>
                     </div>
 
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain custom-scrollbar">
+                        <div className="flex flex-col gap-6 pb-6">
                     {loadingFiles ? (
                         <div className="flex-1 flex flex-col items-center justify-center gap-4 opacity-50 grayscale animate-pulse py-20">
                             <Activity size={48} className="text-primary" />
@@ -931,8 +933,8 @@ const StorageManager = () => {
                             ))}
                         </div>
                     ) : (
-                        <div className="bg-[#131313] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl relative">
-                            <table className="w-full text-left">
+                        <div className="bg-[#131313] border border-white/5 rounded-md overflow-hidden shadow-2xl relative">
+                            <table className="w-full text-left table-fixed">
                                 <thead>
                                     <tr className="bg-white/3 border-b border-white/5">
                                         <th className="px-10 py-6 text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Name</th>
@@ -982,64 +984,32 @@ const StorageManager = () => {
                             </table>
                         </div>
                     )}
+                        </div>
+                    </div>
 
-                    {/* Registry Sections */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                         <section className="rounded-md border border-white/5 bg-background p-6 shadow-2xl relative overflow-hidden group/reg">
-                            <div className="absolute inset-0 bg-linear-to-br from-indigo-500/3 to-transparent pointer-events-none" />
-                            <div className="flex items-start justify-between mb-8 relative z-10">
-                                <div>
-                                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none">Access Control</p>
-                                    <h3 className="mt-3 text-xl font-bold text-white tracking-tight">Bucket Details</h3>
-                                </div>
-                                <div className="w-10 h-10 rounded-md bg-indigo-500/5 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-                                    <Shield size={20} />
-                                </div>
+                    {/* Compact Bucket Footer */}
+                    <div className="shrink-0 border-t border-white/5 py-3 px-4 flex flex-wrap items-center justify-between gap-4 bg-black/20">
+                        <div className="flex items-center gap-4 text-[9px] font-bold uppercase tracking-widest text-zinc-500">
+                            <span className="flex items-center gap-1.5">
+                                {selectedBucket.public ? <Globe size={10} className="text-primary" /> : <Lock size={10} className="text-zinc-500" />}
+                                {selectedBucket.public ? 'Public' : 'Private'}
+                            </span>
+                            <span className="w-px h-3 bg-white/10" />
+                            <span className="flex items-center gap-1.5">
+                                <Shield size={10} className={selectedBucket.rls_enabled ? 'text-emerald-500' : 'text-zinc-600'} />
+                                RLS {selectedBucket.rls_enabled ? 'On' : 'Off'}
+                            </span>
+                            <span className="w-px h-3 bg-white/10" />
+                            <span>Max: {selectedBucket.max_file_size_bytes > 0 ? formatSize(selectedBucket.max_file_size_bytes) : 'Unlimited'}</span>
+                            <span className="w-px h-3 bg-white/10" />
+                            <span>Quota: {selectedBucket.max_total_size_bytes > 0 ? formatSize(selectedBucket.max_total_size_bytes) : 'Unlimited'}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="w-24 bg-white/5 h-1 rounded-full overflow-hidden">
+                                <div className="bg-primary h-full" style={{ width: `${selectedBucket.usage_ratio_pct || 0}%` }} />
                             </div>
-                            <div className="space-y-3 relative z-10">
-                                <div className="flex items-center justify-between p-5 rounded-md bg-black/40 border border-white/5">
-                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Visibility</span>
-                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${selectedBucket.public ? 'text-primary' : 'text-zinc-500'}`}>{selectedBucket.public ? 'Public' : 'Private'}</span>
-                                </div>
-                                <div className="flex items-center justify-between p-5 rounded-md bg-black/40 border border-white/5">
-                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">RLS Policy</span>
-                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${selectedBucket.rls_enabled ? 'text-emerald-500' : 'text-zinc-500'}`}>{selectedBucket.rls_enabled ? 'Enabled' : 'Disabled'}</span>
-                                </div>
-                                <div className="p-5 rounded-md bg-black border border-white/5 font-mono">
-                                      <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Current Rule</p>
-                                     <code className="text-[10px] text-zinc-400 break-all">{selectedBucket.rls_rule || 'TRUE'}</code>
-                                </div>
-                            </div>
-                         </section>
-
-                         <section className="rounded-md border border-white/5 bg-background p-6 shadow-2xl relative overflow-hidden group/reg">
-                            <div className="absolute inset-0 bg-linear-to-br from-red-500/3 to-transparent pointer-events-none" />
-                            <div className="flex items-start justify-between mb-8 relative z-10">
-                                <div>
-                                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none">Storage Limits</p>
-                                    <h3 className="mt-3 text-xl font-bold text-white tracking-tight">Quotas</h3>
-                                </div>
-                                <div className="w-10 h-10 rounded-md bg-red-500/5 border border-red-500/20 flex items-center justify-center text-red-500">
-                                    <Activity size={20} />
-                                </div>
-                            </div>
-                            <div className="space-y-3 relative z-10">
-                                <div className="flex items-center justify-between p-5 rounded-md bg-black/40 border border-white/5">
-                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Max File Size</span>
-                                    <span className="text-[10px] font-bold text-white uppercase tracking-widest tabular-nums">{selectedBucket.max_file_size_bytes > 0 ? formatSize(selectedBucket.max_file_size_bytes) : 'Unlimited'}</span>
-                                </div>
-                                <div className="flex items-center justify-between p-5 rounded-md bg-black/40 border border-white/5">
-                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Total Quota</span>
-                                    <span className="text-[10px] font-bold text-white uppercase tracking-widest tabular-nums">{selectedBucket.max_total_size_bytes > 0 ? formatSize(selectedBucket.max_total_size_bytes) : 'Unlimited'}</span>
-                                </div>
-                                <div className="p-5 rounded-md bg-black/60 border border-white/5 flex flex-col items-center gap-3">
-                                     <div className="w-full bg-white/2 h-1.5 rounded-full overflow-hidden border border-white/5">
-                                        <div className="bg-primary h-full transition-all duration-1000 shadow-[0_0_10px_rgba(254,254,0,0.3)]" style={{ width: `${selectedBucket.usage_ratio_pct || 0}%` }} />
-                                     </div>
-                                      <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{selectedBucket.usage_ratio_pct || 0}% used</p>
-                                </div>
-                            </div>
-                         </section>
+                            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{selectedBucket.usage_ratio_pct || 0}% used</span>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -1325,7 +1295,7 @@ const StorageManager = () => {
                         {/* Image container */}
                         <div className="relative group bg-black rounded-xl overflow-hidden shadow-2xl border border-white/10 flex items-center justify-center">
                             <img 
-                                src={previewObject.download_url} 
+                                src={previewObjectAccessUrl} 
                                 alt={previewObject.name}
                                 className="max-w-full max-h-[70vh] object-contain select-none"
                             />
@@ -1348,7 +1318,7 @@ const StorageManager = () => {
                             
                             <div className="flex gap-3 w-full mt-2">
                                 <button 
-                                    onClick={() => window.open(previewObject.download_url, '_blank')}
+                                    onClick={() => window.open(previewObjectAccessUrl, '_blank')}
                                     className="flex-1 h-12 rounded-lg bg-white/5 border border-white/10 text-[9px] font-bold uppercase tracking-widest text-zinc-300 hover:bg-white/10 transition-all flex items-center justify-center gap-2"
                                 >
                                     <ExternalLink size={14} />
@@ -1357,7 +1327,7 @@ const StorageManager = () => {
                                 <button 
                                     onClick={() => {
                                         const link = document.createElement('a');
-                                        link.href = previewObject.download_url;
+                                        link.href = previewObjectAccessUrl;
                                         link.download = previewObject.name;
                                         document.body.appendChild(link);
                                         link.click();

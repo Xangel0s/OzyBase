@@ -198,7 +198,7 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-black/60 transition-opacity duration-300">
-      <div className="w-full max-w-5xl rounded-3xl border border-white/[0.08] bg-[#111111] shadow-[0_0_100px_rgba(210,242,11,0.05)] overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-5xl rounded-xl border border-white/[0.08] bg-[#111111] shadow-[0_0_100px_rgba(210,242,11,0.05)] overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header Area */}
         <div className="relative border-b border-white/[0.05] bg-gradient-to-b from-white/[0.03] to-transparent px-8 py-6 flex items-start justify-between gap-4">
@@ -258,7 +258,7 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
             <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
               
               {/* Setup Flow */}
-              <div className="rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 lg:p-8 relative overflow-hidden">
+              <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-6 lg:p-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[#d2f20b]/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
                 
                 <div className="flex flex-wrap items-center justify-between gap-4 relative z-10">
@@ -349,7 +349,7 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
           {activeTab === 'api' ? (
             <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
               {!isVerified && (
-                <div className="rounded-3xl border border-white/[0.05] bg-[#151515] p-8 overflow-hidden relative shadow-lg">
+                <div className="rounded-xl border border-white/[0.05] bg-[#151515] p-8 overflow-hidden relative shadow-lg">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-[#d2f20b]/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
                   
                   <div className="flex items-start gap-4 mb-8 relative z-10">
@@ -406,7 +406,7 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
                       const isAnon = role === 'anon';
 
                       return (
-                        <div key={role} className="rounded-3xl border border-white/[0.05] bg-[#151515] overflow-hidden flex flex-col transition-all hover:border-white/[0.08]">
+                        <div key={role} className="rounded-xl border border-white/[0.05] bg-[#151515] overflow-hidden flex flex-col transition-all hover:border-white/[0.08]">
                           <div className={`border-b border-white/[0.05] px-6 py-5 flex items-start justify-between gap-4 ${isAnon ? 'bg-[#d2f20b]/[0.02]' : 'bg-blue-500/[0.02]'}`}>
                             <div>
                               <span className={`inline-block rounded-md px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest mb-3 ${isAnon ? 'bg-[#d2f20b]/10 text-[#d2f20b]' : 'bg-blue-500/10 text-blue-400'}`}>

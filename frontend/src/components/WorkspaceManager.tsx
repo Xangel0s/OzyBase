@@ -307,7 +307,7 @@ const WorkspaceManager = ({ onWorkspaceChange, onViewSelect, view = 'wm_overview
                             className="w-full bg-background border border-border rounded-md pl-12 pr-4 py-3.5 text-sm font-bold text-white placeholder-zinc-700 focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all"
                         />
                     </div>
-                    <div className="mt-6 rounded-4xl border border-primary/15 bg-[linear-gradient(180deg,rgba(34,34,10,0.18),rgba(10,10,10,0.96))] p-5">
+                    <div className="mt-6 rounded-xl border border-primary/15 bg-[linear-gradient(180deg,rgba(34,34,10,0.18),rgba(10,10,10,0.96))] p-5">
                         <p className="text-[10px] font-medium] text-primary">Current Isolation Scope</p>
                         <p className="mt-3 text-sm leading-relaxed text-zinc-300">
                             Projects currently scope <span className="text-white">memberships, collection metadata, API keys, saved views, and admin audit context</span>.

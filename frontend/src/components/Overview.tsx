@@ -120,32 +120,6 @@ interface ProjectInfo {
     }>;
 }
 
-interface WorkspaceUsageWarning {
-    metric: string;
-    current: number;
-    limit: number;
-    severity: string;
-    usage_pct: number;
-}
-
-interface WorkspaceUsage {
-    window?: string;
-    rows?: number;
-    storage_bytes?: number;
-    api_requests?: number;
-    realtime_events?: number;
-    function_invocations?: number;
-    warnings?: WorkspaceUsageWarning[];
-}
-
-interface WorkspaceLimits {
-    rows_hard_limit?: number;
-    storage_bytes_hard_limit?: number;
-    api_requests_soft_limit?: number;
-    realtime_events_soft_limit?: number;
-    function_invocations_soft_limit?: number;
-}
-
 const formatBytes = (bytesValue: unknown) => {
     const bytes = Number(bytesValue);
     if (!Number.isFinite(bytes) || bytes < 0) return null;
@@ -251,8 +225,6 @@ const MetricTile = ({
 const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
     const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
     const [healthIssues, setHealthIssues] = useState<any[]>([]);
-    const [workspaceUsage, setWorkspaceUsage] = useState<WorkspaceUsage | null>(null);
-    const [workspaceLimits, setWorkspaceLimits] = useState<WorkspaceLimits | null>(null);
     const [copied, setCopied] = useState(false);
     const cardArenaRef = useRef<HTMLDivElement | null>(null);
     const cardRef = useRef<HTMLDivElement | null>(null);
@@ -313,12 +285,9 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
         signal?: AbortSignal,
     ) => {
         try {
-            const workspaceId = String(localStorage.getItem('ozy_workspace_id') || '').trim();
-            const [infoResult, healthResult, usageResult, limitsResult] = await Promise.allSettled([
+            const [infoResult, healthResult] = await Promise.allSettled([
                 fetchWithAuth('/api/project/info', { signal }),
                 fetchWithAuth('/api/project/health', { signal }),
-                workspaceId ? fetchWithAuth(`/api/workspaces/${workspaceId}/usage`, { signal }) : Promise.resolve(null),
-                workspaceId ? fetchWithAuth(`/api/workspaces/${workspaceId}/limits`, { signal }) : Promise.resolve(null),
             ]);
 
             if (infoResult.status === 'fulfilled') {
@@ -333,24 +302,6 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                 if (isActive()) {
                     setHealthIssues(Array.isArray(health) ? health : []);
                 }
-            }
-
-            if (usageResult.status === 'fulfilled' && usageResult.value) {
-                const usage = await readJsonIfOk<WorkspaceUsage>(usageResult.value);
-                if (isActive()) {
-                    setWorkspaceUsage(usage);
-                }
-            } else if (isActive()) {
-                setWorkspaceUsage(null);
-            }
-
-            if (limitsResult.status === 'fulfilled' && limitsResult.value) {
-                const limits = await readJsonIfOk<WorkspaceLimits>(limitsResult.value);
-                if (isActive()) {
-                    setWorkspaceLimits(limits);
-                }
-            } else if (isActive()) {
-                setWorkspaceLimits(null);
             }
         } catch (err) {
             if (!isAbortLikeError(err) && isActive()) {
@@ -444,7 +395,6 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
     const slowQueries = Array.isArray(projectInfo?.slow_queries) ? projectInfo.slow_queries.slice(0, 5) : [];
     const userSchemaCount = Math.max(0, Number(projectInfo?.user_schema_count ?? 0));
     const userFunctionCount = Math.max(0, Number(projectInfo?.user_function_count ?? projectInfo?.function_count ?? 0));
-    const projectUsageWarnings = Array.isArray(workspaceUsage?.warnings) ? workspaceUsage.warnings.slice(0, 3) : [];
 
     return (
         <div
@@ -664,81 +614,6 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                     actionLabel="Open realtime"
                 />
             </div>
-
-            {workspaceUsage ? (
-                <div className="mt-6 rounded-md border border-[#2c2c2c] bg-[#131313] p-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <p className="text-[11px] font-medium] text-zinc-500">Project usage</p>
-                            <h3 className="mt-2 text-2xl font-bold text-white">Active project envelope</h3>
-                            <p className="mt-2 text-sm text-zinc-500">
-                                Shared self-hosted runtime, project-scoped quotas. This project does not provision another physical PostgreSQL database.
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => onViewSelect?.('usage')}
-                            className="rounded-md border border-[#2c2c2c] bg-background px-4 py-2 text-sm font-medium] text-zinc-200 transition-colors hover:border-zinc-500 hover:text-white"
-                        >
-                            Open usage & limits
-                        </button>
-                    </div>
-
-                    <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                        {[
-                            {
-                                label: 'Rows',
-                                value: formatCompactMetric(workspaceUsage.rows),
-                                hint: `Hard limit ${workspaceLimits?.rows_hard_limit ? formatCompactMetric(workspaceLimits.rows_hard_limit) : 'unlimited'}`,
-                            },
-                            {
-                                label: 'Storage',
-                                value: formatBytes(workspaceUsage.storage_bytes) || '0 B',
-                                hint: `Hard limit ${workspaceLimits?.storage_bytes_hard_limit ? formatBytes(workspaceLimits.storage_bytes_hard_limit) : 'unlimited'}`,
-                            },
-                            {
-                                label: 'API requests',
-                                value: formatCompactMetric(workspaceUsage.api_requests),
-                                hint: `30d soft limit ${workspaceLimits?.api_requests_soft_limit ? formatCompactMetric(workspaceLimits.api_requests_soft_limit) : 'unlimited'}`,
-                            },
-                            {
-                                label: 'Realtime',
-                                value: formatCompactMetric(workspaceUsage.realtime_events),
-                                hint: `30d soft limit ${workspaceLimits?.realtime_events_soft_limit ? formatCompactMetric(workspaceLimits.realtime_events_soft_limit) : 'unlimited'}`,
-                            },
-                            {
-                                label: 'Functions',
-                                value: formatCompactMetric(workspaceUsage.function_invocations),
-                                hint: `30d soft limit ${workspaceLimits?.function_invocations_soft_limit ? formatCompactMetric(workspaceLimits.function_invocations_soft_limit) : 'unlimited'}`,
-                            },
-                        ].map((item) => (
-                            <div key={item.label} className="rounded-md border border-[#2c2c2c] bg-[#101010] px-4 py-4">
-                                <p className="text-[10px] font-medium] text-zinc-500">{item.label}</p>
-                                <p className="mt-2 text-2xl font-bold text-white">{item.value}</p>
-                                <p className="mt-2 text-sm text-zinc-500">{item.hint}</p>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap gap-3">
-                        {projectUsageWarnings.length > 0 ? projectUsageWarnings.map((warning) => (
-                            <div
-                                key={`${warning.metric}-${warning.limit}`}
-                                className={`rounded-full border px-3 py-1 text-[10px] font-medium] ${
-                                    warning.severity === 'critical'
-                                        ? 'border-red-500/30 bg-red-500/10 text-red-300'
-                                        : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
-                                }`}
-                            >
-                                {warning.metric.replace(/_/g, ' ')} {Math.round(warning.usage_pct)}%
-                            </div>
-                        )) : (
-                            <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-medium] text-emerald-300">
-                                Project usage within limits
-                            </div>
-                        )}
-                    </div>
-                </div>
-            ) : null}
 
             <div className="mt-6 grid items-start gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
                 <div data-testid="overview-runtime-panel" className="rounded-md border border-[#2c2c2c] bg-[#131313] p-6 xl:self-start">

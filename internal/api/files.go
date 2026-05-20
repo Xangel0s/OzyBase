@@ -16,7 +16,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/Xangel0s/OzyBase/internal/core"
 	"github.com/Xangel0s/OzyBase/internal/data"
 	ozystorage "github.com/Xangel0s/OzyBase/internal/storage"
 	"github.com/golang-jwt/jwt/v5"
@@ -1516,10 +1515,7 @@ func (h *FileHandler) createStoredObjectRecord(ctx context.Context, bucket bucke
 }
 
 func (h *FileHandler) validateWorkspaceStorageLimit(ctx context.Context, workspaceID *string, incomingSize int64) error {
-	if workspaceID == nil || strings.TrimSpace(*workspaceID) == "" || incomingSize <= 0 {
-		return nil
-	}
-	return core.NewWorkspaceService(h.DB).EnforceStorageLimit(ctx, strings.TrimSpace(*workspaceID), incomingSize)
+	return nil
 }
 
 func buildStoredObjectPayload(bucketName, objectID, displayName, objectKey string, size int64, contentType string) map[string]any {

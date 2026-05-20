@@ -26,6 +26,19 @@ const readStoredTabs = (storageKey: string): string[] => {
     }
 };
 
+const readInitialViewFromUrl = (): string => {
+    try {
+        const hash = window.location.hash;
+        const queryIndex = hash.indexOf('?');
+        if (queryIndex === -1) return 'overview';
+        const query = hash.slice(queryIndex + 1);
+        const params = new URLSearchParams(query);
+        return params.get('view') || 'overview';
+    } catch {
+        return 'overview';
+    }
+};
+
 export const useTableTabs = ({ scopeKey, availableTables = [] }: UseTableTabsOptions = {}) => {
     const storageKey = useMemo(
         () => (scopeKey ? `ozy_open_tabs_${scopeKey}` : 'ozy_open_tabs'),
@@ -38,7 +51,7 @@ export const useTableTabs = ({ scopeKey, availableTables = [] }: UseTableTabsOpt
         return new Set(normalized);
     }, [availableTables]);
 
-    const [selectedView, setSelectedView] = useState('overview');
+    const [selectedView, setSelectedView] = useState(() => readInitialViewFromUrl());
     const [selectedTable, setSelectedTable] = useState<string | null>(null);
     const [openTableTabs, setOpenTableTabs] = useState<string[]>(() => readStoredTabs(storageKey));
     const [initialSqlQuery, setInitialSqlQuery] = useState<string | null>(null);

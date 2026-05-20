@@ -91,9 +91,6 @@ It must not imply:
 ### API
 
 - `GET /api/project/info` exposes capabilities that make the deployment contract explicit.
-- `GET /api/workspaces/:id/usage`
-- `GET /api/workspaces/:id/limits`
-- `PATCH /api/workspaces/:id/limits`
 
 These must behave as project-governance APIs, not provisioning APIs.
 
@@ -104,8 +101,6 @@ The following must remain project-scoped and verifiable:
 - API keys
 - collection metadata
 - saved views
-- usage
-- limits
 
 ### Non-goals must stay explicit
 

@@ -1304,15 +1304,16 @@ const Layout: React.FC<LayoutProps> = ({
                 className={`bg-background border-r border-border flex flex-col py-4 shrink-0 z-50 transition-all duration-300 ease-in-out ${isExpanded ? 'w-64' : 'w-14'
                     }`}
             >
-                <div className="px-3 mb-8 flex items-center h-8">
-                    <div
-                        className="w-8 h-8 rounded-md flex items-center justify-center shadow-[0_0_15px_rgba(254,254,0,0.2)] cursor-pointer hover:scale-105 transition-transform shrink-0 overflow-hidden border border-zinc-800"
-                        onClick={() => onMenuViewSelect('overview')}
-                    >
+                <div
+                    className="px-3 mb-8 flex items-center h-8 cursor-pointer hover:opacity-80 transition-opacity group"
+                    onClick={() => onMenuViewSelect('overview')}
+                    title="Go to Overview"
+                >
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center shadow-[0_0_15px_rgba(254,254,0,0.2)] group-hover:scale-105 transition-transform shrink-0 overflow-hidden border border-zinc-800">
                         <img src="/branding/logo.jpg" alt="OzyBase" className="w-full h-full object-cover" />
                     </div>
                     {isExpanded && (
-                        <span className="ml-3 font-bold text-white italic tracking-tighter text-xl uppercase animate-in fade-in duration-300 truncate">OzyBase</span>
+                        <span className="ml-3 font-bold text-white italic tracking-tighter text-xl uppercase animate-in fade-in duration-300 truncate group-hover:text-primary transition-colors">OzyBase</span>
                     )}
                 </div>
 
