@@ -1,5 +1,0 @@
-ALTER TABLE IF EXISTS mcp_tokens
-ADD COLUMN IF NOT EXISTS friendly_name VARCHAR(255) DEFAULT 'Unnamed Agent';
-
-ALTER TABLE IF EXISTS "_v_api_keys"
-ADD COLUMN IF NOT EXISTS friendly_name VARCHAR(255) DEFAULT 'Unnamed Agent';
