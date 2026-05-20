@@ -873,7 +873,7 @@ func (db *DB) BulkInsertRecord(ctx context.Context, collectionName string, recor
 		return fmt.Errorf("no valid columns found for import")
 	}
 
-	return db.WithTransactionAndRLS(ctx, func(tx pgx.Tx) error {
+	err = db.WithTransactionAndRLS(ctx, func(tx pgx.Tx) error {
 		chunkSize := bulkInsertChunkSize(len(columns))
 		diagnostics := newBulkImportDiagnosticCollector(maxBulkImportRowErrors)
 
@@ -897,6 +897,25 @@ func (db *DB) BulkInsertRecord(ctx context.Context, collectionName string, recor
 		}
 		return nil
 	})
+	if err != nil {
+		var importErr *BulkImportError
+		if errors.As(err, &importErr) {
+			return importErr
+		}
+		if len(records) == 1 {
+			return &BulkImportError{
+				Summary: fmt.Sprintf("Import failed for 1 row: %v", err),
+				RowErrors: []BulkImportRowError{
+					{Row: 1, Message: sanitizeBulkImportRowMessage(err)},
+				},
+			}
+		}
+		return &BulkImportError{
+			Summary:   fmt.Sprintf("Import aborted: %v", err),
+			Truncated: true,
+		}
+	}
+	return nil
 }
 
 func collectBulkInsertColumns(validColumns map[string]bool, records []map[string]any) []string {
@@ -971,15 +990,15 @@ func execBulkInsertChunk(ctx context.Context, tx pgx.Tx, collectionName string, 
 		midpoint = 1
 	}
 
-	if err := execBulkInsertChunk(ctx, tx, collectionName, columns, columnTypes, records[:midpoint], rowOffset, diagnostics); err != nil {
-		return err
+	if rerr := execBulkInsertChunk(ctx, tx, collectionName, columns, columnTypes, records[:midpoint], rowOffset, diagnostics); rerr != nil {
+		diagnostics.addRowError(rowOffset+1, rerr)
 	}
 	if diagnostics.exhausted() {
 		diagnostics.truncated = true
 		return nil
 	}
-	if err := execBulkInsertChunk(ctx, tx, collectionName, columns, columnTypes, records[midpoint:], rowOffset+midpoint, diagnostics); err != nil {
-		return err
+	if rerr := execBulkInsertChunk(ctx, tx, collectionName, columns, columnTypes, records[midpoint:], rowOffset+midpoint, diagnostics); rerr != nil {
+		diagnostics.addRowError(rowOffset+midpoint+1, rerr)
 	}
 	return nil
 }
