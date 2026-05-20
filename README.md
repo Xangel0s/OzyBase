@@ -1,7 +1,7 @@
 # OzyBase
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Xangel0s/OzyBase/main/docs/banner.jpg" alt="OzyBase" width="100%" />
+  <img src="docs/banner.jpg" alt="OzyBase" width="100%" />
 </p>
 
 **Open-source Backend-as-a-Service. Single Go binary, embedded React dashboard, PostgreSQL engine. Self-host first.**
