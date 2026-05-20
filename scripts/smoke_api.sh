@@ -352,7 +352,7 @@ require_status "$status_code" "200"
 
 echo "[smoke] table editor + SQL + security flow"
 table_name="ci_smoke_$(date +%s)"
-create_table_payload="$(printf '{"name":"%s","schema":[{"name":"owner_id","type":"uuid"},{"name":"title","type":"text"}],"list_rule":"auth","create_rule":"admin","rls_enabled":true,"rls_policies":{"select":"owner_id = auth.uid()","insert":"owner_id = auth.uid()","update":"owner_id = auth.uid()","delete":"owner_id = auth.uid()"}}' "$table_name")"
+create_table_payload="$(printf '{"name":"%s","schema":[{"name":"owner_id","type":"uuid","is_primary":true},{"name":"title","type":"text"}],"list_rule":"auth","create_rule":"admin","rls_enabled":true,"rls_policies":{"select":"owner_id = auth.uid()","insert":"owner_id = auth.uid()","update":"owner_id = auth.uid()","delete":"owner_id = auth.uid()"}}' "$table_name")"
 status_code="$(call_api POST /api/collections "$create_table_payload" "$TOKEN")"
 if [[ "$status_code" != "201" ]]; then
   echo "Collection create failed with status ${status_code}" >&2
