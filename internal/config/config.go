@@ -114,7 +114,7 @@ func Load() (*Config, error) {
 
 	jwtSecret := readEnv("JWT_SECRET")
 	generatedJWTSecret := false
-	if jwtSecret == "" {
+	if jwtSecret == "" || isPlaceholderSecretValue(jwtSecret) {
 		jwtSecret = getOrGenerateSecret()
 		generatedJWTSecret = true
 	}
@@ -144,8 +144,8 @@ func Load() (*Config, error) {
 		apiKeyGraceMinutes = 10080
 	}
 
-	siteURL := getEnv("SITE_URL", "https://api.example.com")
-	appDomain := getEnv("APP_DOMAIN", "example.com")
+	siteURL := getEnv("SITE_URL", "http://localhost:8090")
+	appDomain := getEnv("APP_DOMAIN", "localhost")
 
 	origins, derivedAllowedOrigin := resolveAllowedOrigins(getEnv("ALLOWED_ORIGINS", ""), siteURL, appDomain, debug)
 
@@ -260,6 +260,10 @@ func isPlaceholderSecretValue(value string) bool {
 	clean := strings.ToLower(strings.TrimSpace(value))
 	if clean == "" {
 		return false
+	}
+
+	if strings.HasPrefix(clean, "set ") || strings.HasPrefix(clean, "set_") || strings.HasPrefix(clean, "set-") || strings.HasPrefix(clean, "set:") {
+		return true
 	}
 
 	placeholderMarkers := []string{
