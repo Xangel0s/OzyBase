@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -178,6 +179,11 @@ func TestBulkInsertRecordReportsBoundedRowErrorsAndRollsBack(t *testing.T) {
 	}
 }
 
+var (
+	bulkImportTestDBPool     *DB
+	bulkImportTestDBPoolOnce sync.Once
+)
+
 func setupBulkImportTestDB(t *testing.T) *DB {
 	t.Helper()
 
@@ -194,20 +200,25 @@ func setupBulkImportTestDB(t *testing.T) *DB {
 		return db
 	}
 
-	db, err := Connect(ctx, databaseURL)
-	if err != nil {
-		if strings.Contains(err.Error(), "dial error") || strings.Contains(err.Error(), "connection refused") {
-			t.Skipf("postgres not reachable at %s: %v", databaseURL, err)
+	bulkImportTestDBPoolOnce.Do(func() {
+		var err error
+		bulkImportTestDBPool, err = Connect(ctx, databaseURL)
+		if err != nil {
+			if strings.Contains(err.Error(), "dial error") || strings.Contains(err.Error(), "connection refused") {
+				bulkImportTestDBPool = nil
+				return
+			}
+			panic(fmt.Sprintf("connect bulk import test db: %v", err))
 		}
-		t.Fatalf("connect bulk import test db: %v", err)
+		if err := bulkImportTestDBPool.RunMigrations(ctx); err != nil {
+			panic(fmt.Sprintf("run migrations for bulk import test db: %v", err))
+		}
+	})
+	if bulkImportTestDBPool == nil {
+		t.Skipf("postgres not reachable at %s", databaseURL)
 	}
-	t.Cleanup(db.Close)
 
-	if err := db.RunMigrations(ctx); err != nil {
-		t.Fatalf("run migrations for bulk import test db: %v", err)
-	}
-
-	return db
+	return bulkImportTestDBPool
 }
 
 func startTestContainerDB(ctx context.Context, t *testing.T) *DB {
@@ -248,11 +259,17 @@ func startTestContainerDB(ctx context.Context, t *testing.T) *DB {
 	if err != nil {
 		t.Fatalf("connect bulk import test db: %v", err)
 	}
-	t.Cleanup(db.Close)
-
 	if err := db.RunMigrations(ctx); err != nil {
 		t.Fatalf("run migrations for bulk import test db: %v", err)
 	}
 
 	return db
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if bulkImportTestDBPool != nil {
+		bulkImportTestDBPool.Close()
+	}
+	os.Exit(code)
 }

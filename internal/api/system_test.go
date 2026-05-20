@@ -822,27 +822,48 @@ func hasSetupAction(actions []setupAction, key string) bool {
 	return false
 }
 
+var (
+	testDBPool     *data.DB
+	testDBPoolOnce sync.Once
+)
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if testDBPool != nil {
+		testDBPool.Close()
+	}
+	os.Exit(code)
+}
+
 func setupSystemTestDB(t *testing.T) *data.DB {
 	t.Helper()
-
-	databaseURL := strings.TrimSpace(os.Getenv("OZY_TEST_DATABASE_URL"))
-	if databaseURL == "" {
-		databaseURL = strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	}
-	if databaseURL == "" {
-		t.Skip("set OZY_TEST_DATABASE_URL or DATABASE_URL to run SetupSystem integration/concurrency test")
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	db, err := data.Connect(ctx, databaseURL)
-	require.NoError(t, err)
-	t.Cleanup(db.Close)
+	testDBPoolOnce.Do(func() {
+		databaseURL := strings.TrimSpace(os.Getenv("OZY_TEST_DATABASE_URL"))
+		if databaseURL == "" {
+			databaseURL = strings.TrimSpace(os.Getenv("DATABASE_URL"))
+		}
+		if databaseURL == "" {
+			return
+		}
+		db, err := data.Connect(ctx, databaseURL)
+		if err != nil {
+			testDBPoolErr := err
+			panic(fmt.Sprintf("setupSystemTestDB connect: %v", testDBPoolErr))
+		}
+		if err := db.RunMigrations(ctx); err != nil {
+			panic(fmt.Sprintf("setupSystemTestDB migrations: %v", err))
+		}
+		testDBPool = db
+	})
+	if testDBPool == nil {
+		t.Skip("set OZY_TEST_DATABASE_URL or DATABASE_URL to run SetupSystem integration/concurrency test")
+	}
 
-	require.NoError(t, db.RunMigrations(ctx))
-
-	_, err = db.Pool.Exec(ctx, `
+	_, err := testDBPool.Pool.Exec(ctx, `
 		TRUNCATE TABLE
 			_v_sessions,
 			_v_users,
@@ -854,5 +875,5 @@ func setupSystemTestDB(t *testing.T) *data.DB {
 	`)
 	require.NoError(t, err)
 
-	return db
+	return testDBPool
 }
