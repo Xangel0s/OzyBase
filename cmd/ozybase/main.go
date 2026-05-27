@@ -530,7 +530,7 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 			}
 			// Skip CSRF for login endpoint
 			path := c.Request().URL.Path
-			if path == "/api/auth/login" || path == "/api/auth/signup" || path == "/api/system/status" || path == "/api/system/setup" || path == "/api/system/setup/migration/preview" || path == "/api/project/metrics" {
+			if path == "/api/auth/login" || path == "/api/auth/signup" || path == "/api/system/status" || path == "/api/system/setup" || path == "/api/system/setup/migration/preview" || path == "/api/project/metrics" || strings.HasPrefix(path, "/api/project/mcp") {
 				return true
 			}
 			return false
@@ -728,6 +728,11 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 		apiGroup.GET("/project/info", h.GetProjectInfo, authRequired)
 		apiGroup.GET("/project/connection", h.GetProjectConnection, authRequired, adminOnly)
 		apiGroup.GET("/project/config", h.GetProjectConfig, authRequired, adminOnly)
+		apiGroup.POST("/project/mcp", h.HandleMcpJsonRpc, authRequired, adminOnly)
+		apiGroup.POST("/project/mcp/device/start", h.StartMcpDeviceFlow)
+		apiGroup.GET("/project/mcp/device/approve", h.GetApproveMcpDevice)
+		apiGroup.POST("/project/mcp/device/approve/confirm", h.ConfirmMcpDeviceApproval)
+		apiGroup.GET("/project/mcp/device/status", h.GetMcpDeviceStatus)
 		apiGroup.GET("/project/update-status", h.GetProjectUpdateStatus, authRequired)
 		apiGroup.GET("/project/health", h.GetHealthIssues, authRequired)
 		apiGroup.GET("/project/performance/advisor", h.GetPerformanceAdvisor, authRequired, adminOnly)
