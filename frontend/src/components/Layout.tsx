@@ -1282,7 +1282,7 @@ const Layout: React.FC<LayoutProps> = ({
                                 <item.icon size={14} className="text-zinc-800 group-hover:text-zinc-500" />
                                 <span className="truncate font-medium">{item.name}</span>
                                 {item.id === 'security' && pendingAccessRequestsCount > 0 ? (
-                                    <span className="ml-auto inline-flex min-w-[18px] items-center justify-center rounded-full border border-red-500/30 bg-red-500/15 px-1.5 py-0.5 text-[9px] font-bold tracking-widest text-red-300">
+                                    <span className="ml-auto inline-flex min-w-4.5 items-center justify-center rounded-full border border-red-500/30 bg-red-500/15 px-1.5 py-0.5 text-[9px] font-bold tracking-widest text-red-300">
                                         {pendingAccessRequestsCount > 99 ? '99+' : pendingAccessRequestsCount}
                                     </span>
                                 ) : null}
@@ -1359,7 +1359,7 @@ const Layout: React.FC<LayoutProps> = ({
                                     </span>
                                 )}
                                 {isActive && (
-                                    <div className="absolute left-0 top-2.5 bottom-2.5 w-[2px] bg-primary rounded-full shadow-[0_0_8px_rgba(254,254,0,0.6)]" />
+                                    <div className="absolute left-0 top-2.5 bottom-2.5 w-0.5 bg-primary rounded-full shadow-[0_0_8px_rgba(254,254,0,0.6)]" />
                                 )}
                             </button>
                         );
@@ -1418,7 +1418,7 @@ const Layout: React.FC<LayoutProps> = ({
 
             {/* Main Content Area */}
             <div ref={contentViewportRef} data-testid="module-shell" className={`flex-1 flex min-h-0 flex-col min-w-0 bg-background ${!showExplorerSidebar ? 'animate-in fade-in slide-in-from-left-2 duration-300' : ''}`}>
-                <header className="min-h-[54px] shrink-0 border-b border-border bg-background px-4 py-2 sm:px-5">
+                <header className="min-h-13.5 shrink-0 border-b border-border bg-background px-4 py-2 sm:px-5">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                             <div className="flex min-w-0 items-center gap-2 overflow-hidden text-[10px] font-bold tracking-tight">
@@ -1438,7 +1438,7 @@ const Layout: React.FC<LayoutProps> = ({
                             </div>
 
                             {activeWorkspaceSlug ? (
-                                <span className="hidden max-w-[160px] truncate font-mono text-[9px] font-medium] text-zinc-700 xl:inline">
+                                <span className="hidden max-w-40 truncate font-mono text-[9px] font-medium] text-zinc-700 xl:inline">
                                     {activeWorkspaceSlug}
                                 </span>
                             ) : null}
@@ -1507,7 +1507,7 @@ const Layout: React.FC<LayoutProps> = ({
 
                             <div className="relative" ref={userDropdownRef}>
                                 <div
-                                    className="w-9 h-9 rounded-md bg-black/40 border border-white/5 flex items-center justify-center text-[#d2f20b] text-[11px] font-bold cursor-pointer hover:border-white/20 transition-all shadow-inner font-mono"
+                                    className="w-9 h-9 rounded-md bg-black/40 border border-white/5 flex items-center justify-center text-primary text-[11px] font-bold cursor-pointer hover:border-white/20 transition-all shadow-inner font-mono"
                                     onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
                                 >
                                     {user?.email?.charAt(0).toUpperCase() || 'K'}

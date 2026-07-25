@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -24,7 +25,6 @@ import (
 	"github.com/Xangel0s/OzyBase/internal/typegen"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/time/rate"
 )
 
@@ -117,12 +117,12 @@ func run() error {
 		return err
 	}
 
-	// Optional admin bootstrap.
-	// Default flow keeps system uninitialized so Setup Wizard appears first.
+	// Optional admin bootstrap from ENV vars.
+	// If no ENV vars are set, print a banner and let the user run `admin create`.
 	if shouldBootstrapAdminFromEnv() {
 		ozyauth.EnsureAdminUser(db)
 	} else {
-		logger.Log.Info().Msg("bootstrap wizard")
+		printNotInitializedBanner()
 	}
 
 	// CLI Commands handling
@@ -218,6 +218,21 @@ func printStartupBanner() {
 	fmt.Println()
 }
 
+func printNotInitializedBanner() {
+	fmt.Println()
+	fmt.Println("┌─────────────────────────────────────────────────────┐")
+	fmt.Println("│  OzyBase is not initialized.                        │")
+	fmt.Println("│  No admin account found.                            │")
+	fmt.Println("│                                                     │")
+	fmt.Println("│  To create the first admin, run:                    │")
+	fmt.Println("│    ./ozybase admin create --email x --password y    │")
+	fmt.Println("│                                                     │")
+	fmt.Println("│  Or set INITIAL_ADMIN_EMAIL + INITIAL_ADMIN_PASSWORD│")
+	fmt.Println("│  in your .env and restart.                          │")
+	fmt.Println("└─────────────────────────────────────────────────────┘")
+	fmt.Println()
+}
+
 func logDatabaseIdentity(ctx context.Context, db *data.DB) {
 	if db == nil || db.Pool == nil {
 		return
@@ -287,28 +302,8 @@ func handleCLI(db *data.DB) (bool, error) {
 		return true, nil
 	}
 
-	if len(os.Args) > 1 && os.Args[1] == "reset-admin" {
-		ctx := context.Background()
-		email := resolveInitialAdminEmail()
-		if len(os.Args) <= 2 || strings.TrimSpace(os.Args[2]) == "" {
-			return true, fmt.Errorf("usage: ozybase reset-admin <new-password>")
-		}
-		newPass := os.Args[2]
-
-		logger.Log.Info().Str("email", email).Msg("admin password resetting")
-
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPass), 12)
-		if err != nil {
-			return true, fmt.Errorf("failed to hash password: %w", err)
-		}
-
-		_, err = db.Pool.Exec(ctx, "UPDATE _v_users SET password_hash = $1 WHERE email = $2", string(hashedPassword), email)
-		if err != nil {
-			return true, fmt.Errorf("failed to update password: %w", err)
-		}
-
-		logger.Log.Info().Str("email", email).Msg("admin password reset")
-		return true, nil
+	if len(os.Args) > 1 && os.Args[1] == "admin" {
+		return true, runAdminCommand(db, os.Args[2:])
 	}
 
 	if len(os.Args) > 1 && os.Args[1] == "migrate-apply" {
@@ -356,6 +351,88 @@ func shouldBootstrapAdminFromEnv() bool {
 		return true
 	}
 	return false
+}
+
+// runAdminCommand dispatches admin sub-commands: create, reset, delete-all
+func runAdminCommand(db *data.DB, args []string) error {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "usage: ozybase admin <create|reset|delete-all>")
+		fmt.Fprintln(os.Stderr, "  admin create   [--email EMAIL] [--password PASSWORD]")
+		fmt.Fprintln(os.Stderr, "  admin reset    --email EMAIL [--password PASSWORD]")
+		fmt.Fprintln(os.Stderr, "  admin delete-all")
+		os.Exit(1)
+	}
+
+	sub := args[0]
+	ctx := context.Background()
+
+	switch sub {
+	case "create":
+		fs := flag.NewFlagSet("admin create", flag.ExitOnError)
+		emailFlag := fs.String("email", "", "Admin email address")
+		passFlag := fs.String("password", "", "Admin password (min 12 chars)")
+		_ = fs.Parse(args[1:])
+
+		email := strings.TrimSpace(*emailFlag)
+		password := strings.TrimSpace(*passFlag)
+
+		if email == "" {
+			email = ozyauth.PromptLine("Enter admin email: ")
+		}
+		if password == "" {
+			password = ozyauth.PromptLine("Enter admin password (min 12 chars): ")
+		}
+
+		if err := ozyauth.CreateAdminWithWorkspace(ctx, db, email, password); err != nil {
+			fmt.Fprintf(os.Stderr, "✗ Error: %s\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Admin created: %s\n", strings.ToLower(strings.TrimSpace(email)))
+		fmt.Println("  Workspace: Primary Project")
+
+	case "reset":
+		fs := flag.NewFlagSet("admin reset", flag.ExitOnError)
+		emailFlag := fs.String("email", "", "Admin email address")
+		passFlag := fs.String("password", "", "New password (min 12 chars)")
+		_ = fs.Parse(args[1:])
+
+		email := strings.TrimSpace(*emailFlag)
+		password := strings.TrimSpace(*passFlag)
+
+		if email == "" {
+			email = ozyauth.PromptLine("Enter admin email: ")
+		}
+		if password == "" {
+			password = ozyauth.PromptLine("Enter new password (min 12 chars): ")
+		}
+
+		if err := ozyauth.ResetAdminPassword(ctx, db, email, password); err != nil {
+			fmt.Fprintf(os.Stderr, "✗ Error: %s\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Password updated for: %s\n", strings.ToLower(strings.TrimSpace(email)))
+
+	case "delete-all":
+		fmt.Println("⚠ This will delete ALL admin accounts and reset the system to uninitialized.")
+		confirm := ozyauth.PromptLine("Type 'yes' to confirm: ")
+		if confirm != "yes" {
+			fmt.Println("Aborted.")
+			os.Exit(0)
+		}
+		n, err := ozyauth.DeleteAllAdmins(ctx, db)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "✗ Error: %s\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ All admin accounts deleted (%d removed). System is now uninitialized.\n", n)
+
+	default:
+		fmt.Fprintf(os.Stderr, "✗ Unknown admin sub-command: %q\n", sub)
+		fmt.Fprintln(os.Stderr, "  Available: create, reset, delete-all")
+		os.Exit(1)
+	}
+
+	return nil
 }
 
 func initOAuth() {
@@ -530,7 +607,7 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 			}
 			// Skip CSRF for login endpoint
 			path := c.Request().URL.Path
-			if path == "/api/auth/login" || path == "/api/auth/signup" || path == "/api/system/status" || path == "/api/system/setup" || path == "/api/system/setup/migration/preview" || path == "/api/project/metrics" || strings.HasPrefix(path, "/api/project/mcp") {
+			if path == "/api/auth/login" || path == "/api/auth/signup" || path == "/api/system/status" || path == "/api/project/metrics" || strings.HasPrefix(path, "/api/project/mcp") {
 				return true
 			}
 			return false
@@ -658,10 +735,8 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 		authGroup.DELETE("/sessions/:id", authHandler.RevokeSession, authRequired)
 		authGroup.POST("/sessions/revoke-all", authHandler.RevokeAllSessions, authRequired, adminOnly)
 
-		// System Setup (Public, but protected by logic inside)
+		// System Status (Public)
 		apiGroup.GET("/system/status", h.GetSystemStatus)
-		apiGroup.POST("/system/setup", h.SetupSystem)
-		apiGroup.POST("/system/setup/migration/preview", h.PreviewSetupMigration)
 
 		// Two-Factor Authentication
 		authGroup.POST("/2fa/setup", twoFactorHandler.Setup2FA, authRequired)

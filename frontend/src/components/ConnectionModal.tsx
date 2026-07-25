@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   AlertTriangle,
-  ArrowRight,
   Check,
   Copy,
   Database,
@@ -197,28 +196,30 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-black/60 transition-opacity duration-300">
-      <div className="w-full max-w-5xl rounded-xl border border-white/[0.08] bg-[#111111] shadow-[0_0_100px_rgba(210,242,11,0.05)] overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4 sm:p-6 backdrop-blur-md bg-black/75 transition-opacity duration-300">
+      <div className="w-full max-w-5xl rounded-lg border border-border bg-zinc-950 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header Area */}
-        <div className="relative border-b border-white/[0.05] bg-gradient-to-b from-white/[0.03] to-transparent px-8 py-6 flex items-start justify-between gap-4">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,_rgba(255,255,255,0.04)_0%,_transparent_50%)] pointer-events-none"></div>
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 mb-2">
-              <span className="h-2 w-2 rounded-full bg-[#d2f20b] animate-pulse shadow-[0_0_10px_rgba(210,242,11,0.6)]"></span>
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#d2f20b]">Connection Center</p>
+        <div className="border-b border-border bg-zinc-900/60 px-6 py-5 flex items-start justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 mb-1.5">
+              <span className="h-2 w-2 rounded-full bg-primary animate-pulse"></span>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Connection Center</p>
             </div>
-            <h1 className="text-3xl font-semibold text-white tracking-tight">Project connection & API keys</h1>
-            <p className="mt-1 text-sm text-zinc-400">Manage your workspace configuration, verify database access, and rotate secrets securely.</p>
+            <h1 className="text-xl font-bold text-white tracking-tight">Project connection & API keys</h1>
+            <p className="mt-1 text-xs text-zinc-400">Manage your workspace configuration, verify database access, and rotate secrets securely.</p>
           </div>
-          <button onClick={onClose} className="relative z-10 rounded-full bg-white/5 p-2.5 text-zinc-400 transition-all hover:bg-white/10 hover:text-white hover:rotate-90">
-            <X size={18} />
+          <button 
+            onClick={onClose} 
+            className="rounded-md border border-border bg-zinc-900 p-2 text-zinc-400 transition-colors hover:border-zinc-500 hover:text-white"
+          >
+            <X size={16} />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="px-8 pt-6 pb-2">
-          <div className="inline-flex p-1.5 rounded-2xl bg-white/[0.03] border border-white/[0.05] w-full sm:w-auto overflow-x-auto no-scrollbar">
+        <div className="px-6 pt-5 pb-2 border-b border-border/40 bg-zinc-900/30">
+          <div className="inline-flex p-1 rounded-md bg-zinc-900 border border-border">
             {[
               { id: 'connection', label: 'Connection Status', icon: <Server size={14} /> },
               { id: 'api', label: 'API Keys', icon: <Key size={14} /> },
@@ -227,10 +228,10 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                className={`relative flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-xs font-semibold tracking-wide transition-all duration-300 whitespace-nowrap ${
+                className={`flex items-center justify-center gap-2 rounded-md px-4 py-2 text-xs font-bold transition-all duration-200 whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'bg-[#d2f20b]/15 text-[#d2f20b] shadow-[0_2px_10px_rgba(210,242,11,0.1)]'
-                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'
+                    ? 'bg-primary text-black shadow-sm'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
                 }`}
               >
                 {tab.icon}
@@ -241,105 +242,103 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
         </div>
 
         {/* Content Area */}
-        <div className="p-8 overflow-y-auto flex-1 custom-scrollbar">
+        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
           {message ? (
-            <div className={`mb-6 flex items-start gap-3 rounded-2xl border px-5 py-4 text-sm animate-in fade-in slide-in-from-top-2 ${
+            <div className={`mb-5 flex items-start gap-3 rounded-md border px-4 py-3 text-xs ${
               message.tone === 'success' 
-                ? 'border-[#d2f20b]/20 bg-[#d2f20b]/10 text-[#d2f20b]' 
-                : 'border-red-500/20 bg-red-500/10 text-red-200'
+                ? 'border-primary/30 bg-primary/10 text-primary' 
+                : 'border-red-500/30 bg-red-500/10 text-red-300'
             }`}>
-              {message.tone === 'success' ? <Check size={18} className="mt-0.5" /> : <AlertTriangle size={18} className="mt-0.5" />}
+              {message.tone === 'success' ? <Check size={16} className="mt-0.5 shrink-0" /> : <AlertTriangle size={16} className="mt-0.5 shrink-0" />}
               <p className="leading-relaxed">{message.text}</p>
             </div>
           ) : null}
 
           {/* CONNECTION TAB */}
           {activeTab === 'connection' ? (
-            <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
+            <div className="space-y-6">
               
               {/* Setup Flow */}
-              <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-6 lg:p-8 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-[#d2f20b]/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
-                
-                <div className="flex flex-wrap items-center justify-between gap-4 relative z-10">
+              <div className="rounded-md border border-border bg-zinc-900/40 p-6">
+                <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-semibold text-white tracking-tight flex items-center gap-2">
-                      <Terminal size={20} className="text-[#d2f20b]" />
+                    <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                      <Terminal size={18} className="text-primary" />
                       One-time project connection
                     </h2>
-                    <p className="mt-1.5 text-sm text-zinc-400 max-w-xl">Run the npm bootstrap in your project terminal, confirm in the browser, and keep the MCP wired locally for every IDE.</p>
+                    <p className="mt-1 text-xs text-zinc-400 max-w-xl">Run the npm bootstrap in your project terminal, confirm in the browser, and keep the MCP wired locally for every IDE.</p>
                   </div>
-                  <div className={`rounded-xl border px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 ${
+                  <div className={`rounded-md border px-3 py-1 text-[10px] font-bold uppercase tracking-wider flex items-center gap-2 ${
                     connection?.last_verified_at 
-                      ? 'border-[#d2f20b]/30 bg-[#d2f20b]/10 text-[#d2f20b]' 
-                      : 'border-zinc-700 bg-zinc-800 text-zinc-400'
+                      ? 'border-primary/30 bg-primary/10 text-primary' 
+                      : 'border-border bg-zinc-900 text-zinc-400'
                   }`}>
-                    {connection?.last_verified_at ? <><span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#d2f20b] opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-[#d2f20b]"></span></span> Connected</> : 'Not linked yet'}
+                    {connection?.last_verified_at ? <><span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span></span> Connected</> : 'Not linked yet'}
                   </div>
                 </div>
 
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
                     { title: 'Run local command', desc: 'npx ozybase connect', icon: <Terminal size={16} />, badge: 'Terminal' },
                     { title: 'Browser approval', desc: 'Review connection summary', icon: <MousePointerClick size={16} />, badge: 'Browser' },
                     { title: 'Persist state', desc: 'Save project link locally', icon: <Database size={16} />, badge: 'Local' },
                     { title: 'MCP Ready', desc: 'IDE uses local stdio', icon: <MonitorCheck size={16} />, badge: 'Stdio' },
                   ].map((step, index, arr) => (
-                    <div key={index} className="relative group">
-                      <div className="h-full rounded-2xl border border-white/[0.05] bg-[#151515] p-5 transition-all duration-300 hover:bg-[#1a1a1a] hover:border-white/[0.1] hover:shadow-lg hover:-translate-y-1">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.05] text-[#d2f20b] group-hover:bg-[#d2f20b]/20 transition-colors">
+                    <div key={index} className="relative">
+                      <div className="h-full rounded-md border border-border bg-zinc-900/80 p-4 transition-all hover:border-zinc-500">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-black/30 text-primary">
                             {step.icon}
                           </div>
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">Step {index + 1}</span>
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Step {index + 1}</span>
                         </div>
-                        <h3 className="text-sm font-semibold text-white mb-1">{step.title}</h3>
-                        <p className="text-xs text-zinc-400 font-mono">{step.desc}</p>
-                        <div className="mt-4">
-                          <span className="inline-block rounded-md bg-white/[0.05] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-zinc-500">{step.badge}</span>
+                        <h3 className="text-xs font-bold text-white mb-1">{step.title}</h3>
+                        <p className="text-[11px] text-zinc-400 font-mono">{step.desc}</p>
+                        <div className="mt-3">
+                          <span className="inline-block rounded-md border border-border bg-black/40 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-500">{step.badge}</span>
                         </div>
                       </div>
                       {index < arr.length - 1 && (
-                        <div className="hidden lg:block absolute top-1/2 -right-3 -translate-y-1/2 z-20 text-zinc-700">
-                          <ChevronRight size={20} />
+                        <div className="hidden lg:block absolute top-1/2 -right-2.5 -translate-y-1/2 z-20 text-zinc-600">
+                          <ChevronRight size={16} />
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
 
-                <div className="mt-6 rounded-2xl border border-[#d2f20b]/15 bg-black/40 p-4 relative z-10">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="mt-5 rounded-md border border-border bg-zinc-950 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#d2f20b]">Copy command</p>
-                      <p className="mt-1 text-sm text-zinc-400">Paste this in your project terminal to start the guided connection flow.</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Copy command</p>
+                      <p className="mt-0.5 text-xs text-zinc-400">Paste this in your project terminal to start the guided connection flow.</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => void copyValue(connectCommand, 'connect-command')}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-white/[0.1]"
+                      className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-xs font-bold text-black transition-all hover:bg-primary/90 shrink-0"
                     >
-                      {copied === 'connect-command' ? <Check size={14} className="text-[#d2f20b]" /> : <Copy size={14} />}
-                      {copied === 'connect-command' ? 'Copied' : 'Copy command'}
+                      {copied === 'connect-command' ? <Check size={14} /> : <Copy size={14} />}
+                      {copied === 'connect-command' ? 'Copied' : 'Copy Command'}
                     </button>
                   </div>
-                  <code className="mt-4 block rounded-xl border border-white/[0.06] bg-[#0b0b0b] px-4 py-3 text-sm font-mono text-[#d2f20b] break-all">
+                  <code className="mt-3 block rounded-md border border-border bg-black px-4 py-3 text-xs font-mono text-primary break-all">
                     {connectCommand}
                   </code>
                 </div>
               </div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <StatCard icon={<Database size={16} />} label="Database" value={connection?.connection?.database || 'Not loaded'} />
-                <StatCard icon={<Server size={16} />} label="Host" value={connection?.connection?.host || 'Not loaded'} />
-                <StatCard icon={<Globe size={16} />} label="API URL" value={connection?.api_url || 'Not loaded'} />
-                <StatCard icon={<Hash size={16} />} label="SSL Status" value={connection?.connection?.ssl ? 'Enabled' : 'Disabled'} isActive={connection?.connection?.ssl} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                <StatCard icon={<Database size={15} />} label="Database" value={connection?.connection?.database || 'Not loaded'} />
+                <StatCard icon={<Server size={15} />} label="Host" value={connection?.connection?.host || 'Not loaded'} />
+                <StatCard icon={<Globe size={15} />} label="API URL" value={connection?.api_url || 'Not loaded'} />
+                <StatCard icon={<Hash size={15} />} label="SSL Status" value={connection?.connection?.ssl ? 'Enabled' : 'Disabled'} isActive={connection?.connection?.ssl} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatCard icon={<ShieldCheck size={16} />} label="Last verified" value={formatTimestamp(connection?.last_verified_at)} highlight />
-                <StatCard icon={<Key size={16} />} label="Edge functions" value={String(connection?.edge_functions_count ?? '0')} />
-                <StatCard icon={<Database size={16} />} label="Schemas" value={String(connection?.schemas_count ?? '0')} />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <StatCard icon={<ShieldCheck size={15} />} label="Last verified" value={formatTimestamp(connection?.last_verified_at)} highlight />
+                <StatCard icon={<Key size={15} />} label="Edge functions" value={String(connection?.edge_functions_count ?? '0')} />
+                <StatCard icon={<Database size={15} />} label="Schemas" value={String(connection?.schemas_count ?? '0')} />
               </div>
               
             </div>
@@ -347,24 +346,22 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
 
           {/* API KEYS TAB */}
           {activeTab === 'api' ? (
-            <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+            <div className="space-y-5">
               {!isVerified && (
-                <div className="rounded-xl border border-white/[0.05] bg-[#151515] p-8 overflow-hidden relative shadow-lg">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-[#d2f20b]/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
-                  
-                  <div className="flex items-start gap-4 mb-8 relative z-10">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.05] text-zinc-400">
-                      <ShieldCheck size={24} />
+                <div className="rounded-md border border-border bg-zinc-900/40 p-6">
+                  <div className="flex items-start gap-4 mb-6">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-black/40 text-primary shrink-0">
+                      <ShieldCheck size={20} />
                     </div>
                     <div>
-                      <h3 className="text-xl font-semibold text-white tracking-tight">Unlock API Keys</h3>
-                      <p className="mt-1 text-sm text-zinc-400">Confirm your admin password to reveal and manage project API keys.</p>
+                      <h3 className="text-base font-bold text-white tracking-tight">Unlock API Keys</h3>
+                      <p className="mt-1 text-xs text-zinc-400">Confirm your admin password to reveal and manage project API keys.</p>
                     </div>
                   </div>
 
-                  <form onSubmit={handleVerifyIdentity} className="space-y-5 relative z-10">
+                  <form onSubmit={handleVerifyIdentity} className="space-y-4 max-w-md">
                     <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-widest text-zinc-500 mb-2 pl-1">Admin Password</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">Admin Password</label>
                       <input
                         type="password"
                         required
@@ -372,15 +369,15 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
                         value={adminPassword}
                         onChange={(event) => setAdminPassword(event.target.value)}
                         placeholder="Enter your current admin password"
-                        className="w-full rounded-2xl border border-white/[0.1] bg-black/40 px-5 py-4 text-sm text-white focus:outline-none focus:border-[#d2f20b]/50 focus:bg-black/60 transition-all placeholder:text-zinc-600"
+                        className="w-full rounded-md border border-border bg-zinc-950 px-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary/50 transition-colors placeholder:text-zinc-600 font-mono"
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={verifying || !adminPassword}
-                      className="w-full rounded-2xl bg-[#d2f20b] text-black hover:bg-[#c0e00a] px-5 py-4 text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50 disabled:hover:bg-[#d2f20b] flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(210,242,11,0.1)]"
+                      className="rounded-md bg-primary text-black hover:bg-primary/90 px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      {verifying ? <Loader2 size={16} className="animate-spin" /> : <LockKeyhole size={16} />}
+                      {verifying ? <Loader2 size={14} className="animate-spin" /> : <LockKeyhole size={14} />}
                       {verifying ? 'Verifying Identity...' : 'Unlock Access'}
                     </button>
                   </form>
@@ -389,50 +386,51 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
 
               {isVerified && (
                 <>
-                  <div className="rounded-2xl border border-[#d2f20b]/20 bg-[#d2f20b]/5 p-6 relative z-10 flex flex-col items-center justify-center text-center">
-                    <div className="h-16 w-16 rounded-full bg-[#d2f20b]/20 flex items-center justify-center mb-4">
-                      <Check size={32} className="text-[#d2f20b]" />
+                  <div className="rounded-md border border-primary/30 bg-primary/10 p-4 flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                      <Check size={18} className="text-primary" />
                     </div>
-                    <h4 className="text-lg font-medium text-white mb-2">Identity Verified</h4>
-                    <p className="text-sm text-[#d2f20b]/70 mb-2">Your session is unlocked until {formatTimestamp(verifiedUntil)}.</p>
+                    <div>
+                      <h4 className="text-xs font-bold text-white">Identity Verified</h4>
+                      <p className="text-[11px] text-primary/80">Your session is unlocked until {formatTimestamp(verifiedUntil)}.</p>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
                     {KEY_ORDER.map((role) => {
                       const summary = keysByRole[role];
                       const revealed = revealedByRole[role];
                       const meta = ROLE_LABELS[role];
                       const isBusy = loadingRole === role || rotatingRole === role;
-                      const isAnon = role === 'anon';
 
                       return (
-                        <div key={role} className="rounded-xl border border-white/[0.05] bg-[#151515] overflow-hidden flex flex-col transition-all hover:border-white/[0.08]">
-                          <div className={`border-b border-white/[0.05] px-6 py-5 flex items-start justify-between gap-4 ${isAnon ? 'bg-[#d2f20b]/[0.02]' : 'bg-blue-500/[0.02]'}`}>
+                        <div key={role} className="rounded-md border border-border bg-zinc-900/40 overflow-hidden flex flex-col">
+                          <div className="border-b border-border px-5 py-4 flex items-start justify-between gap-4 bg-zinc-900/80">
                             <div>
-                              <span className={`inline-block rounded-md px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest mb-3 ${isAnon ? 'bg-[#d2f20b]/10 text-[#d2f20b]' : 'bg-blue-500/10 text-blue-400'}`}>
+                              <span className="inline-block rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary mb-2">
                                 {meta.badge}
                               </span>
-                              <h3 className="text-lg font-semibold text-white">{meta.title}</h3>
-                              <p className="mt-1 text-xs text-zinc-400 max-w-[280px] leading-relaxed">{meta.note}</p>
+                              <h3 className="text-sm font-bold text-white">{meta.title}</h3>
+                              <p className="mt-1 text-xs text-zinc-400 max-w-70 leading-relaxed">{meta.note}</p>
                             </div>
-                            <div className={`rounded-xl border border-white/[0.05] bg-black/40 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${revealed?.key ? 'text-[#d2f20b]' : 'text-zinc-500'}`}>
+                            <div className={`rounded-md border border-border bg-black/40 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${revealed?.key ? 'text-primary' : 'text-zinc-500'}`}>
                               {revealed?.key ? <ShieldCheck size={12} /> : <LockKeyhole size={12} />}
                               {revealed?.key ? 'Revealed' : 'Masked'}
                             </div>
                           </div>
-                          <div className="p-6 space-y-5 flex-1 flex flex-col">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="p-5 space-y-4 flex-1 flex flex-col">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               <InfoPill label="Prefix" value={summary?.prefix || revealed?.prefix || 'Unavailable'} />
                               <InfoPill label="Last used" value={formatTimestamp(undefined)} />
                             </div>
                             
-                            <div className="rounded-2xl border border-white/[0.05] bg-black/50 p-5 mt-auto">
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-3">Current Secret Key</p>
-                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                <code className="text-sm font-mono text-white/90 break-all bg-white/[0.02] px-3 py-2 rounded-lg border border-white/[0.02] flex-1 w-full sm:w-auto">
+                            <div className="rounded-md border border-border bg-zinc-950 p-4 mt-auto">
+                              <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500 mb-2">Current Secret Key</p>
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                <code className="text-xs font-mono text-zinc-200 break-all bg-black px-3 py-2 rounded border border-border flex-1 w-full sm:w-auto">
                                   {revealed?.key || formatMaskedValue(summary?.prefix)}
                                 </code>
-                                <div className="flex gap-2 w-full sm:w-auto">
+                                <div className="flex gap-2 w-full sm:w-auto shrink-0">
                                   <button
                                     onClick={() => {
                                       if (revealed?.key) {
@@ -442,17 +440,17 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
                                       void revealKey(role);
                                     }}
                                     disabled={isBusy}
-                                    className={`flex-1 sm:flex-none rounded-xl border border-white/[0.1] bg-white/[0.05] px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-200 hover:bg-white/[0.1] hover:text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2`}
+                                    className="rounded-md border border-border bg-zinc-900 px-3 py-2 text-xs font-bold text-zinc-200 hover:border-zinc-500 hover:text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                                   >
-                                    {isBusy && loadingRole === role ? <Loader2 size={14} className="animate-spin" /> : revealed?.key ? <EyeOff size={14} /> : <Eye size={14} />}
+                                    {isBusy && loadingRole === role ? <Loader2 size={13} className="animate-spin" /> : revealed?.key ? <EyeOff size={13} /> : <Eye size={13} />}
                                     {revealed?.key ? 'Hide' : 'Reveal'}
                                   </button>
                                   {revealed?.key && (
                                     <button
                                       onClick={() => void copyValue(revealed?.key, `${role}-secret`)}
-                                      className="flex-1 sm:flex-none rounded-xl bg-white/[0.08] hover:bg-white/[0.12] px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition-colors flex items-center justify-center gap-2"
+                                      className="rounded-md bg-primary px-3 py-2 text-xs font-bold text-black hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5"
                                     >
-                                      {copied === `${role}-secret` ? <Check size={14} className="text-[#d2f20b]" /> : <Copy size={14} />}
+                                      {copied === `${role}-secret` ? <Check size={13} /> : <Copy size={13} />}
                                       {copied === `${role}-secret` ? 'Copied' : 'Copy'}
                                     </button>
                                   )}
@@ -460,13 +458,13 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
                               </div>
                             </div>
                             
-                            <div className="pt-2 flex justify-end">
-                               <button
+                            <div className="pt-1 flex justify-end">
+                              <button
                                 onClick={() => setPendingRotateRole(role)}
                                 disabled={isBusy}
-                                className="rounded-xl border border-rose-500/20 text-rose-400 hover:bg-rose-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-colors disabled:opacity-50 flex items-center gap-2"
+                                className="rounded-md border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5"
                               >
-                                {rotatingRole === role ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                                {rotatingRole === role ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
                                 Rotate Key
                               </button>
                             </div>
@@ -497,20 +495,20 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClose }) =>
 };
 
 const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string; isActive?: boolean; highlight?: boolean }> = ({ icon, label, value, isActive, highlight }) => (
-  <div className={`rounded-2xl border p-5 transition-all duration-300 hover:bg-white/[0.03] ${highlight ? 'border-[#d2f20b]/20 bg-[#d2f20b]/[0.02]' : 'border-white/[0.05] bg-[#151515]'}`}>
-    <div className={`flex items-center gap-2 mb-3 ${highlight ? 'text-[#d2f20b]' : 'text-zinc-500'}`}>
+  <div className={`rounded-md border p-4 transition-all ${highlight ? 'border-primary/30 bg-primary/5' : 'border-border bg-zinc-900/50'}`}>
+    <div className={`flex items-center gap-2 mb-2 ${highlight ? 'text-primary' : 'text-zinc-500'}`}>
       {icon}
-      <p className="text-[10px] font-bold uppercase tracking-widest">{label}</p>
-      {isActive && <span className="ml-auto flex h-2 w-2 rounded-full bg-[#d2f20b] shadow-[0_0_8px_rgba(210,242,11,0.8)]"></span>}
+      <p className="text-[9px] font-bold uppercase tracking-wider">{label}</p>
+      {isActive && <span className="ml-auto flex h-2 w-2 rounded-full bg-primary shadow-sm"></span>}
     </div>
-    <p className={`text-sm font-medium break-all ${highlight ? 'text-white/90' : 'text-white/90'}`}>{value}</p>
+    <p className="text-xs font-mono font-bold text-zinc-200 break-all">{value}</p>
   </div>
 );
 
 const InfoPill: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-2xl border border-white/[0.03] bg-white/[0.02] p-4">
-    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">{label}</p>
-    <p className="text-sm font-medium text-white/80 break-all">{value}</p>
+  <div className="rounded-md border border-border bg-zinc-950 p-3">
+    <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500 mb-1">{label}</p>
+    <p className="text-xs font-mono font-bold text-zinc-300 break-all">{value}</p>
   </div>
 );
 

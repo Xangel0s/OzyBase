@@ -23,6 +23,9 @@ COPY . .
 RUN rm -rf internal/api/frontend_dist && mkdir -p internal/api/frontend_dist
 COPY --from=frontend-builder /app/frontend/dist/ internal/api/frontend_dist/
 
+# Ensure migrations directory exists (may be empty in dev)
+RUN mkdir -p /app/migrations
+
 # Build the OzyBase binary
 # CGO_ENABLED=0 ensures a static binary for portability
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o ozybase ./cmd/ozybase

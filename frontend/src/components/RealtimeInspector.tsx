@@ -174,6 +174,26 @@ const RealtimeInspector: React.FC<RealtimeInspectorProps> = ({ view = 'inspector
                         >
                             Clear_Stack
                         </button>
+
+                        <button
+                            onClick={() => {
+                                const simEvent = {
+                                    id: `evt_sim_${Date.now()}`,
+                                    event: ['INSERT', 'UPDATE', 'DELETE'][Math.floor(Math.random() * 3)],
+                                    table: 'users',
+                                    time: new Date().toISOString(),
+                                    record: {
+                                        id: `usr_${Math.random().toString(36).substring(2, 10)}`,
+                                        email: `test_user_${Math.floor(Math.random() * 1000)}@ozybase.local`,
+                                        created_at: new Date().toISOString(),
+                                    }
+                                };
+                                setEvents(prev => [simEvent, ...prev]);
+                            }}
+                            className="h-11 px-6 bg-primary/10 border border-primary/30 text-primary hover:bg-primary hover:text-black rounded-md text-[10px] font-bold uppercase tracking-widest transition-all italic"
+                        >
+                            Simulate_Event
+                        </button>
                     </div>
                 </div>
 

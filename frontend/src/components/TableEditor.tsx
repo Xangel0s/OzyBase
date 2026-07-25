@@ -2314,6 +2314,7 @@ const TableEditor: React.FC<TableEditorProps> = ({
         fetchData={fetchData}
         loading={loading}
         onResetDataView={resetDataView}
+        records={data}
       />
 
       {/* Bulk Actions Bar */}

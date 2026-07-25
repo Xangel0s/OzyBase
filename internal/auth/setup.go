@@ -1,20 +1,26 @@
 package auth
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
+	"net/mail"
 	"os"
 	"strings"
 
+	"github.com/Xangel0s/OzyBase/internal/core"
 	"github.com/Xangel0s/OzyBase/internal/data"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 )
 
 const (
-	passwordChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+	passwordChars    = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+	MinAdminPassword = 12
 )
 
 func generateRandomPassword(length int) string {
@@ -26,6 +32,7 @@ func generateRandomPassword(length int) string {
 	return string(result)
 }
 
+// EnsureAdminUser creates an admin from ENV vars if none exists. Called at server startup.
 func EnsureAdminUser(db *data.DB) {
 	ctx := context.Background()
 
@@ -87,4 +94,115 @@ func EnsureAdminUser(db *data.DB) {
 	}
 	fmt.Println("*  Please change this after your first login!   *")
 	fmt.Println("*************************************************")
+}
+
+// CreateAdminWithWorkspace creates an admin user + a "Primary Project" workspace atomically.
+// Used by the `admin create` CLI command. Returns an error if an admin already exists.
+func CreateAdminWithWorkspace(ctx context.Context, db *data.DB, email, password string) error {
+	email = strings.TrimSpace(strings.ToLower(email))
+	if email == "" {
+		return errors.New("email is required")
+	}
+	if _, err := mail.ParseAddress(email); err != nil {
+		return errors.New("invalid email format")
+	}
+	if len(password) < MinAdminPassword {
+		return fmt.Errorf("password must be at least %d characters", MinAdminPassword)
+	}
+
+	if db == nil || db.Pool == nil {
+		return fmt.Errorf("database connection is required")
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	// Serialize to prevent concurrent double-init
+	if _, err := tx.Exec(ctx, "LOCK TABLE _v_users IN ACCESS EXCLUSIVE MODE"); err != nil {
+		return fmt.Errorf("failed to acquire lock: %w", err)
+	}
+
+	var count int
+	if err := tx.QueryRow(ctx, "SELECT COUNT(*) FROM _v_users WHERE role = 'admin'").Scan(&count); err != nil {
+		return fmt.Errorf("failed to check existing admins: %w", err)
+	}
+	if count > 0 {
+		return errors.New("an admin account already exists. Use 'admin reset' to change the password")
+	}
+
+	var userID string
+	err = tx.QueryRow(ctx, `
+		INSERT INTO _v_users (email, password_hash, role, is_verified)
+		VALUES ($1, $2, 'admin', TRUE)
+		RETURNING id
+	`, email, string(hashed)).Scan(&userID)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return errors.New("an admin account already exists. Use 'admin reset' to change the password")
+		}
+		return fmt.Errorf("failed to create admin: %w", err)
+	}
+
+	if _, err := core.CreateWorkspaceTx(ctx, tx, "Primary Project", userID); err != nil {
+		return fmt.Errorf("failed to create workspace: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+// ResetAdminPassword updates the password for an existing admin user.
+func ResetAdminPassword(ctx context.Context, db *data.DB, email, password string) error {
+	email = strings.TrimSpace(strings.ToLower(email))
+	if email == "" {
+		return errors.New("email is required")
+	}
+	if len(password) < MinAdminPassword {
+		return fmt.Errorf("password must be at least %d characters", MinAdminPassword)
+	}
+	if db == nil || db.Pool == nil {
+		return fmt.Errorf("database connection is required")
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	tag, err := db.Pool.Exec(ctx,
+		"UPDATE _v_users SET password_hash = $1 WHERE email = $2 AND role = 'admin'",
+		string(hashed), email,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("no admin found with email %s", email)
+	}
+	return nil
+}
+
+// DeleteAllAdmins removes every admin user from the database.
+func DeleteAllAdmins(ctx context.Context, db *data.DB) (int64, error) {
+	tag, err := db.Pool.Exec(ctx, "DELETE FROM _v_users WHERE role = 'admin'")
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete admins: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}
+
+// PromptLine reads a single line from stdin with an optional prompt label.
+func PromptLine(prompt string) string {
+	fmt.Print(prompt)
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	return strings.TrimSpace(scanner.Text())
 }

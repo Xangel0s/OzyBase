@@ -3,16 +3,13 @@ import { HashRouter } from 'react-router-dom';
 import AppShell from './components/AppShell';
 import Login from './components/Login';
 import NoProjectAccessState from './components/NoProjectAccessState';
-import SetupWizard from './components/SetupWizard';
 import { useAuthSession } from './hooks/useAuthSession';
-import { useSystemStatus } from './hooks/useSystemStatus';
 import { useWorkspaceResolution } from './hooks/useWorkspaceResolution';
 import { fetchWithAuth, isAbortLikeError } from './utils/api';
 import { addProjectSyncListener } from './utils/projectEvents';
 
 function AppContent() {
     const { isAuthenticated, setIsAuthenticated } = useAuthSession();
-    const { checkingSystem, isSystemInitialized, setIsSystemInitialized } = useSystemStatus();
     const {
         workspaceId,
         setWorkspaceId,
@@ -95,26 +92,6 @@ function AppContent() {
             setAccessRequested(false);
         }
     }, [workspaceId]);
-
-    if (checkingSystem) {
-        return <div className="h-screen w-screen flex items-center justify-center bg-black text-white">Loading OzyBase...</div>;
-    }
-
-    if (!isSystemInitialized) {
-        return (
-            <SetupWizard
-                onComplete={({ token, workspaceId: nextWorkspaceId }: { token: string; workspaceId: string | null; workspaceName: string | null }) => {
-                    setWorkspaceId(nextWorkspaceId);
-                    if (token) {
-                        localStorage.setItem('ozy_token', token);
-                        if (nextWorkspaceId) localStorage.setItem('ozy_workspace_id', nextWorkspaceId);
-                        setIsAuthenticated(true);
-                    }
-                    setIsSystemInitialized(true);
-                }}
-            />
-        );
-    }
 
     if (!isAuthenticated) {
         return <Login onLoginSuccess={() => setIsAuthenticated(true)} />;

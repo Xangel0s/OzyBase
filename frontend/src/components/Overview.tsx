@@ -9,17 +9,105 @@ import {
     Globe,
     Lock,
     MousePointer2,
-    Server,
     ShieldAlert,
     ShieldCheck,
     Sparkles,
     Zap,
-    ChevronDown,
-    ChevronUp,
     Cpu,
     ArrowRight,
 } from 'lucide-react';
 import { fetchWithAuth, isAbortLikeError, readJsonIfOk } from '../utils/api';
+
+// ─── Sparkline SVG (inline, no deps) ────────────────────────────────────────
+const Sparkline = ({
+    data,
+    width = 120,
+    height = 36,
+    color = '#a3e635',
+    fill = true,
+}: {
+    data: number[];
+    width?: number;
+    height?: number;
+    color?: string;
+    fill?: boolean;
+}) => {
+    const points = data.length < 2 ? [] : (() => {
+        const min = Math.min(...data);
+        const max = Math.max(...data);
+        const range = max - min || 1;
+        const pad = 2;
+        return data.map((v, i) => {
+            const x = pad + (i / (data.length - 1)) * (width - pad * 2);
+            const y = pad + ((1 - (v - min) / range) * (height - pad * 2));
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+        });
+    })();
+
+    if (points.length === 0) return <svg width={width} height={height} />;
+
+    const polyline = points.join(' ');
+    const areaPath = `M${points[0]} L${points.join(' L')} L${points[points.length - 1].split(',')[0]},${height} L${points[0].split(',')[0]},${height} Z`;
+
+    return (
+        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+            <defs>
+                <linearGradient id={`sg-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+                    <stop offset="100%" stopColor={color} stopOpacity="0" />
+                </linearGradient>
+            </defs>
+            {fill && (
+                <path d={areaPath} fill={`url(#sg-${color.replace('#', '')})`} />
+            )}
+            <polyline
+                points={polyline}
+                fill="none"
+                stroke={color}
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+            />
+        </svg>
+    );
+};
+
+// ─── Activity bar chart (inline, no deps) ───────────────────────────────────
+const ActivityBars = ({
+    data,
+    width = 80,
+    height = 28,
+    color = '#a3e635',
+}: {
+    data: number[];
+    width?: number;
+    height?: number;
+    color?: string;
+}) => {
+    const recent = data.slice(-20);
+    if (recent.length === 0) return <svg width={width} height={height} />;
+    const max = Math.max(...recent, 1);
+    const barW = Math.floor((width - recent.length) / recent.length);
+    return (
+        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+            {recent.map((v, i) => {
+                const barH = Math.max(2, (v / max) * height);
+                return (
+                    <rect
+                        key={i}
+                        x={i * (barW + 1)}
+                        y={height - barH}
+                        width={barW}
+                        height={barH}
+                        rx={1}
+                        fill={color}
+                        opacity={0.5 + (i / recent.length) * 0.5}
+                    />
+                );
+            })}
+        </svg>
+    );
+};
 
 export function AgentSummaryCard({
     onClick,
@@ -112,6 +200,10 @@ interface ProjectInfo {
         realtime_requests?: number;
         cpu_history?: number[];
         ram_history?: number[];
+        db?: number[];
+        auth?: number[];
+        storage?: number[];
+        realtime?: number[];
     };
     slow_queries?: Array<{
         query: string;
@@ -511,7 +603,7 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                 <section className="relative overflow-hidden rounded-md border border-border bg-zinc-950 p-1">
                     <div
                         ref={cardArenaRef}
-                        className="relative h-full min-h-[400px] overflow-hidden rounded-md border border-dashed border-border/50 bg-zinc-900/20"
+                        className="relative h-full min-h-100 overflow-hidden rounded-md border border-dashed border-border/50 bg-zinc-900/20"
                     >
                         <div className="absolute left-4 top-4 rounded-md border border-border bg-zinc-900 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
                             Draggable Manifest
@@ -526,7 +618,7 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                                 transform: `translate(${cardPosition.x}px, ${cardPosition.y}px)`,
                                 opacity: cardPositionReady ? 1 : 0,
                             }}
-                            className={`absolute w-full max-w-[380px] rounded-md border border-border bg-zinc-900 p-6 shadow-2xl select-none transition-colors ${isDraggingCard ? 'cursor-grabbing border-primary/50' : 'cursor-grab hover:border-zinc-500'}`}
+                            className={`absolute w-full max-w-95 rounded-md border border-border bg-zinc-900 p-6 shadow-2xl select-none transition-colors ${isDraggingCard ? 'cursor-grabbing border-primary/50' : 'cursor-grab hover:border-zinc-500'}`}
                         >
                             <div className="flex items-start justify-between gap-4">
                                 <div className="flex items-center gap-4">
@@ -619,46 +711,53 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                 <div data-testid="overview-runtime-panel" className="rounded-md border border-[#2c2c2c] bg-[#131313] p-6 xl:self-start">
                     <div className="flex items-center justify-between gap-3">
                         <div>
-                            <p className="text-[11px] font-medium] text-zinc-500">Current signals</p>
-                            <h3 className="mt-2 text-2xl font-bold text-white">Runtime pressure</h3>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Current signals</p>
+                            <h3 className="mt-1 text-xl font-bold text-white">Runtime Pressure</h3>
                         </div>
                         <Sparkles size={18} className="text-primary" />
                     </div>
 
-                    <div className="mt-6 flex flex-col gap-3">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-md border border-[#2c2c2c] bg-[#101010] px-4 py-4">
-                                <p className="text-[10px] font-medium] text-zinc-500">CPU</p>
-                                <p className="mt-2 text-3xl font-bold text-white">
-                                    {latestCPU !== null ? `${latestCPU.toFixed(1)}%` : 'n/a'}
-                                </p>
-                                <p className="mt-2 text-sm text-zinc-500">Latest sampled CPU pressure from the runtime store.</p>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-md border border-[#2c2c2c] bg-[#101010] p-4">
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">CPU Usage</p>
+                                <span className="text-xs font-mono font-bold text-primary">
+                                    {latestCPU !== null ? `${latestCPU.toFixed(1)}%` : '0%'}
+                                </span>
                             </div>
-                            <div className="rounded-md border border-[#2c2c2c] bg-[#101010] px-4 py-4">
-                                <p className="text-[10px] font-medium] text-zinc-500">RAM</p>
-                                <p className="mt-2 text-3xl font-bold text-white">
-                                    {latestRAM !== null ? `${latestRAM.toFixed(1)}%` : 'n/a'}
-                                </p>
-                                <p className="mt-2 text-sm text-zinc-500">Latest sampled memory pressure from the runtime store.</p>
+                            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                                <div
+                                    className="h-full bg-primary transition-all duration-500"
+                                    style={{ width: `${Math.min(100, Math.max(0, latestCPU ?? 0))}%` }}
+                                />
                             </div>
                         </div>
-                        <div className="rounded-md border border-[#2c2c2c] bg-[#101010] px-4 py-4">
-                            <p className="text-[10px] font-medium] text-zinc-500">Runtime note</p>
-                            <p className="mt-2 text-sm leading-6 text-zinc-400">
-                                This panel stays compact even when the values are fixed. Use the dedicated module for deeper diagnostics when needed.
-                            </p>
+
+                        <div className="rounded-md border border-[#2c2c2c] bg-[#101010] p-4">
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">RAM Usage</p>
+                                <span className={`text-xs font-mono font-bold ${(latestRAM ?? 0) > 90 ? 'text-amber-400' : 'text-primary'}`}>
+                                    {latestRAM !== null ? `${latestRAM.toFixed(1)}%` : '0%'}
+                                </span>
+                            </div>
+                            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                                <div
+                                    className={`h-full transition-all duration-500 ${(latestRAM ?? 0) > 90 ? 'bg-amber-400' : 'bg-primary'}`}
+                                    style={{ width: `${Math.min(100, Math.max(0, latestRAM ?? 0))}%` }}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div data-testid="overview-issues-panel" className="rounded-md border border-[#2c2c2c] bg-[#131313] p-6 xl:self-start">
-                    <p className="text-[11px] font-medium] text-zinc-500">Latest issues</p>
-                    <h3 className="mt-2 text-2xl font-bold text-white">
-                        {healthIssues.length > 0 ? `${healthIssues.length} need review` : 'No active alerts'}
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Security & Health</p>
+                    <h3 className="mt-1 text-xl font-bold text-white">
+                        {healthIssues.length > 0 ? `${healthIssues.length} issues need review` : 'Active Alerts'}
                     </h3>
                     <div
                         data-testid="overview-issues-scroll"
-                        className="mt-5 flex min-h-[210px] max-h-[min(56vh,520px)] flex-col overflow-y-auto pr-1 custom-scrollbar"
+                        className="mt-5 flex min-h-25 flex-col overflow-y-auto pr-1 custom-scrollbar"
                     >
                         <div className="space-y-3">
                             {visibleIssues.length > 0 ? visibleIssues.map((issue: any, index: number) => (
@@ -666,7 +765,7 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                                     key={`${issue?.title || 'issue'}-${index}`}
                                     type="button"
                                     onClick={() => onViewSelect?.('overview')}
-                                    className="w-full rounded-md border border-[#2c2c2c] bg-[#101010] px-4 py-3.5 text-left transition-colors hover:border-primary/25 hover:bg-[#141414]"
+                                    className="w-full rounded-md border border-[#2c2c2c] bg-[#101010] px-4 py-3 text-left transition-colors hover:border-primary/25 hover:bg-[#141414]"
                                 >
                                     <div className="flex items-start gap-3">
                                         <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-md ${
@@ -676,24 +775,20 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                                         </div>
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm font-bold leading-6 text-zinc-200">{issue?.title || 'Issue detected'}</p>
-                                            <p className="mt-1 text-sm leading-6 text-zinc-500">
-                                {issue?.description || 'Review this item for more context.'}
+                                            <p className="mt-1 text-xs text-zinc-500">
+                                                {issue?.description || 'Review this item for more context.'}
                                             </p>
-                                            <div className="mt-2.5 inline-flex items-center gap-2 rounded-full border border-zinc-800 px-3 py-1 text-[9px] font-medium] text-zinc-500">
-                                                Open details
-                                                <ExternalLink size={12} />
-                                            </div>
                                         </div>
                                     </div>
                                 </button>
                             )) : (
-                                <button
-                                    type="button"
-                                    onClick={() => onViewSelect?.('overview')}
-                                    className="rounded-md border border-[#2c2c2c] bg-[#101010] px-4 py-5 text-left text-sm text-zinc-500 transition-colors hover:border-primary/25 hover:text-zinc-300"
-                                >
-                                    No security or performance alerts are active right now.
-                                </button>
+                                <div className="flex items-center gap-3 rounded-md border border-emerald-500/20 bg-emerald-500/5 px-4 py-4 text-emerald-400">
+                                    <ShieldCheck size={20} className="shrink-0" />
+                                    <div>
+                                        <p className="text-xs font-bold">System Secure</p>
+                                        <p className="text-[11px] text-emerald-300/70">No security or performance alerts detected.</p>
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </div>
@@ -703,41 +798,42 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
             <div className="mt-6 rounded-md border border-[#2c2c2c] bg-[#131313] p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <p className="text-[11px] font-medium] text-zinc-500">Slow queries</p>
-                        <h3 className="mt-2 text-2xl font-bold text-white">Recent database pressure points</h3>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Performance</p>
+                        <h3 className="mt-1 text-xl font-bold text-white">Slow Queries</h3>
                     </div>
                     <button
                         onClick={() => onViewSelect?.('sql')}
-                        className="rounded-md border border-[#2c2c2c] bg-background px-4 py-2 text-sm font-medium] text-zinc-200 transition-colors hover:border-zinc-500 hover:text-white"
+                        className="rounded-md border border-[#2c2c2c] bg-background px-4 py-2 text-xs font-bold text-zinc-200 transition-colors hover:border-zinc-500 hover:text-white"
                     >
-                        Open SQL
+                        Open SQL Editor
                     </button>
                 </div>
 
-                <div className="mt-5 overflow-hidden rounded-md border border-[#2c2c2c]">
-                    <div className="grid grid-cols-[minmax(0,1fr)_110px_90px] border-b border-[#2c2c2c] bg-[#101010] px-5 py-3 text-[10px] font-medium] text-zinc-500">
+                <div className="mt-4 overflow-hidden rounded-md border border-[#2c2c2c]">
+                    <div className="grid grid-cols-[minmax(0,1fr)_110px_90px] border-b border-[#2c2c2c] bg-[#101010] px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                         <span>Query</span>
                         <span className="text-right">Avg time</span>
                         <span className="text-right">Calls</span>
                     </div>
                     <div className="divide-y divide-[#232323]">
                         {slowQueries.length > 0 ? slowQueries.map((query, index) => (
-                            <div key={`${query.query}-${index}`} className="grid grid-cols-[minmax(0,1fr)_110px_90px] gap-4 px-5 py-4 text-sm">
+                            <div key={`${query.query}-${index}`} className="grid grid-cols-[minmax(0,1fr)_110px_90px] gap-4 px-5 py-3 text-xs">
                                 <div className="min-w-0">
                                     <p className="truncate font-mono text-zinc-300" title={query.query}>
                                         {query.query}
                                     </p>
                                 </div>
-                                <span className="text-right font-mono text-zinc-500">
+                                <span className="text-right font-mono text-zinc-400">
                                     {Number(query.avg_time || 0).toFixed(3)}s
                                 </span>
-                                <span className="text-right font-mono text-zinc-500">
+                                <span className="text-right font-mono text-zinc-400">
                                     {query.calls}
                                 </span>
                             </div>
                         )) : (
-                            <div className="px-5 py-6 text-sm text-zinc-500">
-                                No active slow queries were reported in the latest sample.
+                            <div className="flex items-center gap-2.5 px-5 py-4 text-xs text-zinc-400">
+                                <Check size={14} className="text-emerald-400" />
+                                <span>Optimal query performance — no slow queries recorded.</span>
                             </div>
                         )}
                     </div>

@@ -1267,6 +1267,22 @@ LIMIT 25;`;
                 </div>
                 <div className="flex items-center gap-3">
                     <button
+                        onClick={() => {
+                            if (!query.trim()) return;
+                            const formatted = query
+                                .replace(/\s+/g, ' ')
+                                .replace(/\b(SELECT|FROM|WHERE|JOIN|LEFT JOIN|RIGHT JOIN|INNER JOIN|GROUP BY|ORDER BY|LIMIT|OFFSET|HAVING|INSERT INTO|UPDATE|DELETE FROM|VALUES|SET|CREATE TABLE|ALTER TABLE|DROP TABLE)\b/gi, '\n$1')
+                                .trim();
+                            updateQuery(formatted);
+                            showToast('SQL Formatted', 'success');
+                        }}
+                        title="Format SQL (Sparkles)"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-900 border border-border text-zinc-500 hover:text-primary hover:border-primary/40 text-[9px] font-bold uppercase tracking-wider transition-all"
+                    >
+                        <Sparkles size={12} className="text-primary" />
+                        Format
+                    </button>
+                    <button
                         onClick={handleSync}
                         disabled={syncing}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all
@@ -1282,6 +1298,15 @@ LIMIT 25;`;
                     <button onClick={handleSaveQuery} title="Save Query" className="p-2 text-zinc-700 hover:text-primary transition-colors"><Save size={16} /></button>
                     <button onClick={() => updateQuery('')} title="Clear Editor" className="p-2 text-zinc-700 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
                 </div>
+            </div>
+
+            {/* Quick Snippets Bar */}
+            <div className="flex items-center gap-2 px-4 py-1.5 border-b border-border bg-zinc-950/60 overflow-x-auto scrollbar-hide">
+                <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest shrink-0 mr-1">Snippets:</span>
+                <button onClick={() => updateQuery(`SELECT * FROM ${catalog.userTables[0] || 'users'} LIMIT 50;`)} className="px-2 py-0.5 rounded border border-border bg-zinc-900 text-[9px] font-bold text-zinc-400 hover:text-primary hover:border-primary/40 transition-all shrink-0">+ Select 50</button>
+                <button onClick={() => updateQuery(`SELECT count(*) FROM ${catalog.userTables[0] || 'users'};`)} className="px-2 py-0.5 rounded border border-border bg-zinc-900 text-[9px] font-bold text-zinc-400 hover:text-primary hover:border-primary/40 transition-all shrink-0">+ Count Rows</button>
+                <button onClick={() => updateQuery(`SELECT pg_size_pretty(pg_total_relation_size('${catalog.userTables[0] || 'users'}'));`)} className="px-2 py-0.5 rounded border border-border bg-zinc-900 text-[9px] font-bold text-zinc-400 hover:text-primary hover:border-primary/40 transition-all shrink-0">+ Table Size</button>
+                <button onClick={() => updateQuery(`CREATE INDEX idx_${catalog.userTables[0] || 'users'}_created ON ${catalog.userTables[0] || 'users'} (created_at);`)} className="px-2 py-0.5 rounded border border-border bg-zinc-900 text-[9px] font-bold text-zinc-400 hover:text-primary hover:border-primary/40 transition-all shrink-0">+ Create Index</button>
             </div>
 
                 {/* SQL Input (Monaco Editor - Lazy Loaded) */}
@@ -1332,6 +1357,14 @@ LIMIT 25;`;
                                 monacoRef.current = monaco;
                                 monaco.editor.setTheme('ozy-dark');
                                 registerCompletionProvider();
+                                editor.addAction({
+                                    id: 'run-sql-query-shortcut',
+                                    label: 'Run SQL Query',
+                                    keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
+                                    run: () => {
+                                        handleSmartRun();
+                                    }
+                                });
                             }}
                         />
                     </Suspense>

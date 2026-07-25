@@ -19,6 +19,7 @@ import {
     Layers,
     Move,
     RefreshCw,
+    LayoutGrid,
 } from 'lucide-react';
 
 const TABLE_WIDTH = 296;
@@ -332,7 +333,7 @@ const SchemaVisualizer = ({ viewMode = 'user' }: any) => {
 
     const getColumnIcon = (type: string) => {
         const columnType = String(type || '').toLowerCase();
-        if (columnType.includes('uuid')) return <Key size={10} className="text-[#d2f20b]" />;
+        if (columnType.includes('uuid')) return <Key size={10} className="text-primary" />;
         if (columnType.includes('int') || columnType.includes('num')) return <Hash size={10} className="text-blue-400" />;
         if (columnType.includes('bool')) return <ToggleLeft size={10} className="text-green-400" />;
         if (columnType.includes('time') || columnType.includes('date')) return <Calendar size={10} className="text-purple-400" />;
@@ -466,6 +467,34 @@ const SchemaVisualizer = ({ viewMode = 'user' }: any) => {
                 </div>
                 <button
                     onClick={() => {
+                        if (!schema || !schema.tables) return;
+                        const nextPositions: Record<string, { x: number; y: number }> = {};
+                        const cols = Math.max(Math.ceil(Math.sqrt(filteredTables.length)), 3);
+                        const startX = 120;
+                        const startY = 120;
+                        const gapX = 360;
+                        const gapY = 320;
+
+                        filteredTables.forEach((table: any, index: number) => {
+                            const row = Math.floor(index / cols);
+                            const col = index % cols;
+                            nextPositions[table.name] = {
+                                x: startX + col * gapX,
+                                y: startY + row * gapY,
+                            };
+                        });
+
+                        setNodePositions(nextPositions);
+                        setHasInteracted(true);
+                    }}
+                    title="Auto-arrange tables in grid"
+                    className="h-8 flex items-center gap-2 rounded-md border border-border bg-zinc-900/40 px-3 text-[9px] font-bold text-zinc-400 uppercase tracking-widest hover:border-zinc-700 hover:text-white transition-all"
+                >
+                    <LayoutGrid size={12} className="text-primary" />
+                    Auto-Layout
+                </button>
+                <button
+                    onClick={() => {
                         setHasInteracted(false);
                         fitSchemaToViewport();
                     }}
@@ -509,7 +538,7 @@ const SchemaVisualizer = ({ viewMode = 'user' }: any) => {
                     }`}
                     style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` }}
                 >
-                    <svg className="pointer-events-none absolute left-0 top-0 z-0 h-[5000px] w-[5000px]">
+                    <svg className="pointer-events-none absolute left-0 top-0 z-0 h-1250 w-1250">
                         {filteredRelationships.map((relationship: any, index: number) => {
                             const endpoints = getRelationshipEndpoints(relationship);
                             if (!endpoints) {

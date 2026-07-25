@@ -82,6 +82,13 @@ const AuthManager: React.FC<AuthManagerProps> = ({
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(
     null,
   );
+  const [roleFilter, setRoleFilter] = useState<'all' | 'verified' | 'admin'>('all');
+
+  const filteredUsers = useMemo(() => {
+    if (roleFilter === 'verified') return users.filter(u => u.is_verified || u.role === 'admin');
+    if (roleFilter === 'admin') return users.filter(u => u.role === 'admin');
+    return users;
+  }, [users, roleFilter]);
 
   const currentUserId = useMemo(() => {
     try {
@@ -366,7 +373,7 @@ const AuthManager: React.FC<AuthManagerProps> = ({
             </button>
             <button
               onClick={() => setShowCreateUser(true)}
-              className="flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-[10px] font-bold tracking-wider text-black uppercase transition-all hover:bg-[#d2f20b] active:scale-95"
+              className="flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-[10px] font-bold tracking-wider text-black uppercase transition-all hover:bg-primary/90 active:scale-95"
             >
               <UserPlus size={14} strokeWidth={2.5} />
               Add User
@@ -426,7 +433,7 @@ const AuthManager: React.FC<AuthManagerProps> = ({
       <div className="flex-1 overflow-auto p-8">
         <div className="overflow-hidden rounded-md border border-border bg-zinc-900/30">
           <div className="flex items-center justify-between border-b border-border bg-zinc-900 px-6 py-3">
-            <div className="flex gap-4">
+            <div className="flex items-center gap-4">
               <button
                 onClick={() => setActiveTab('users')}
                 className={`text-[10px] font-bold uppercase tracking-wider transition-all ${activeTab === 'users' ? 'text-primary' : 'text-zinc-500 hover:text-zinc-300'}`}
@@ -439,6 +446,13 @@ const AuthManager: React.FC<AuthManagerProps> = ({
               >
                 Active Sessions
               </button>
+              {activeTab === 'users' && (
+                <div className="flex items-center gap-1 ml-4">
+                  <button onClick={() => setRoleFilter('all')} className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase transition-all ${roleFilter === 'all' ? 'bg-primary text-black' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>All ({users.length})</button>
+                  <button onClick={() => setRoleFilter('verified')} className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase transition-all ${roleFilter === 'verified' ? 'bg-primary text-black' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>Verified</button>
+                  <button onClick={() => setRoleFilter('admin')} className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase transition-all ${roleFilter === 'admin' ? 'bg-primary text-black' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>Admins</button>
+                </div>
+              )}
             </div>
             <button
               onClick={
@@ -478,7 +492,7 @@ const AuthManager: React.FC<AuthManagerProps> = ({
                       </div>
                     </td>
                   </tr>
-                ) : users.length === 0 ? (
+                ) : filteredUsers.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-8 py-20 text-center">
                       <p className="text-[10px] font-medium text-zinc-600">
@@ -487,7 +501,7 @@ const AuthManager: React.FC<AuthManagerProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  users.map((user) => (
+                  filteredUsers.map((user) => (
                     <tr
                       key={user.id}
                       className="group transition-colors hover:bg-zinc-900/40"
@@ -656,12 +670,12 @@ const AuthManager: React.FC<AuthManagerProps> = ({
                           <div className="flex h-8 w-8 items-center justify-center rounded bg-zinc-900 text-zinc-600">
                             <Activity size={14} />
                           </div>
-                          <span className="max-w-[180px] truncate text-xs font-bold tracking-tighter text-zinc-200">
+                          <span className="max-w-45 truncate text-xs font-bold tracking-tighter text-zinc-200">
                             {session.id}
                           </span>
                         </div>
                       </td>
-                      <td className="max-w-[200px] truncate px-8 py-5 text-[10px] font-bold text-zinc-500 uppercase">
+                      <td className="max-w-50 truncate px-8 py-5 text-[10px] font-bold text-zinc-500 uppercase">
                         {session.user_agent || 'Generic Agent / OzyBase CLI'}
                       </td>
                       <td className="px-8 py-5 font-mono text-xs text-zinc-500">
@@ -786,7 +800,7 @@ const AuthManager: React.FC<AuthManagerProps> = ({
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-[10px] font-bold text-black uppercase tracking-wider transition-all hover:bg-[#d2f20b] disabled:opacity-60"
+                className="flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-[10px] font-bold text-black uppercase tracking-wider transition-all hover:bg-primary/90 disabled:opacity-60"
               >
                 {submitting ? (
                   <Loader2 size={12} className="animate-spin" />

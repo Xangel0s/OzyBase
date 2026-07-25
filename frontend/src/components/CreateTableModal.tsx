@@ -86,20 +86,20 @@ const SYSTEM_COLUMN_NAMES = new Set(['id', 'updated_at', 'deleted_at', 'created_
 const SECURITY_POSTURE_CARDS: Array<{ key: SecurityPosture; title: string; copy: string; accent: string }> = [
     {
         key: 'easy',
-        title: 'Modo Facil',
-        copy: 'Ideal para prototipos y catalogos. Lectura publica y escritura para usuarios autenticados.',
+        title: 'Easy Mode',
+        copy: 'Ideal for prototypes & public catalogs. Public read access, authenticated write access.',
         accent: 'border-emerald-500/40',
     },
     {
         key: 'secure',
-        title: 'Modo Seguro',
-        copy: 'La norma para apps privadas. Los usuarios solo acceden a lo que les pertenece.',
+        title: 'Secure Mode',
+        copy: 'Standard for private apps. Users can only access rows belonging to them.',
         accent: 'border-sky-500/40',
     },
     {
         key: 'fortress',
-        title: 'Modo Blindado',
-        copy: 'Aislamiento total. Ni siquiera el administrador accede sin una regla explicita.',
+        title: 'Strict Mode',
+        copy: 'Total isolation. All row access requires explicit custom SQL policy rules.',
         accent: 'border-rose-500/40',
     },
 ];
@@ -1164,10 +1164,10 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                         </div>
                         <div>
                             <h2 className="text-[11px] font-bold text-white uppercase tracking-widest leading-none">
-                                {isEditMode ? 'Modify_Table_DNA' : 'Provision_New_Table'}
+                                {isEditMode ? 'Edit Table' : 'Create Table'}
                             </h2>
-                            <p className="mt-1.5 text-[9px] font-bold text-zinc-600 uppercase tracking-widest italic leading-none">
-                                Ozy_Kernel :: {isEditMode ? 'Re-Sequence_Schema' : 'Initialize_Node'}
+                            <p className="mt-1.5 text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none">
+                                Configure Schema & Security Policies
                             </p>
                         </div>
                     </div>
@@ -1185,28 +1185,28 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                         {/* Name & Identity */}
                         <div className="space-y-6">
                             <div className="group space-y-2.5">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 italic">Project_Node_Identity :: Table_Name</label>
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Table Name</label>
                                 <input
                                     type="text"
                                     value={name}
                                     onChange={(e: any) => setName(e.target.value)}
                                     className="w-full rounded-md border border-border bg-zinc-950 px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-white focus:border-primary/30 outline-none transition-all placeholder:text-zinc-800"
-                                    placeholder="IDENTIFIER..."
+                                    placeholder="table_name"
                                 />
-                                <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-tight text-zinc-700 italic">
-                                    <span>// Normalized_Kernel_Handle:</span>
-                                    <span className="text-zinc-500 font-mono">{normalizedTableName || 'NULL_VECTOR'}</span>
-                                    {isEditMode && <span className="text-amber-500/50 ml-2">!! MUTATION_WILL_RENAME_ENTITY</span>}
+                                <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-tight text-zinc-600">
+                                    <span>Database Identifier:</span>
+                                    <span className="text-zinc-400 font-mono">{normalizedTableName || 'none'}</span>
+                                    {isEditMode && <span className="text-amber-500/80 ml-2">Warning: Renaming existing table</span>}
                                 </div>
                             </div>
                             <div className="group space-y-2.5">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 italic">Metadata_Buffer :: Description</label>
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Description (Optional)</label>
                                 <input
                                     type="text"
                                     value={description}
                                     onChange={(e: any) => setDescription(e.target.value)}
                                     className="w-full rounded-md border border-border bg-zinc-950/50 px-4 py-3 text-[11px] text-zinc-400 focus:border-primary/20 outline-none transition-all placeholder:text-zinc-800"
-                                    placeholder="Optional_Metadata..."
+                                    placeholder="Brief description of this table..."
                                 />
                             </div>
                         </div>
@@ -1215,13 +1215,13 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                         <div className="rounded-md border border-border bg-zinc-950/50 p-8 space-y-8">
                             <div className="flex items-start justify-between gap-6">
                                 <div className="space-y-2">
-                                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-white italic">Protocol_RLS :: Row_Level_Security</h3>
-                                    <p className="text-[10px] font-bold uppercase tracking-tight text-zinc-600 leading-relaxed max-w-lg">
-                                        Authorizes granular mutation and selection access at the kernel level. <span className="text-zinc-500 underline decoration-primary/30 decoration-dashed underline-offset-4 cursor-help">Postgres policies enforced.</span>
+                                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-white">Row Level Security (RLS)</h3>
+                                    <p className="text-[10px] font-bold uppercase tracking-tight text-zinc-500 leading-relaxed max-w-lg">
+                                        Enforces granular row-level access control rules. <span className="text-zinc-400 underline decoration-primary/30 decoration-dashed underline-offset-4 cursor-help">Postgres policies enforced.</span>
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 italic">Active_Status</label>
+                                    <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">RLS Enabled</label>
                                     <button
                                         type="button"
                                         onClick={() => handleRlsEnabledChange(!isRLSEnabled)}
@@ -1239,7 +1239,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                             <div className="space-y-5">
                                                 <div className="flex items-center gap-3">
                                                     <Shield size={14} className="text-primary" />
-                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 italic">Security_Posture_Selection</span>
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Security Presets</span>
                                                 </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                                     {SECURITY_POSTURE_CARDS.map((card) => {
@@ -1257,10 +1257,10 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                                             >
                                                                 <div className={`absolute top-0 left-0 h-1 w-full transition-all duration-500 ${selected ? 'bg-primary scale-x-100' : 'bg-zinc-800 scale-x-0 group-hover:scale-x-50'}`} />
                                                                 <p className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${selected ? 'text-primary' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
-                                                                    {card.title.replace(' ', '_')}
+                                                                    {card.title}
                                                                 </p>
-                                                                <p className="mt-3 text-[9px] font-bold uppercase tracking-tight text-zinc-600 leading-relaxed">
-                                                                    // {card.copy}
+                                                                <p className="mt-3 text-[9px] font-bold uppercase tracking-tight text-zinc-500 leading-relaxed">
+                                                                    {card.copy}
                                                                 </p>
                                                                 {selected && (
                                                                     <div className="absolute bottom-3 right-3">
@@ -1278,9 +1278,9 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                                     <div className="flex items-start gap-4">
                                                         <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
                                                         <div className="space-y-1">
-                                                            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500 italic">Validation_Warning :: Missing_Identity_Column</p>
-                                                            <p className="text-[9px] font-bold uppercase tracking-tight text-zinc-600 italic leading-relaxed">
-                                                                Selected posture requires <span className="text-zinc-400 font-mono">{requiredPolicyColumn}</span> (uuid). Authorization logic will fail without this vector.
+                                                            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">Missing Owner Column</p>
+                                                            <p className="text-[9px] font-bold uppercase tracking-tight text-zinc-500 leading-relaxed">
+                                                                Selected preset requires column <span className="text-zinc-300 font-mono">{requiredPolicyColumn}</span> (uuid) to map row ownership.
                                                             </p>
                                                         </div>
                                                     </div>
@@ -1293,7 +1293,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                                         }}
                                                         className="flex items-center gap-2 rounded-md bg-amber-500 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-black hover:bg-amber-400 transition-all active:scale-95 shrink-0"
                                                     >
-                                                        Patch_Schema
+                                                        Add Owner Column
                                                     </button>
                                                 </div>
                                             )}
@@ -1305,7 +1305,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                                         onMenuViewSelect('db_api');
                                                         requestClose();
                                                     }}
-                                                    className="flex items-center gap-2 rounded-md bg-zinc-950 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-600 border border-border hover:text-white hover:border-zinc-700 transition-all"
+                                                    className="flex items-center gap-2 rounded-md bg-zinc-950 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 border border-border hover:text-white hover:border-zinc-700 transition-all"
                                                 >
                                                     <Info size={12} /> Documentation
                                                 </button>
@@ -1317,7 +1317,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                                     }}
                                                     className="flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-300 border border-border hover:bg-zinc-800 hover:border-zinc-600 transition-all"
                                                 >
-                                                    <Settings size={12} /> Custom_Override
+                                                    <Settings size={12} /> Advanced Rules
                                                 </button>
                                             </div>
                                         </div>
@@ -1459,14 +1459,14 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-3">
                                         <Zap size={14} className="text-primary" />
-                                        <h3 className="text-[11px] font-bold uppercase tracking-widest text-white italic">Protocol_Realtime :: CDC_Stream</h3>
+                                        <h3 className="text-[11px] font-bold uppercase tracking-widest text-white">Realtime Events</h3>
                                     </div>
-                                    <p className="text-[10px] font-bold uppercase tracking-tight text-zinc-600 leading-relaxed max-w-lg">
-                                        Broadcasts kernel mutation events via websocket. <span className="text-zinc-500 underline decoration-primary/30 decoration-dashed underline-offset-4 cursor-help">Supabase Realtime enabled.</span>
+                                    <p className="text-[10px] font-bold uppercase tracking-tight text-zinc-500 leading-relaxed max-w-lg">
+                                        Broadcast row mutation events in real-time via WebSocket. <span className="text-zinc-400 underline decoration-primary/30 decoration-dashed underline-offset-4 cursor-help">Supabase Realtime enabled.</span>
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 italic">Stream_Active</label>
+                                    <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Realtime Enabled</label>
                                     <button
                                         type="button"
                                         onClick={() => setIsRealtimeEnabled(!isRealtimeEnabled)}
@@ -1483,11 +1483,11 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                             <div className="flex items-center justify-between border-b border-border pb-4">
                                 <div className="flex items-center gap-3">
                                     <Database size={16} className="text-primary" />
-                                    <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-white">Schema_Architect :: Column_Allocation</h3>
+                                    <h3 className="text-[12px] font-bold uppercase tracking-[0.2em] text-white">Columns</h3>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <label className="flex items-center gap-2 rounded-md border border-border bg-zinc-950 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white hover:border-zinc-700 transition-all cursor-pointer">
-                                        <ArrowUpFromLine size={12} /> Import_Buffer
+                                        <ArrowUpFromLine size={12} /> Import CSV
                                         <input
                                             type="file"
                                             accept=".csv"
@@ -1500,7 +1500,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                         onClick={addColumn}
                                         className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-black hover:bg-primary/90 shadow-lg shadow-primary/10 transition-all active:scale-95"
                                     >
-                                        <Plus size={14} /> Allocation_Add
+                                        <Plus size={14} /> Add Column
                                     </button>
                                 </div>
                             </div>
@@ -1508,7 +1508,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                 {csvRecords.length > 0 && (
                                     <div className="flex items-center gap-2 rounded-md border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-emerald-500 animate-in fade-in zoom-in duration-500">
                                         <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                        <span>{csvRecords.length} Records_Staged_In_Buffer</span>
+                                        <span>{csvRecords.length} Records ready for import</span>
                                         <button
                                             onClick={() => { setCsvRecords([]); setColumns(getDefaultColumns()); }}
                                             className="ml-2 text-emerald-500/50 hover:text-emerald-500 transition-colors"
@@ -1524,9 +1524,9 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                     <div className="flex items-start gap-4">
                                         <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
                                         <div className="space-y-1">
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500 italic">Integrity_Warning :: No_Primary_Key</p>
-                                            <p className="text-[9px] font-bold uppercase tracking-tight text-zinc-600 italic leading-relaxed">
-                                                Table state cannot be deterministically mutation-synced without a primary key vector. Data corruption risk high.
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">Missing Primary Key</p>
+                                            <p className="text-[9px] font-bold uppercase tracking-tight text-zinc-500 leading-relaxed">
+                                                A primary key column is required to uniquely identify and mutate rows in this table.
                                             </p>
                                         </div>
                                     </div>
@@ -1535,11 +1535,11 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
 
                             <div className="space-y-3">
                                 {/* Technical Header Matrix */}
-                                <div className="grid grid-cols-12 gap-3 px-6 text-[9px] font-bold uppercase tracking-widest text-zinc-600 italic">
-                                    <div className="col-span-4">Allocation_Identifier</div>
-                                    <div className="col-span-3">Data_Type_Vector</div>
-                                    <div className="col-span-3">Default_Buffer</div>
-                                    <div className="col-span-2 flex justify-center">Control_Flags</div>
+                                <div className="grid grid-cols-12 gap-3 px-6 text-[9px] font-bold uppercase tracking-widest text-zinc-500">
+                                    <div className="col-span-4">Column Name</div>
+                                    <div className="col-span-3">Type</div>
+                                    <div className="col-span-3">Default Value</div>
+                                    <div className="col-span-2 flex justify-center">Constraints</div>
                                 </div>
                             {/* Column Rows Matrix */}
                             <div className="space-y-3">
@@ -1572,16 +1572,16 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                                 onChange={(e) => updateColumn(col.id, { name: e.target.value })}
                                                 disabled={col.isSystem}
                                                 className={`w-full bg-zinc-950 border border-border rounded-md px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-white focus:border-primary/30 outline-none transition-all placeholder:text-zinc-800 ${col.isSystem ? 'opacity-40 cursor-not-allowed border-dashed' : ''}`}
-                                                placeholder="IDENTIFIER..."
+                                                placeholder="column_name"
                                             />
                                             {col.isSystem && (
-                                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[8px] font-bold uppercase tracking-widest text-zinc-600 italic">
+                                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[8px] font-bold uppercase tracking-widest text-zinc-600">
                                                     <Lock size={10} /> SYS
                                                 </div>
                                             )}
                                             {requiresPolicyOwnerColumn && normalizeIdentifier(col.name) === normalizeIdentifier(requiredPolicyColumn) && (
                                                 <div className="absolute -top-2 -right-1 rounded bg-primary px-1 py-0.5 text-[7px] font-bold uppercase tracking-widest text-black shadow-lg">
-                                                    RLS_VECTOR
+                                                    RLS OWNER
                                                 </div>
                                             )}
                                         </div>
@@ -1661,7 +1661,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                     <div className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-zinc-700 group-hover:border-primary transition-colors">
                                         <Plus size={12} className="text-zinc-600 group-hover:text-primary transition-colors" />
                                     </div>
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 group-hover:text-zinc-400 transition-colors">Add_Buffer_Allocation</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 group-hover:text-zinc-400 transition-colors">Add Column</span>
                                 </button>
                             </div>
                         </div>
@@ -1672,8 +1672,8 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                 <div className="flex items-start gap-4">
                                     <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-red-500 italic">Validation_Fault :: Kernel_Constraint_Violation</p>
-                                        <p className="text-[9px] font-bold uppercase tracking-tight text-zinc-600 italic leading-relaxed">
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-red-500">Schema Validation Error</p>
+                                        <p className="text-[9px] font-bold uppercase tracking-tight text-zinc-500 leading-relaxed">
                                             {error}
                                         </p>
                                     </div>
@@ -1684,7 +1684,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                         onClick={handleAddOwnerColumn}
                                         className="rounded-md bg-red-500 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-red-400 transition-all active:scale-95 shrink-0"
                                     >
-                                        Patch_Vector
+                                        Fix Schema
                                     </button>
                                 )}
                             </div>
@@ -1697,8 +1697,8 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                     <div className="mx-auto flex max-w-4xl items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className={`h-1.5 w-1.5 rounded-full ${loading || isHydrating ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'}`} />
-                            <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 italic">
-                                {isHydrating ? 'Syncing_Kernel...' : loading ? 'Mutating_Entity...' : 'Kernel_Status :: Ready'}
+                            <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">
+                                {isHydrating ? 'Syncing...' : loading ? 'Saving...' : 'Status: Ready'}
                             </span>
                         </div>
                         <div className="flex items-center gap-4">

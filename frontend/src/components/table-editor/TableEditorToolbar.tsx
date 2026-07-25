@@ -16,6 +16,7 @@ import {
     SlidersHorizontal,
     Wifi,
     X,
+    Download,
 } from 'lucide-react';
 import OzySelect from '../OzySelect';
 import TableEditorColumnsPanel from './TableEditorColumnsPanel';
@@ -83,6 +84,7 @@ interface TableEditorToolbarProps {
     fetchData: () => Promise<void>;
     loading: boolean;
     onResetDataView: () => void;
+    records?: any[];
 }
 
 const TableEditorToolbar: React.FC<TableEditorToolbarProps> = ({
@@ -90,6 +92,7 @@ const TableEditorToolbar: React.FC<TableEditorToolbarProps> = ({
     currentTableLabel,
     tableName,
     allTables = [],
+    records = [],
     onTableSelect,
     isTableSwitcherOpen,
     setIsTableSwitcherOpen,
@@ -345,11 +348,31 @@ const TableEditorToolbar: React.FC<TableEditorToolbarProps> = ({
                         <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                     </button>
 
+                    {/* EXPORT DATA */}
+                    <button
+                        onClick={() => {
+                            if (!records || records.length === 0) return;
+                            const jsonContent = JSON.stringify(records, null, 2);
+                            const blob = new Blob([jsonContent], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${tableName || 'export'}_records.json`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                        }}
+                        disabled={!records || records.length === 0}
+                        className="p-2 rounded-lg border border-zinc-800 bg-[#161616] text-zinc-400 hover:text-primary hover:border-primary/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Export Table Records (JSON)"
+                    >
+                        <Download size={16} />
+                    </button>
+
                     {/* INSERT */}
                     <div className="relative">
                         <button
                             onClick={() => setIsInsertDropdownOpen(!isInsertDropdownOpen)}
-                            className="flex items-center gap-2 rounded-lg bg-[#d2f20b] hover:bg-[#c0e00a] px-4 py-1.5 text-xs font-bold text-black transition-all shadow-[0_2px_10px_rgba(210,242,11,0.2)] ml-2"
+                            className="flex items-center gap-2 rounded-md bg-primary hover:bg-primary/90 px-4 py-1.5 text-xs font-bold text-black transition-all shadow-sm ml-2"
                         >
                             <Plus size={14} strokeWidth={3} />
                             Insert

@@ -428,6 +428,13 @@ const EdgeFunctions: React.FC = () => {
                                     </div>
                                 </div>
                                 
+                                <div className="flex items-center gap-2 mb-3">
+                                     <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Templates:</span>
+                                     <button type="button" onClick={() => setCurrentFn({ ...currentFn, script: DEFAULT_FUNCTION_SCRIPT })} className="px-2 py-0.5 rounded border border-border bg-zinc-900 text-[9px] font-bold text-zinc-400 hover:text-primary transition-all">Hello World</button>
+                                     <button type="button" onClick={() => setCurrentFn({ ...currentFn, script: `/** Stripe Webhook Handler */\nconst event = body;\nif (event.type === 'payment_intent.succeeded') {\n    console.log('Payment succeeded:', event.data.object.id);\n}\nreturn { received: true };` })} className="px-2 py-0.5 rounded border border-border bg-zinc-900 text-[9px] font-bold text-zinc-400 hover:text-primary transition-all">Stripe Webhook</button>
+                                     <button type="button" onClick={() => setCurrentFn({ ...currentFn, script: `/** AI Completion Handler */\nconst prompt = body.prompt || "Hello world";\nreturn {\n    completion: "AI Response generated for: " + prompt,\n    tokens: 42\n};` })} className="px-2 py-0.5 rounded border border-border bg-zinc-900 text-[9px] font-bold text-zinc-400 hover:text-primary transition-all">AI Completion</button>
+                                 </div>
+                                 
                                 <div className="flex-1 relative group rounded-[40px] overflow-hidden border border-white/5 shadow-inner">
                                     <textarea
                                         value={currentFn.script}

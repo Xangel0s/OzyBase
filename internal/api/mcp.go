@@ -328,12 +328,12 @@ func (h *Handler) ConfirmMcpDeviceApproval(c echo.Context) error {
 	}
 	
 	_, err = h.DB.Pool.Exec(ctx, `
-		INSERT INTO _v_api_keys (id, name, key_hash, prefix, role, is_active, workspace_id, security_level)
-		VALUES ($1, $2, $3, $4, $5, true, $6, $7)
-	`, apiKeyID, name, keyHash, prefix, "service_role", workspaceVal, "restringido")
+		INSERT INTO _v_api_keys (id, name, key_hash, prefix, role, is_active, workspace_id)
+		VALUES ($1, $2, $3, $4, $5, true, $6)
+	`, apiKeyID, name, keyHash, prefix, "service_role", workspaceVal)
 
 	if err != nil {
-		return c.HTML(http.StatusInternalServerError, fmt.Sprintf(`<h1>Error</h1><p>Failed to store API key: %%v</p>`, err))
+		return c.HTML(http.StatusInternalServerError, fmt.Sprintf(`<h1>Error</h1><p>Failed to store API key: %v</p>`, err))
 	}
 
 	deviceRequestsMu.Lock()

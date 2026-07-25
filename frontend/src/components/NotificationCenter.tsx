@@ -27,7 +27,7 @@ interface NotificationCenterProps {
 const NotificationCenter = ({ isOpen, onClose, issues, onIssueAction, onReviewIssue, onViewLogs }: NotificationCenterProps) => {
     return (
         <div
-            className={`absolute right-0 top-full z-100 mt-3 w-[420px] max-w-[calc(100vw-1.5rem)] overflow-hidden origin-top-right transition-all duration-200 ozy-floating-panel ${
+            className={`absolute right-0 top-full z-100 mt-3 w-105 max-w-[calc(100vw-1.5rem)] overflow-hidden origin-top-right transition-all duration-200 ozy-floating-panel ${
                 isOpen
                     ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
                     : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'
@@ -36,7 +36,7 @@ const NotificationCenter = ({ isOpen, onClose, issues, onIssueAction, onReviewIs
         >
             <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-background">
                 <div className="flex items-center gap-2">
-                    <Bell size={16} className="text-[#d2f20b]" />
+                    <Bell size={16} className="text-primary" />
                     <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Notifications</h3>
                 </div>
                 <div className="flex items-center gap-3">

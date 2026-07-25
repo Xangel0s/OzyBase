@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Lock, Mail, Loader2, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, Loader2, ArrowRight, ShieldCheck, Terminal } from 'lucide-react';
 import { login, verifyMfa, requestPasswordReset, confirmPasswordReset, getSocialLoginUrl } from '../services/authService';
 
 type AuthFlow = 'login' | 'request' | 'confirm' | 'mfa';
@@ -43,6 +43,15 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
     const [message, setMessage] = useState<string | null>(null);
     const [mfaCode, setMfaCode] = useState('');
     const [mfaUser, setMfaUser] = useState<string | null>(null);
+    const [systemInitialized, setSystemInitialized] = useState(true);
+
+    // Check if any admin exists — show setup callout if not
+    useEffect(() => {
+        fetch('/api/system/status', { cache: 'no-store', headers: { Accept: 'application/json' } })
+            .then((r) => r.json())
+            .then((d) => setSystemInitialized(Boolean(d.initialized)))
+            .catch(() => {/* keep default true — don't block login on network error */});
+    }, []);
 
     useEffect(() => {
         const resetToken = sessionStorage.getItem('ozy_reset_token');
@@ -146,6 +155,25 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
 
                 <div className="bg-background/80 backdrop-blur-xl border border-border rounded-md p-8 shadow-2xl ring-1 ring-white/5">
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {!systemInitialized && (
+                            <div className="border border-yellow-500/30 bg-yellow-500/5 rounded-md p-4 space-y-2">
+                                <div className="flex items-center gap-2 text-yellow-400 text-xs font-bold uppercase tracking-widest">
+                                    <Terminal size={14} />
+                                    System not initialized
+                                </div>
+                                <p className="text-zinc-400 text-xs leading-relaxed">
+                                    No admin account found. Create one from the terminal:
+                                </p>
+                                <code className="block bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-xs text-yellow-300 font-mono">
+                                    ./ozybase admin create --email x --password y
+                                </code>
+                                <p className="text-zinc-600 text-[10px]">
+                                    Or set <span className="text-zinc-400 font-mono">INITIAL_ADMIN_EMAIL</span> +{' '}
+                                    <span className="text-zinc-400 font-mono">INITIAL_ADMIN_PASSWORD</span> in your .env and restart.
+                                </p>
+                            </div>
+                        )}
+
                         {error && (
                             <div className="bg-red-500/10 border border-red-500/20 rounded-md p-4 text-red-500 text-xs font-bold uppercase tracking-wide flex items-center gap-3 animate-in shake duration-300">
                                 <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]" />
