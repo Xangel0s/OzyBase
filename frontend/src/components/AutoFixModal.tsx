@@ -70,7 +70,7 @@ const AutoFixModal = ({
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 text-amber-500 text-[10px] font-bold uppercase tracking-[0.2em]">
                             <AlertTriangle size={14} />
-                            <span>{issue.type === 'performance' ? 'Optimization_Matrix_Warning' : 'Structural_Impact_Alert'}</span>
+                            <span>{issue.type === 'performance' ? 'Performance Warning' : 'Structural Alert'}</span>
                         </div>
 
                         <div className="space-y-4 rounded-md border border-border bg-zinc-950/50 p-6">
@@ -98,7 +98,7 @@ const AutoFixModal = ({
                                     <>
                                         <div className="flex gap-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
                                             <Check size={14} className="text-emerald-500 shrink-0" />
-                                            <span>RESTRICT_ACCESS: Public {'>'} Auth_Vector</span>
+                                            <span>Restrict Access: Require Authentication</span>
                                         </div>
                                         <div className="rounded-md border border-zinc-800 bg-zinc-950 p-3 font-mono text-[10px] leading-tight text-zinc-600">
                                             <span className="text-primary italic">UPDATE</span> _v_collections <span className="text-primary italic">SET</span> list_rule = 'auth' <span className="text-primary italic">WHERE</span> list_rule = 'public';
@@ -127,7 +127,7 @@ const AutoFixModal = ({
                                     ) : (
                                         <>
                                             <AlertTriangle size={12} className="text-amber-500 shrink-0" />
-                                            <span>Manual_Action_Required: High_Risk_Vector</span>
+                                            <span>Manual Action Required: High Risk Configuration</span>
                                         </>
                                     )}
                                 </div>

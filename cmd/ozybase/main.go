@@ -607,7 +607,7 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 			}
 			// Skip CSRF for login endpoint
 			path := c.Request().URL.Path
-			if path == "/api/auth/login" || path == "/api/auth/signup" || path == "/api/system/status" || path == "/api/project/metrics" || strings.HasPrefix(path, "/api/project/mcp") {
+			if path == "/api/auth/login" || path == "/api/auth/signup" || path == "/api/system/status" || path == "/api/project/metrics" || strings.HasPrefix(path, "/api/project/mcp") || strings.HasPrefix(path, "/api/functions/") {
 				return true
 			}
 			return false
@@ -838,6 +838,7 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 		apiGroup.POST("/project/security/rls/enforce", h.EnforceRLSAll, authRequired, adminOnly)
 		apiGroup.POST("/project/security/rls/closeout", h.RunRLSCloseout, authRequired, adminOnly)
 		apiGroup.GET("/project/security/admin-audit", h.ListAdminAuditEvents, authRequired, adminOnly)
+		apiGroup.GET("/project/schema/types", h.ExportTypeScriptTypes, authRequired)
 
 		// Integrations (Slack, Discord, SIEM)
 		apiGroup.GET("/project/integrations", h.ListIntegrations, authRequired)

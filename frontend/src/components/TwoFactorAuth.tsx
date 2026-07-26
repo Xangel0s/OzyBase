@@ -178,7 +178,7 @@ const TwoFactorAuth = () => {
                                    <span className="text-[9px] font-bold uppercase tracking-widest italic text-zinc-400">Layer_02_MFA</span>
                                 </div>
                                 <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
-                                <span className={`text-[10px] font-bold uppercase tracking-[0.2em] italic ${isEnabled ? 'text-emerald-500' : 'text-zinc-600'}`}>{isEnabled ? 'SECURED_PERIMETER' : 'VULNERABLE_VECTOR'}</span>
+                                <span className={`text-[10px] font-bold uppercase tracking-[0.2em] italic ${isEnabled ? 'text-emerald-500' : 'text-zinc-600'}`}>{isEnabled ? '2FA Enabled' : '2FA Disabled'}</span>
                             </div>
                         </div>
                     </div>
@@ -195,7 +195,7 @@ const TwoFactorAuth = () => {
                                     <div className="flex items-center gap-3">
                                         <h2 className="text-3xl font-bold tracking-tighter text-white italic">Core Protection</h2>
                                         <span className={`text-[9px] font-bold px-3 py-1 rounded-full border uppercase tracking-widest ${isEnabled ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-                                            {isEnabled ? 'ACTIVE_SHIELD' : 'UNPROTECTED'}
+                                            {isEnabled ? 'Active' : 'Disabled'}
                                         </span>
                                     </div>
                                     <p className="text-zinc-500 text-sm font-medium max-w-md">
@@ -232,8 +232,8 @@ const TwoFactorAuth = () => {
                                         <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest italic leading-none">Session Integrity</p>
                                         <p className="text-[11px] text-zinc-400 font-medium">
                                             {pendingFirstProtectedSignIn 
-                                                ? 'PENDING_VALIDATION: Login required to confirm current vector.' 
-                                                : `VALIDATED_VECTOR: Last entry verified at ${new Date(lastUsedAt || '').toLocaleString()}`
+                                                ? 'Pending: Login required to confirm.' 
+                                                : `Verified: Last entry verified at ${new Date(lastUsedAt || '').toLocaleString()}`
                                             }
                                         </p>
                                     </div>

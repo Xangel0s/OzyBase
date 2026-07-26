@@ -56,7 +56,7 @@ const TableEditorColumnsPanel: React.FC<TableEditorColumnsPanelProps> = ({
                 <div className="border-b border-border px-4 py-4">
                     <div className="flex items-center justify-between gap-3">
                         <div>
-                            <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest italic">Column_Registry</p>
+                            <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest italic">Columns</p>
                             <p className="mt-1 text-[11px] font-bold text-zinc-300 uppercase tracking-tight">
                                 {visibleColumnCount}/{totalColumnCount} ACTIVE
                                 {hiddenColumnCount > 0 && <span className="text-zinc-600"> · {hiddenColumnCount} HIDDEN</span>}
@@ -66,7 +66,7 @@ const TableEditorColumnsPanel: React.FC<TableEditorColumnsPanelProps> = ({
                             onClick={openAddColumn}
                             className="rounded-md border border-border bg-zinc-800 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-zinc-400 transition-all hover:text-white hover:border-zinc-600"
                         >
-                            Add_Field
+                            Add Column
                         </button>
                     </div>
                     <div className="relative mt-4">
@@ -75,7 +75,7 @@ const TableEditorColumnsPanel: React.FC<TableEditorColumnsPanelProps> = ({
                             type="text"
                             value={columnSearchTerm}
                             onChange={(event) => setColumnSearchTerm(event.target.value)}
-                            placeholder="SEARCH_MANIFEST..."
+                            placeholder="Search columns..."
                             className="w-full rounded-md border border-border bg-zinc-950 py-2 pl-9 pr-3 text-[10px] font-bold uppercase tracking-tight text-white placeholder:text-zinc-800 focus:border-primary/30 focus:outline-none"
                         />
                     </div>
@@ -86,20 +86,20 @@ const TableEditorColumnsPanel: React.FC<TableEditorColumnsPanelProps> = ({
                         onClick={showAllColumns}
                         className="rounded-md border border-border bg-zinc-800 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-zinc-400 transition-all hover:text-white hover:border-zinc-600"
                     >
-                        Reveal_All
+                        Show All
                     </button>
                     <button
                         onClick={resetColumnLayout}
                         className="rounded-md border border-border bg-zinc-800 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-zinc-500 transition-all hover:text-zinc-300 hover:border-zinc-600"
                     >
-                        Reset_Flow
+                        Reset
                     </button>
                 </div>
 
                 <div className="max-h-80 overflow-y-auto custom-scrollbar p-1.5 bg-zinc-950/50">
                     {filteredColumnOptions.length === 0 ? (
                         <div className="px-3 py-8 text-center text-[10px] font-bold uppercase tracking-widest text-zinc-700 italic">
-                            Manifest_Empty
+                            No columns found
                         </div>
                     ) : (
                         <div className="space-y-0.5">
@@ -147,7 +147,7 @@ const TableEditorColumnsPanel: React.FC<TableEditorColumnsPanelProps> = ({
                                             } ${isIdentityColumn ? 'cursor-not-allowed opacity-30!' : ''}`}
                                         >
                                             <Pin size={10} strokeWidth={isPinned ? 3 : 2} />
-                                            <span>{isPinned ? 'Locked' : 'Lock'}</span>
+                                            <span>{isPinned ? 'Pinned' : 'Pin'}</span>
                                         </button>
                                     </div>
                                 );

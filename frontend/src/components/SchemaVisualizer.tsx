@@ -20,6 +20,7 @@ import {
     Move,
     RefreshCw,
     LayoutGrid,
+    FileCode,
 } from 'lucide-react';
 
 const TABLE_WIDTH = 296;
@@ -509,6 +510,16 @@ const SchemaVisualizer = ({ viewMode = 'user' }: any) => {
                 >
                     <FileSpreadsheet size={12} />
                     CSV
+                </button>
+                <button
+                    onClick={() => {
+                        window.open('/api/project/schema/types', '_blank');
+                    }}
+                    title="Export TypeScript Interfaces"
+                    className="h-8 flex items-center gap-2 rounded-md border border-border bg-zinc-900/40 px-3 text-[9px] font-bold text-zinc-400 uppercase tracking-widest hover:border-zinc-700 hover:text-white transition-all"
+                >
+                    <FileCode size={12} className="text-blue-400" />
+                    TS Types
                 </button>
                 {showSystemFallback && (
                     <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] font-bold uppercase tracking-widest rounded-md">

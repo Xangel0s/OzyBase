@@ -43,6 +43,8 @@ func HandleGlobalCommands(args []string) (bool, error) {
 		return true, handleUpgrade(args[2:])
 	case "functions":
 		return true, handleFunctions(args[2:])
+	case "mcp":
+		return true, handleMcp(args[2:])
 	default:
 		return false, nil
 	}

@@ -43,8 +43,13 @@ function AppContent() {
         const controller = new AbortController();
         loadTables(controller.signal);
 
+        const interval = window.setInterval(() => {
+            loadTables();
+        }, 2500);
+
         return () => {
             controller.abort();
+            window.clearInterval(interval);
         };
     }, [isAuthenticated, loadTables, workspaceId, workspaceResolved]);
 

@@ -104,10 +104,10 @@ const EdgeFunctions: React.FC = () => {
             return;
         }
 
-        // Basic alphanumeric validation (matches backend IsValidIdentifier)
-        const identifierRegex = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+        // Basic alphanumeric validation (allowing hyphens)
+        const identifierRegex = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
         if (!identifierRegex.test(name)) {
-            setToast({ message: 'Invalid identifier: use only letters, numbers, and underscores', type: 'error' });
+            setToast({ message: 'Invalid identifier: use letters, numbers, underscores, or hyphens', type: 'error' });
             return;
         }
 
@@ -185,7 +185,7 @@ const EdgeFunctions: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col h-full bg-background animate-in fade-in duration-700 overflow-hidden relative">
+        <div className="flex flex-col h-full bg-background animate-in fade-in duration-150 overflow-hidden relative">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(254,254,0,0.015),transparent_50%)] pointer-events-none" />
             
             {/* Core Header */}
@@ -252,7 +252,7 @@ const EdgeFunctions: React.FC = () => {
                             />
                         </div>
                         <button onClick={fetchFunctions} className="group flex items-center gap-2 text-[9px] font-bold text-zinc-600 hover:text-white uppercase tracking-widest transition-all">
-                             <RefreshCw size={12} className="group-hover:rotate-180 transition-transform duration-700" />
+                             <RefreshCw size={12} className="group-hover:rotate-180 transition-transform duration-150" />
                              Refresh
                         </button>
                     </div>
@@ -263,7 +263,7 @@ const EdgeFunctions: React.FC = () => {
                                 <tr className="bg-white/2 text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-300 border-b border-white/5">
                                     <th className="px-10 py-6 italic">Node_Identifier</th>
                                     <th className="px-10 py-6 italic">Status</th>
-                                    <th className="px-10 py-6 italic">Endpoint_Vector</th>
+                                    <th className="px-10 py-6 italic">Endpoint URL</th>
                                     <th className="px-10 py-6 italic text-right">Ops</th>
                                 </tr>
                             </thead>
@@ -418,7 +418,7 @@ const EdgeFunctions: React.FC = () => {
                                             <Code size={18} />
                                         </div>
                                         <div>
-                                            <span className="text-[10px] font-bold text-white uppercase tracking-[0.3em] italic">Kernel_Logic.js</span>
+                                            <span className="text-[10px] font-bold text-white uppercase tracking-[0.3em] italic">main.js</span>
                                             <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest mt-1">EMCASCRIPT_ISOLATE_CONSTRUCT</p>
                                         </div>
                                     </div>
@@ -483,9 +483,9 @@ const EdgeFunctions: React.FC = () => {
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-bold text-white uppercase italic tracking-tighter">
-                                        {invokeOutput.isError ? 'Transmission_Fault' : 'Transmission_Success'}
+                                        {invokeOutput.isError ? 'Execution Error' : 'Execution Success'}
                                     </h3>
-                                    <p className="mt-1 text-[9px] font-bold text-zinc-700 uppercase tracking-widest">Diagnostic Outcome // Node: [{invokeOutput.name}]</p>
+                                    <p className="mt-1 text-[9px] font-bold text-zinc-700 uppercase tracking-widest">Function Outcome Details // [{invokeOutput.name}]</p>
                                 </div>
                             </div>
                             <button onClick={() => setInvokeOutput(null)} className="w-10 h-10 rounded-md bg-white/3 text-zinc-600 hover:text-white transition-all flex items-center justify-center">

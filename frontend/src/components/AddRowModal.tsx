@@ -357,8 +357,8 @@ const AddRowModal: React.FC<AddRowModalProps> = ({ isOpen, onClose, schema, tabl
                             {initialData ? <Edit2 className="text-primary" size={16} /> : <Plus className="text-primary" size={16} />}
                         </div>
                         <div>
-                            <h3 className="text-[11px] font-bold text-white uppercase tracking-widest">{initialData ? 'Update_Record' : 'Insert_New_Node'}</h3>
-                            <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest italic">Target_Table: {tableName}</p>
+                            <h3 className="text-[11px] font-bold text-white uppercase tracking-widest">{initialData ? 'Edit Record' : 'New Record'}</h3>
+                            <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest italic">Table: {tableName}</p>
                         </div>
                     </div>
                     <button onClick={requestClose} className="rounded-md p-2 text-zinc-600 hover:text-white hover:bg-zinc-800 transition-all">
@@ -371,7 +371,7 @@ const AddRowModal: React.FC<AddRowModalProps> = ({ isOpen, onClose, schema, tabl
                     <div className="px-6 py-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar bg-zinc-900">
                         {error && (
                             <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-md text-red-500 text-[10px] font-bold uppercase tracking-widest text-center">
-                                Fatal_Error: {error}
+                                Error: {error}
                             </div>
                         )}
 
@@ -403,7 +403,7 @@ const AddRowModal: React.FC<AddRowModalProps> = ({ isOpen, onClose, schema, tabl
                             onClick={requestClose}
                             className="px-4 py-2 text-[10px] font-bold text-zinc-600 hover:text-zinc-300 uppercase tracking-widest transition-all"
                         >
-                            Abort_Flow
+                            Cancel
                         </button>
                         <button
                             type="submit"
@@ -418,7 +418,7 @@ const AddRowModal: React.FC<AddRowModalProps> = ({ isOpen, onClose, schema, tabl
                             ) : (
                                 <>
                                     {initialData ? <Check size={14} strokeWidth={3} /> : <Plus size={14} strokeWidth={3} />}
-                                    <span>{initialData ? 'Update_Commit' : 'Execute_Insert'}</span>
+                                    <span>{initialData ? 'Save Changes' : 'Insert Row'}</span>
                                 </>
                             )}
                         </button>

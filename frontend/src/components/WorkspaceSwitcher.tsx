@@ -217,7 +217,7 @@ const WorkspaceSwitcher = ({ onWorkspaceChange, onViewSelect, isExpanded = false
 
                 {/* Content - Hidden when collapsed */}
                 {isExpanded && (
-                    <div className="flex-1 min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
+                    <div className="flex-1 min-w-0">
                         <h3 className="text-[10px] font-bold text-white uppercase tracking-[0.2em] leading-none mb-1.5 flex items-center gap-2">
                             {isOpen ? 'Browse Projects' : activeWorkspace ? 'Active Project' : 'Choose Project'}
                         </h3>
@@ -232,7 +232,7 @@ const WorkspaceSwitcher = ({ onWorkspaceChange, onViewSelect, isExpanded = false
 
                 {/* Shortcut Hint - Hidden when collapsed */}
                 {isExpanded && (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-background border border-border text-[10px] font-bold text-zinc-600 shadow-inner animate-in fade-in zoom-in-95 duration-300">
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-background border border-border text-[10px] font-bold text-zinc-600 shadow-inner">
                         <Command size={10} />
                         <span>K</span>
                     </div>

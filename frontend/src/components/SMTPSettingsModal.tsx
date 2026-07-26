@@ -263,8 +263,8 @@ const SMTPSettingsModal: React.FC<SMTPSettingsModalProps> = ({
                             <ServerCog size={18} className="text-primary" />
                         </div>
                         <div>
-                            <h3 className="text-[11px] font-bold uppercase tracking-widest text-white italic">Mail_Transport_Laboratory</h3>
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 italic">Ozy_Kernel :: Delivery_Vector_Config</p>
+                            <h3 className="text-[11px] font-bold uppercase tracking-widest text-white italic">SMTP Mail Settings</h3>
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 italic">Email Delivery Config</p>
                         </div>
                     </div>
                     <button
@@ -328,7 +328,7 @@ const SMTPSettingsModal: React.FC<SMTPSettingsModalProps> = ({
 
                             <div className="space-y-6">
                                 <div className="flex items-center gap-4">
-                                    <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600 italic whitespace-nowrap">Connection_Matrix</h3>
+                                    <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600 italic whitespace-nowrap">Connection Settings</h3>
                                     <div className="h-px bg-zinc-800 w-full" />
                                 </div>
 
@@ -361,7 +361,7 @@ const SMTPSettingsModal: React.FC<SMTPSettingsModalProps> = ({
                                         />
                                     </div>
                                     <div className="space-y-2.5">
-                                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-700 italic">Origin_Vector_Ref</label>
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-700 italic">Sender Reference</label>
                                         <input
                                             value={form.from}
                                             onChange={(e) => setForm(c => ({ ...c, from: e.target.value }))}
@@ -407,7 +407,7 @@ const SMTPSettingsModal: React.FC<SMTPSettingsModalProps> = ({
 
                                 <div className="flex flex-col md:flex-row gap-4">
                                     <div className="flex-1 space-y-2.5">
-                                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-700 italic">Destination_Vector</label>
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-700 italic">Recipient Address</label>
                                         <input
                                             value={testEmail}
                                             onChange={(e) => setTestEmail(e.target.value)}
@@ -442,7 +442,7 @@ const SMTPSettingsModal: React.FC<SMTPSettingsModalProps> = ({
                         disabled={saving || testing}
                         className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-600 transition-all hover:text-zinc-300"
                     >
-                        Abort_Flow
+                        Cancel
                     </button>
                     <button
                         type="button"

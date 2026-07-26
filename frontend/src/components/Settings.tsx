@@ -412,7 +412,7 @@ const Settings: React.FC<SettingsProps> = ({
   }
 
   return (
-    <div className="flex flex-1 min-h-0 w-full bg-background animate-in fade-in duration-700 overflow-hidden relative">
+    <div className="flex flex-1 min-h-0 w-full bg-background animate-in fade-in duration-200 overflow-hidden relative">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(254,254,0,0.02),transparent_50%)] pointer-events-none" />
 
       {/* LEFT SIDEBAR NAVIGATION */}

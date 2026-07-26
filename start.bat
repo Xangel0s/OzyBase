@@ -7,7 +7,7 @@ echo.
 
 :: Start Backend
 echo [1/2] Starting Backend (Go)...
-start "OzyBase Backend" cmd /k "cd /d %~dp0 && go run ./cmd/OzyBase"
+start "OzyBase Backend" cmd /k "cd /d %~dp0 && go run ./cmd/ozybase"
 
 :: Wait a moment for backend to initialize
 timeout /t 3 /nobreak >nul

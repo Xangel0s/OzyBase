@@ -45,7 +45,7 @@ const BulkEditModal = ({ isOpen, onClose, schema = [], onSubmit }: BulkEditModal
                         </div>
                         <div>
                             <h3 className="text-[11px] font-bold uppercase tracking-widest text-white">Bulk Edit</h3>
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 italic">Target: Selected_Nodes</p>
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 italic">Target: Selected Rows</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="rounded-md p-2 text-zinc-600 hover:bg-zinc-800 hover:text-white transition-all">

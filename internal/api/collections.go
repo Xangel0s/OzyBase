@@ -182,32 +182,32 @@ func writePostgresAwareError(c echo.Context, err error, fallback string) error {
 
 	switch pgErr.Code {
 	case "42P01":
-		message = "La tabla o secuencia referenciada no existe en esta base de datos."
+		message = "The referenced table or sequence does not exist in this database."
 		errorCode = "PG_UNDEFINED_RELATION"
 	case "42703":
-		message = "Una de las columnas referenciadas no existe."
+		message = "One of the referenced columns does not exist."
 		errorCode = "PG_UNDEFINED_COLUMN"
 	case "42883":
-		message = "Una función usada en la expresión no existe o no coincide con los tipos enviados."
+		message = "A function used in the expression does not exist or has mismatched parameter types."
 		errorCode = "PG_UNDEFINED_FUNCTION"
 	case "42601":
-		message = "Hay un error de sintaxis SQL en una expresión o regla enviada."
+		message = "There is a SQL syntax error in the expression or rule provided."
 		errorCode = "PG_SYNTAX_ERROR"
 	case "22P02":
-		message = "Uno de los valores no tiene el formato esperado para su tipo de dato."
+		message = "One of the values does not match the expected format for its data type."
 		errorCode = "PG_INVALID_TEXT_REPRESENTATION"
 	case "23502":
-		message = "Falta un valor requerido (NOT NULL) en alguna columna."
+		message = "A required value (NOT NULL) is missing for a column."
 		errorCode = "PG_NOT_NULL_VIOLATION"
 	case "23503":
-		message = "Se violó una referencia (foreign key): el registro relacionado no existe."
+		message = "Foreign key constraint violation: the referenced record does not exist."
 		errorCode = "PG_FOREIGN_KEY_VIOLATION"
 	case "23505":
-		message = "Ya existe un registro con el mismo valor único."
+		message = "A record with the same unique value already exists."
 		errorCode = "PG_UNIQUE_VIOLATION"
 	default:
 		status = http.StatusInternalServerError
-		message = "Error interno al procesar la operación en la base de datos."
+		message = "Internal database processing error."
 		errorCode = "PG_INTERNAL"
 	}
 
@@ -786,7 +786,7 @@ func (h *Handler) CreateCollection(c echo.Context) error {
 
 	// Execute CREATE TABLE
 	if _, err := tx.Exec(ctx, createSQL); err != nil {
-		return writePostgresAwareError(c, err, "No se pudo crear la tabla. Revisa columnas, defaults y llaves.")
+		return writePostgresAwareError(c, err, "Could not create table. Check columns, defaults, and primary keys.")
 	}
 
 	// Attach Realtime Trigger IF ENABLED
@@ -799,7 +799,7 @@ func (h *Handler) CreateCollection(c echo.Context) error {
 		`, req.Name, req.Name)
 
 		if _, err := tx.Exec(ctx, triggerSQL); err != nil {
-			return writePostgresAwareError(c, err, "No se pudo adjuntar el trigger de realtime.")
+			return writePostgresAwareError(c, err, "Could not attach realtime trigger.")
 		}
 	}
 
@@ -831,10 +831,10 @@ func (h *Handler) CreateCollection(c echo.Context) error {
 		}
 
 		if err := h.DB.EnableRLS(ctx, tx, req.Name); err != nil {
-			return writePostgresAwareError(c, err, "No se pudo habilitar RLS en la tabla.")
+			return writePostgresAwareError(c, err, "Could not enable RLS on table.")
 		}
 		if err := h.DB.SetRLSForce(ctx, tx, req.Name, req.RlsForce); err != nil {
-			return writePostgresAwareError(c, err, "No se pudo aplicar FORCE RLS.")
+			return writePostgresAwareError(c, err, "Could not apply FORCE RLS.")
 		}
 
 		policies := normalizeRLSPolicies(req.RlsRule, req.RlsPolicies)
@@ -872,7 +872,7 @@ func (h *Handler) CreateCollection(c echo.Context) error {
 				data.QuoteIdentifier(req.Name),
 			))
 			if err := h.DB.CreatePolicyForAction(ctx, tx, req.Name, policyName, action, expression, rolesByAction[action]); err != nil {
-				return writePostgresAwareError(c, err, "No se pudo crear la política RLS.")
+				return writePostgresAwareError(c, err, "Could not create RLS policy.")
 			}
 		}
 
@@ -930,7 +930,7 @@ func (h *Handler) CreateCollection(c echo.Context) error {
 	}
 
 	if err != nil {
-		return writePostgresAwareError(c, err, "No se pudo guardar la metadata de la tabla.")
+		return writePostgresAwareError(c, err, "Could not save table metadata.")
 	}
 
 	// Commit transaction
@@ -1319,6 +1319,7 @@ func (h *Handler) ListCollections(c echo.Context) error {
 
 	// Fetch metadata from _v_collections scoped to workspace
 	workspaceID, _ := c.Get("workspace_id").(string)
+	log.Printf("[DEBUG-ListCollections] tables found=%v (count=%d), workspaceID=%s", tables, len(tables), workspaceID)
 
 	// Fetch metadata for ALL collections to correctly identify and hide tables from other workspaces
 	query := "SELECT name, COALESCE(display_name, name), schema_def, list_rule, create_rule, rls_enabled, rls_rule, created_at, updated_at, realtime_enabled, workspace_id FROM _v_collections"
@@ -1379,8 +1380,8 @@ func (h *Handler) ListCollections(c echo.Context) error {
 			// Managed table:
 			if workspaceID != "" {
 				// We are in a specific workspace context.
-				if meta.WorkspaceID != workspaceID {
-					// Table belongs to another workspace (or it's global but we want isolation)
+				if meta.WorkspaceID != "" && meta.WorkspaceID != workspaceID {
+					// Table belongs to another specific workspace
 					// Exception: Always show internal system tables to admins
 					if !isSystem {
 						continue
@@ -1391,10 +1392,10 @@ func (h *Handler) ListCollections(c echo.Context) error {
 			meta.IsSystem = isSystem
 			result = append(result, applyCollectionCapabilities(meta, capabilities))
 		} else {
-			// Unmanaged table:
-			if workspaceID != "" && !isSystem {
-				// Hide unmanaged tables in workspace view for strict isolation
-				continue
+			// Unmanaged table (e.g. created via MCP, raw SQL, or external migrations):
+			var colSchema []data.FieldSchema
+			if !isSystem {
+				colSchema, _ = h.DB.GetTableSchema(ctx, tableName)
 			}
 			col := Collection{
 				Name:        tableName,
@@ -1402,7 +1403,8 @@ func (h *Handler) ListCollections(c echo.Context) error {
 				IsSystem:    isSystem,
 				ListRule:    "public",
 				CreateRule:  "admin",
-				Schema:      []data.FieldSchema{},
+				Schema:      colSchema,
+				WorkspaceID: workspaceID,
 			}
 			result = append(result, applyCollectionCapabilities(col, capabilities))
 		}
@@ -1462,6 +1464,75 @@ func (h *Handler) GetTableDefinition(c echo.Context) error {
 		"definition_sql": definitionSQL,
 		"editor_sql":     buildTableDefinitionEditorSQL(tableName, definitionSQL),
 	})
+}
+
+// ExportTypeScriptTypes handles GET /api/project/schema/types
+func (h *Handler) ExportTypeScriptTypes(c echo.Context) error {
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 10*time.Second)
+	defer cancel()
+
+	rows, err := h.DB.Pool.Query(ctx, `
+		SELECT table_name, column_name, data_type, is_nullable
+		FROM information_schema.columns
+		WHERE table_schema = 'public'
+		  AND table_name NOT LIKE '_v_%'
+		  AND table_name NOT LIKE '_ozy_%'
+		ORDER BY table_name, ordinal_position
+	`)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	defer rows.Close()
+
+	type colDef struct {
+		name     string
+		dataType string
+		nullable bool
+	}
+	tables := make(map[string][]colDef)
+
+	for rows.Next() {
+		var tableName, colName, dataType, isNullable string
+		if err := rows.Scan(&tableName, &colName, &dataType, &isNullable); err != nil {
+			continue
+		}
+		tables[tableName] = append(tables[tableName], colDef{
+			name:     colName,
+			dataType: dataType,
+			nullable: isNullable == "YES",
+		})
+	}
+
+	var sb strings.Builder
+	sb.WriteString("// Auto-generated by OzyBase Core TypeGenerator\n")
+	sb.WriteString("// Generated: " + time.Now().UTC().Format(time.RFC3339) + "\n\n")
+
+	for tableName, cols := range tables {
+		structName := strings.Title(tableName)
+		sb.WriteString(fmt.Sprintf("export interface %s {\n", structName))
+		for _, col := range cols {
+			tsType := "string"
+			switch strings.ToLower(col.dataType) {
+			case "integer", "bigint", "smallint", "numeric", "real", "double precision":
+				tsType = "number"
+			case "boolean":
+				tsType = "boolean"
+			case "json", "jsonb":
+				tsType = "Record<string, any>"
+			case "array":
+				tsType = "any[]"
+			}
+			opt := ""
+			if col.nullable {
+				opt = "?"
+			}
+			sb.WriteString(fmt.Sprintf("  %s%s: %s;\n", col.name, opt, tsType))
+		}
+		sb.WriteString("}\n\n")
+	}
+
+	c.Response().Header().Set(echo.HeaderContentDisposition, "attachment; filename=ozybase_types.ts")
+	return c.Blob(http.StatusOK, "text/typescript", []byte(sb.String()))
 }
 
 // ListSchemas handles GET /api/schemas
@@ -1531,7 +1602,7 @@ func (h *Handler) UpdateColumn(c echo.Context) error {
 		Default:     req.DefaultValue,
 	})
 	if err != nil {
-		return writePostgresAwareError(c, err, "No se pudo actualizar la columna")
+		return writePostgresAwareError(c, err, "Could not update column")
 	}
 
 	description := fmt.Sprintf("update_column_%s_in_%s", columnName, tableName)

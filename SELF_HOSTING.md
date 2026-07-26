@@ -1,13 +1,13 @@
 # Self-Hosting OzyBase
 
-## Requisitos
+## Prerequisites
 
-- Docker 24+ con [docker compose plugin](https://docs.docker.com/compose/install/)
+- Docker 24+ with [docker compose plugin](https://docs.docker.com/compose/install/)
 - Git
-- OpenSSL (para generación de secrets)
-- Puerto 8090 libre
+- OpenSSL (for secret generation)
+- Free port 8090
 
-## Instalación (1 comando)
+## Installation (One-line command)
 
 ```bash
 git clone https://github.com/Xangel0s/OzyBase.git
@@ -15,46 +15,45 @@ cd OzyBase
 bash deploy/setup.sh
 ```
 
-El script:
-1. Verifica dependencias (docker, compose, openssl)
-2. Chequea que el puerto 8090 esté libre
-3. Genera un `.env` con secrets únicos (JWT, API keys, DB password)
-4. Detecta la zona horaria del servidor
-5. Crea el directorio `./backups/` para las copias de seguridad
-6. Levanta los contenedores (app + PostgreSQL + backup automático)
+The script:
+1. Verifies dependencies (docker, compose, openssl)
+2. Checks if port 8090 is available
+3. Generates `.env` with unique secrets (JWT, API keys, DB password)
+4. Detects server timezone
+5. Creates `./backups/` directory for automatic database backups
+6. Starts containers (app + PostgreSQL + automated backup runner)
 
-## Post-instalación
+## Post-Installation
 
-1. Abrir `http://{IP_DEL_SERVIDOR}:8090` en el navegador
-2. Completar el Setup Wizard (crear cuenta admin)
-3. ¡OzyBase está listo!
+1. Open `http://{SERVER_IP}:8090` in your browser
+2. Complete the Setup Wizard (create initial admin account)
+3. OzyBase is ready for production!
 
-## Variables de Entorno Críticas
+## Critical Environment Variables
 
-El `setup.sh` genera el `.env` automáticamente con secrets seguros. Sin embargo,
-debes editarlo para estos casos:
+The `setup.sh` script automatically generates a secure `.env`. However, you should update it for the following cases:
 
-| Variable | Obligatoria | Propósito |
+| Variable | Required | Purpose |
 |---|---|---|
-| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` | Para emails | Invitaciones, reseteo de contraseñas, alertas de seguridad |
-| `SITE_URL` | Para producción | Cambiar de `http://127.0.0.1:8090` a tu dominio real |
-| `APP_DOMAIN` | Para producción | Tu dominio (ej: `tudominio.com`) |
+| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD` | For emails | Team invitations, password resets, security alerts |
+| `SITE_URL` | For production | Update from `http://127.0.0.1:8090` to your public domain |
+| `APP_DOMAIN` | For production | Your domain name (e.g. `yourdomain.com`) |
 
 ```bash
 nano .env
-# Editar SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SITE_URL, APP_DOMAIN
+# Edit SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SITE_URL, APP_DOMAIN
 docker compose restart ozybase
 ```
 
-## HTTPS — Configurar Reverse Proxy
+## HTTPS — Reverse Proxy Setup
 
-### Opción recomendada: Caddy (el más simple)
+### Recommended Option: Caddy (simplest)
 
-Caddy obtiene SSL automáticamente vía Let's Encrypt.
+Caddy automatically provisions SSL certificates via Let's Encrypt.
 
 ```caddy
 # Caddyfile
-base.tudominio.com {
+base.yourdomain.com {
     reverse_proxy localhost:8090
 }
 ```
@@ -67,103 +66,101 @@ docker run -d \
     caddy:2
 ```
 
-### Opción alternativa: Nginx
+### Alternative Option: Nginx
 
-La configuración de Nginx está incluida en el repositorio:
+Nginx configuration is included in the repository:
 
 ```bash
 cp deploy/nginx/ozybase.conf /etc/nginx/sites-available/
 ln -s /etc/nginx/sites-available/ozybase.conf /etc/nginx/sites-enabled/
-# Editar el archivo con tu dominio y certificados SSL
+# Edit the configuration file with your domain and SSL certificates
 systemctl reload nginx
 ```
 
 ## Backups
 
-Las copias de seguridad se ejecutan automáticamente cada 24 horas.
-Se almacenan en la carpeta `./backups/` del proyecto.
+Backups run automatically every 24 hours and are stored in `./backups/`.
 
 ```bash
-# Listar backups disponibles
+# List available backups
 ls -lh backups/
 
-# Copiar un backup a otro servidor
-cp backups/*.sql.gz /mnt/backups-remotos/
+# Copy backup to remote server
+cp backups/*.sql.gz /mnt/remote-backups/
 
-# Configuración
-# - Retención: 14 días (limpia automático)
-# - Compresión: gzip
-# - Horario: @daily (configurable via SCHEDULE en docker-compose.yml)
+# Backup Configuration
+# - Retention: 14 days (automatic cleanup)
+# - Compression: gzip
+# - Schedule: @daily (configurable via SCHEDULE in docker-compose.yml)
 ```
 
-**⚠️ La carpeta `./backups/` y el volumen `postgres_data` son sagrados.**
-Sin ellos, la recuperación ante desastres es imposible. Inclúyelos en tu
-estrategia de backups externos (rsync, rclone, S3, etc.).
+**⚠️ The `./backups/` folder and `postgres_data` volume are critical.**
+Include them in your offsite backup strategy (rsync, rclone, S3, etc.).
 
-## Actualizar OzyBase
+## Updating OzyBase
 
 ```bash
 cd OzyBase
 docker compose down
 git pull
-docker compose pull          # actualizar imágenes base (Postgres, backup)
-docker compose up -d --build # reconstruir la imagen de OzyBase
+docker compose pull          # update base images
+docker compose up -d --build # rebuild OzyBase image
 ```
 
-## Comandos Útiles
+## Useful Commands
 
 ```bash
-# Ver logs en vivo
+# View live logs
 docker compose logs -f ozybase
 
-# Ver estado de los contenedores
+# Check container status
 docker compose ps
 
-# Backup manual inmediato
+# Trigger manual backup immediately
 docker compose exec db-backup /backup.sh
 
-# Restaurar desde backup
+# Restore from backup
 gunzip < backups/backup-*.sql.gz | docker compose exec -T db psql -U postgres -d ozybase
 
-# Detener todo
+# Stop containers
 docker compose down
 
-# Detener y eliminar volúmenes (⚠️ destruye datos)
+# Stop and remove volumes (⚠️ destroys data)
 docker compose down -v
 ```
 
-## Monitoreo
+## Health Monitoring
 
-OzyBase expone un endpoint de health check en `/api/health`:
-- Usado por Docker para reinicio automático si el binario falla
-- Compatible con Uptime Kuma, Prometheus, Healthchecks.io, etc.
+OzyBase exposes a health check endpoint at `/api/health`:
+- Used by Docker for automatic restart if the process fails
+- Compatible with Uptime Kuma, Prometheus, Healthchecks.io, etc.
 
-## Requisitos de Hardware Recomendados
+## Hardware Requirements
 
-| Recurso | Mínimo | Recomendado |
+| Resource | Minimum | Recommended |
 |---|---|---|
 | RAM | 1 GB | 2 GB |
-| CPU | 1 núcleo | 2 núcleos |
-| Disco | 10 GB | 20 GB + backups |
+| CPU | 1 Core | 2 Cores |
+| Storage | 10 GB | 20 GB + Backups |
 
-## Solución de Problemas
+## Troubleshooting
 
 **Error: `port is already allocated`**
 ```bash
-# Cambiar el puerto en .env
+# Change port in .env
 PORT=8091
 docker compose up -d
 ```
 
-**Error: `connection refused` a PostgreSQL**
+**Error: `connection refused` to PostgreSQL**
 ```bash
 docker compose logs db
 docker compose restart db
-# Esperar 10 segundos a que el healthcheck pase
+# Wait 10 seconds for healthcheck to pass
 ```
 
-**Error: `.env already exists` al ejecutar setup.sh**
-El script es intencionalmente idempotente. Para regenerar:
+**Error: `.env already exists` when running setup.sh**
+The script is intentionally idempotent. To regenerate:
 ```bash
 mv .env .env.bak
 bash deploy/setup.sh

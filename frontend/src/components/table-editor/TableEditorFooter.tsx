@@ -60,52 +60,56 @@ const TableEditorFooter: React.FC<TableEditorFooterProps> = ({
             className="border-t border-border bg-[#111111] px-6 py-1.5"
         >
             <div className="flex items-center justify-between gap-6">
-                {/* Left Section: Pagination */}
-                <div className="flex items-center gap-2 shrink-0">
-                    <button
-                        disabled={currentPage === 1}
-                        onClick={() => goToPage(currentPage - 1)}
-                        className="p-1.5 text-zinc-600 hover:text-white transition-colors disabled:opacity-20"
-                    >
-                        <ChevronLeft size={16} />
-                    </button>
-                    <div className="flex items-center gap-2 text-xs text-zinc-400">
-                        <span>Page</span>
-                        <span className="text-zinc-200 font-medium">{currentPage}</span>
-                        <span>of</span>
-                        <span className="text-zinc-200 font-medium">{Math.max(totalPages, 1)}</span>
-                    </div>
-                    <button
-                        disabled={isTotalExact ? currentPage >= totalPages : !hasMoreRecords}
-                        onClick={() => goToPage(currentPage + 1)}
-                        className="p-1.5 text-zinc-600 hover:text-white transition-colors disabled:opacity-20"
-                    >
-                        <ChevronRight size={16} />
-                    </button>
-                </div>
-
-                {/* Center Section: Stats */}
-                <div className="flex items-center gap-4 text-xs font-medium">
+                {/* Left Section: Pagination & Rows Selection / Stats */}
+                <div className="flex items-center gap-4 shrink-0">
                     <div className="flex items-center gap-2">
-                        <OzySelect
-                            density="compact"
-                            value={pageSize}
-                            onChange={(event) => setPageSize(Number(event.target.value))}
-                            wrapperClassName="border-none bg-transparent shadow-none"
-                            selectClassName="h-6 px-1 text-xs text-zinc-300 hover:text-white focus:ring-0"
+                        <button
+                            disabled={currentPage === 1}
+                            onClick={() => goToPage(currentPage - 1)}
+                            className="p-1.5 text-zinc-600 hover:text-white transition-colors disabled:opacity-20"
                         >
-                            {pageSizeOptions.map((size) => (
-                                <option key={size} value={size}>
-                                    {size}
-                                </option>
-                            ))}
-                        </OzySelect>
-                        <span className="text-zinc-600">rows</span>
+                            <ChevronLeft size={16} />
+                        </button>
+                        <div className="flex items-center gap-2 text-xs text-zinc-400">
+                            <span>Page</span>
+                            <span className="text-zinc-200 font-medium">{currentPage}</span>
+                            <span>of</span>
+                            <span className="text-zinc-200 font-medium">{Math.max(totalPages, 1)}</span>
+                        </div>
+                        <button
+                            disabled={isTotalExact ? currentPage >= totalPages : !hasMoreRecords}
+                            onClick={() => goToPage(currentPage + 1)}
+                            className="p-1.5 text-zinc-600 hover:text-white transition-colors disabled:opacity-20"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
                     </div>
+
                     <div className="w-px h-3 bg-zinc-800" />
-                    <div className="flex items-center gap-1">
-                        <span className="text-zinc-300">{formatNumber(totalRecords)}</span>
-                        <span className="text-zinc-600">records</span>
+
+                    {/* Rows Dropdown & Stats */}
+                    <div className="flex items-center gap-4 text-xs font-medium">
+                        <div className="flex items-center gap-2">
+                            <OzySelect
+                                density="compact"
+                                value={pageSize}
+                                onChange={(event) => setPageSize(Number(event.target.value))}
+                                wrapperClassName="w-20 border border-zinc-800/80 rounded-md bg-zinc-900/60 hover:border-zinc-700 transition-colors shadow-xs"
+                                selectClassName="h-6 px-2 text-xs font-bold text-zinc-200 hover:text-white focus:ring-0"
+                            >
+                                {pageSizeOptions.map((size) => (
+                                    <option key={size} value={size}>
+                                        {size}
+                                    </option>
+                                ))}
+                            </OzySelect>
+                            <span className="text-zinc-600">rows</span>
+                        </div>
+                        <div className="w-px h-3 bg-zinc-800" />
+                        <div className="flex items-center gap-1">
+                            <span className="text-zinc-300">{formatNumber(totalRecords)}</span>
+                            <span className="text-zinc-600">records</span>
+                        </div>
                     </div>
                 </div>
 

@@ -954,7 +954,7 @@ const Layout: React.FC<LayoutProps> = ({
         if (currentModule === 'tables') {
             return (
                 <div className="space-y-6">
-                    <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+                    <div>
                         {/* Schema Selector */}
                         <div className="px-3 mb-6">
                             <div className="flex flex-col gap-1.5">
@@ -1313,7 +1313,7 @@ const Layout: React.FC<LayoutProps> = ({
                         <img src="/branding/logo.jpg" alt="OzyBase" className="w-full h-full object-cover" />
                     </div>
                     {isExpanded && (
-                        <span className="ml-3 font-bold text-white italic tracking-tighter text-xl uppercase animate-in fade-in duration-300 truncate group-hover:text-primary transition-colors">OzyBase</span>
+                        <span className="ml-3 font-bold text-white italic tracking-tighter text-xl uppercase truncate group-hover:text-primary transition-colors">OzyBase</span>
                     )}
                 </div>
 
@@ -1347,19 +1347,19 @@ const Layout: React.FC<LayoutProps> = ({
                                         onMenuViewSelect(getDefaultViewForSection(String(item.id || 'overview')));
                                     }
                                 }}
-                                className={`flex items-center w-full p-2 rounded-md transition-all group relative shrink-0 ${isActive ? 'text-primary bg-zinc-900 border border-border' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40'
+                                className={`flex items-center w-full p-2 rounded-md transition-colors duration-150 group relative shrink-0 ${isActive ? 'text-primary bg-zinc-900/90 border border-primary/25 shadow-xs' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40 border border-transparent'
                                     }`}
                             >
                                 <div className="w-6 flex justify-center shrink-0">
                                     <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
                                 </div>
                                 {isExpanded && (
-                                    <span className="ml-3 text-xs font-bold tracking-tight truncate animate-in slide-in-from-left-2 duration-300 uppercase">
+                                    <span className="ml-3 text-xs font-bold tracking-tight truncate uppercase">
                                         {item.label}
                                     </span>
                                 )}
                                 {isActive && (
-                                    <div className="absolute left-0 top-2.5 bottom-2.5 w-0.5 bg-primary rounded-full shadow-[0_0_8px_rgba(254,254,0,0.6)]" />
+                                    <div className="absolute left-1 top-2 bottom-2 w-0.5 bg-primary rounded-full shadow-[0_0_6px_rgba(254,254,0,0.6)]" />
                                 )}
                             </button>
                         );
@@ -1379,7 +1379,7 @@ const Layout: React.FC<LayoutProps> = ({
                             <Settings size={18} />
                         </div>
                         {isExpanded && (
-                            <span className="ml-3 text-xs font-bold tracking-tight truncate animate-in slide-in-from-left-2 duration-300 uppercase">Settings</span>
+                            <span className="ml-3 text-xs font-bold tracking-tight truncate uppercase">Settings</span>
                         )}
                     </button>
 
@@ -1391,7 +1391,7 @@ const Layout: React.FC<LayoutProps> = ({
                             {isSidebarPinned ? <Pin size={18} className="text-primary fill-primary/20" /> : <PinOff size={18} />}
                         </div>
                         {isExpanded && (
-                            <span className="ml-3 text-xs font-bold tracking-tight truncate animate-in slide-in-from-left-2 duration-300 uppercase">
+                            <span className="ml-3 text-xs font-bold tracking-tight truncate uppercase">
                                 {isSidebarPinned ? 'Unpin Sidebar' : 'Pin Sidebar'}
                             </span>
                         )}
@@ -1417,7 +1417,7 @@ const Layout: React.FC<LayoutProps> = ({
             )}
 
             {/* Main Content Area */}
-            <div ref={contentViewportRef} data-testid="module-shell" className={`flex-1 flex min-h-0 flex-col min-w-0 bg-background ${!showExplorerSidebar ? 'animate-in fade-in slide-in-from-left-2 duration-300' : ''}`}>
+            <div ref={contentViewportRef} data-testid="module-shell" className="flex-1 flex min-h-0 flex-col min-w-0 bg-background">
                 <header className="min-h-13.5 shrink-0 border-b border-border bg-background px-4 py-2 sm:px-5">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">

@@ -124,7 +124,7 @@ const RealtimeInspector: React.FC<RealtimeInspectorProps> = ({ view = 'inspector
     }, [events, filterValue]);
 
     return (
-        <div className="flex flex-col h-full bg-background animate-in fade-in duration-700 overflow-hidden relative">
+        <div className="flex flex-col h-full bg-background animate-in fade-in duration-150 overflow-hidden relative">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(254,254,0,0.012),transparent_50%)] pointer-events-none" />
 
             <div className="bg-[#131313] border-b border-white/5 px-12 pt-10 relative z-10">
@@ -212,7 +212,7 @@ const RealtimeInspector: React.FC<RealtimeInspectorProps> = ({ view = 'inspector
             <div className="flex-1 flex overflow-hidden relative z-10">
                 <div className="w-1/2 border-r border-white/5 flex flex-col bg-background">
                     <div className="px-8 py-5 border-b border-white/5 bg-white/2 flex items-center justify-between">
-                         <span className="text-[9px] font-bold text-white/50 uppercase tracking-[0.4em] italic">Live_Kernel_Log</span>
+                         <span className="text-[9px] font-bold text-white/50 uppercase tracking-[0.4em] italic">Live Log</span>
                         <span className="text-[9px] font-bold text-zinc-400 tabular-nums">BUFFER: {filteredEvents.length}/50</span>
                     </div>
 
@@ -290,7 +290,7 @@ const RealtimeInspector: React.FC<RealtimeInspectorProps> = ({ view = 'inspector
                                     <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.4em] italic ml-2 leading-none">Event Trace Metadata</h4>
                                     <div className="grid grid-cols-2 gap-6">
                                         {[
-                                            { k: 'Source_Vector', v: 'POSTGRES_NOTIFY_BUS' },
+                                            { k: 'Source', v: 'POSTGRES_NOTIFY_BUS' },
                                             { k: 'Target_Schema', v: String(selectedEvent.table || '').toUpperCase() },
                                             { k: 'Operation', v: String(selectedEvent.action || '').toUpperCase() },
                                             { k: 'Resolution', v: selectedEvent.time },
@@ -308,7 +308,7 @@ const RealtimeInspector: React.FC<RealtimeInspectorProps> = ({ view = 'inspector
                             <div className="h-full flex flex-col items-center justify-center opacity-70 grayscale gap-8">
                                 <Cpu size={80} strokeWidth={0.5} />
                                 <div className="text-center">
-                                     <span className="text-[12px] font-bold uppercase tracking-[0.5em] italic block">Select_Vector_to_Decode</span>
+                                     <span className="text-[12px] font-bold uppercase tracking-[0.5em] italic block">Select Event to Inspect</span>
                                     <p className="mt-4 text-[9px] font-bold text-zinc-400 uppercase tracking-widest">REALTIME_DECRYPTOR_AV_V4.2</p>
                                 </div>
                             </div>

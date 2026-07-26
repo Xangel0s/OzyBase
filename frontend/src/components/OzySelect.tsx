@@ -50,23 +50,23 @@ const optionSelectedClasses: Record<OzySelectTone, string> = {
 };
 
 const densityWrapperClasses: Record<OzySelectDensity, string> = {
-    default: 'rounded-md shadow-[0_16px_40px_rgba(0,0,0,0.24)]',
+    default: 'rounded-md shadow-lg',
     compact: 'rounded-md shadow-none',
 };
 
 const densityButtonClasses: Record<OzySelectDensity, string> = {
-    default: 'h-12 pl-4 pr-11 text-[11px] tracking-[0.18em]',
-    compact: 'h-9 pl-3 pr-9 text-[10px] tracking-[0.14em]',
+    default: 'h-9 pl-3 pr-8 text-[11px]',
+    compact: 'h-7 pl-2.5 pr-7 text-[10px]',
 };
 
 const densityMenuClasses: Record<OzySelectDensity, string> = {
-    default: 'rounded-[1.5rem]',
+    default: 'rounded-lg',
     compact: 'rounded-md',
 };
 
 const densityOptionClasses: Record<OzySelectDensity, string> = {
-    default: 'rounded-md px-3 py-3 text-[10px] tracking-[0.16em]',
-    compact: 'rounded-md px-3 py-2 text-[10px] tracking-[0.14em]',
+    default: 'rounded-md px-2.5 py-1.5 text-[11px]',
+    compact: 'rounded px-2 py-1 text-[10px]',
 };
 
 const srOnlyClassName = 'pointer-events-none absolute h-px w-px overflow-hidden opacity-0';
@@ -202,10 +202,11 @@ const OzySelect = React.forwardRef<HTMLSelectElement, OzySelectProps>(function O
                 ? Math.max(12, rect.top - preferredHeight - 10)
                 : Math.min(viewportHeight - preferredHeight - 12, rect.bottom + 10);
 
+            const calculatedMinWidth = density === 'compact' ? Math.max(rect.width, 90) : Math.max(rect.width, 130);
             setMenuStyle({
                 left: rect.left,
                 top,
-                width: rect.width,
+                width: calculatedMinWidth,
                 maxHeight: preferredHeight,
             });
             setMenuReady(true);
@@ -462,7 +463,7 @@ const OzySelect = React.forwardRef<HTMLSelectElement, OzySelectProps>(function O
                                                         : 'border-transparent text-zinc-300 hover:border-white/5 hover:bg-white/4 hover:text-white'
                                         }`}
                                     >
-                                        <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                                        <span className="whitespace-nowrap flex-1 text-xs font-semibold">{option.label}</span>
                                         {isSelected ? <Check size={14} className="shrink-0" /> : null}
                                     </button>
                                 );

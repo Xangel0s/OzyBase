@@ -6,8 +6,8 @@ import { dispatchProjectSync } from '../utils/projectEvents';
 import OzySelect from './OzySelect';
 import { BrandedToast } from './OverlayPrimitives';
 
-const MODAL_ENTER_MS = 200;
-const MODAL_EXIT_MS = 160;
+const MODAL_ENTER_MS = 350;
+const MODAL_EXIT_MS = 220;
 
 type RlsAction = 'select' | 'insert' | 'update' | 'delete';
 type RlsRole = string;
@@ -232,37 +232,37 @@ const describeTableMutationError = (rawMessage: string): { inline: string; toast
 
     if (lower.includes('pg_undefined_relation') || lower.includes('undefined relation') || lower.includes('undefined_relation') || lower.includes('secuencia') || lower.includes('sequence')) {
         return {
-            inline: 'La secuencia o tabla referenciada no existe. Revisa DEFAULT con nextval(...) o usa gen_random_uuid()/identity.',
-            toast: 'Falta una secuencia o relación referenciada en un DEFAULT.',
-            title: 'Secuencia faltante',
+            inline: 'The referenced sequence or table does not exist. Check DEFAULT with nextval(...) or use gen_random_uuid()/identity.',
+            toast: 'Missing sequence or relation referenced in DEFAULT.',
+            title: 'Missing Sequence',
         };
     }
     if (lower.includes('pg_undefined_column') || lower.includes('undefined column') || lower.includes('undefined_column')) {
         return {
-            inline: 'Una columna referenciada no existe. Verifica nombres en DEFAULT y reglas RLS.',
-            toast: 'Hay columnas referenciadas que no existen en la tabla.',
-            title: 'Columna inválida',
+            inline: 'A referenced column does not exist. Verify column names in DEFAULT values and RLS rules.',
+            toast: 'Referenced columns do not exist in the table.',
+            title: 'Invalid Column',
         };
     }
     if (lower.includes('pg_syntax_error') || lower.includes('syntax') || lower.includes('42601')) {
         return {
-            inline: 'Hay un error de sintaxis SQL en una expresión (DEFAULT, relación o política).',
-            toast: 'Revisa sintaxis SQL en defaults o políticas.',
-            title: 'Sintaxis SQL',
+            inline: 'SQL syntax error in expression (DEFAULT value, relation, or RLS policy).',
+            toast: 'Check SQL syntax in defaults or policies.',
+            title: 'SQL Syntax Error',
         };
     }
     if (lower.includes('pg_invalid_text_representation') || lower.includes('invalid input syntax') || lower.includes('22p02')) {
         return {
-            inline: 'Un valor no coincide con el tipo de dato esperado (uuid, numeric, date, etc.).',
-            toast: 'Formato de dato inválido para alguna columna.',
-            title: 'Tipo de dato inválido',
+            inline: 'A value does not match the expected data type (UUID, numeric, date, etc.).',
+            toast: 'Invalid data format for column.',
+            title: 'Invalid Data Type',
         };
     }
 
     return {
-        inline: message || 'No se pudo guardar la tabla. Revisa columnas, defaults y llaves primarias.',
-        toast: message || 'No se pudo guardar la tabla.',
-        title: 'Error al guardar',
+        inline: message || 'Failed to save table. Check columns, defaults, and primary keys.',
+        toast: message || 'Failed to save table.',
+        title: 'Save Error',
     };
 };
 
@@ -1149,12 +1149,27 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
 
     return (
         <div
-            className={`fixed inset-0 z-120 flex items-center justify-end p-0 transition-all duration-300 ${isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+            className={`fixed inset-0 z-120 flex items-center justify-end p-0 ${isVisible ? 'pointer-events-auto' : 'pointer-events-none'}`}
             onClick={(e: any) => e.target === e.currentTarget && requestClose()}
         >
-            <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" />
             <div
-                className={`relative h-full w-full max-w-4xl flex flex-col border-l border-border bg-zinc-900 shadow-2xl transition-transform duration-300 ease-in-out ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+                className="absolute inset-0"
+                style={{
+                    backgroundColor: isVisible ? 'rgba(9,9,11,0.72)' : 'rgba(9,9,11,0)',
+                    backdropFilter: isVisible ? 'blur(4px)' : 'blur(0px)',
+                    transition: 'background-color 280ms ease, backdrop-filter 280ms ease',
+                }}
+                onClick={requestClose}
+            />
+            <div
+                className="relative h-full w-full max-w-4xl flex flex-col border-l border-border bg-zinc-900 shadow-2xl"
+                style={{
+                    transform: isVisible ? 'translateX(0)' : 'translateX(56px)',
+                    opacity: isVisible ? 1 : 0,
+                    transition: isVisible
+                        ? 'transform 350ms cubic-bezier(0.32, 0.72, 0, 1), opacity 260ms ease'
+                        : 'transform 200ms cubic-bezier(0.4, 0, 1, 1), opacity 180ms ease',
+                }}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-border bg-zinc-950/50 px-6 py-4">
@@ -1327,7 +1342,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                         <div className="space-y-8 animate-in fade-in duration-500">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                                 <div className="space-y-3">
-                                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 italic">Security_Preset_Vector</label>
+                                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 italic">Security Preset</label>
                                                     <OzySelect
                                                         value={rlsPreset}
                                                         onChange={(e: any) => handleRlsPresetChange(e.target.value as RlsStrategy)}
@@ -1346,11 +1361,11 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                                 </div>
 
                                                 <div className="space-y-3">
-                                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 italic">Kernel_Privileges</label>
+                                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 italic">Table Options</label>
                                                     <div className="rounded-md border border-border bg-zinc-950 p-4">
                                                         <label className="flex items-center justify-between cursor-pointer group">
                                                             <div className="space-y-0.5">
-                                                                <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-white transition-colors">Force_RLS_Matrix</span>
+                                                                <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 group-hover:text-white transition-colors">Enforce for table owners</span>
                                                                 <p className="text-[9px] font-bold uppercase tracking-tight text-zinc-700 italic">// Enforce policies for table owners.</p>
                                                             </div>
                                                             <input
@@ -1373,13 +1388,13 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                                     onClick={() => setShowSqlPolicyEditor((prev) => !prev)}
                                                     className="flex items-center gap-2 rounded-md bg-zinc-950 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 border border-border hover:text-white hover:border-zinc-700 transition-all"
                                                 >
-                                                    {showSqlPolicyEditor ? '[-] Hide_SQL_Matrix' : '[+] Edit_SQL_Matrix'}
+                                                    {showSqlPolicyEditor ? 'Hide SQL Policies' : 'Edit SQL Policies'}
                                                 </button>
                                             </div>
 
                                             {showSqlPolicyEditor && rlsPreset === 'owner_only' && (
                                                 <div className="space-y-3 animate-in fade-in duration-300">
-                                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 italic">Owner_Field_Vector</label>
+                                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 italic">Owner Field</label>
                                                     <OzySelect
                                                         value={normalizeIdentifier(rlsOwnerField) || DEFAULT_OWNER_FIELD}
                                                         onChange={(e: any) => setRlsOwnerField(e.target.value)}
@@ -1435,7 +1450,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
 
                                             {showSqlPolicyEditor && (
                                                 <p className="text-[9px] font-bold uppercase tracking-tight text-zinc-700 italic">
-                                                    // Kernel_Logic: Use SQL boolean expressions. Example: <span className="text-zinc-500">(select auth.uid()) = user_id</span> or <span className="text-zinc-500">true</span>.
+                                                    // Use SQL boolean expressions. Example: <span className="text-zinc-500">(select auth.uid()) = user_id</span> or <span className="text-zinc-500">true</span>.
                                                 </p>
                                             )}
 
@@ -1725,7 +1740,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                             <div className="flex items-center justify-between border-b border-border px-6 py-4">
                                 <div className="flex items-center gap-3">
                                     <LinkIcon size={14} className="text-primary" />
-                                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-white">Kernel_Link :: Foreign_Key</h3>
+                                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-white">Foreign Key</h3>
                                 </div>
                                 <button onClick={() => { closeRelationEditor(); setIsRelationModalOpen(false); }} className="text-zinc-600 hover:text-white transition-colors">
                                     <X size={18} />
@@ -1734,7 +1749,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
 
                             <div className="p-8 space-y-8">
                                 <div className="space-y-3">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 italic">Reference_Vector</label>
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 italic">Reference Table</label>
                                     <input
                                         autoFocus
                                         type="text"
@@ -1747,7 +1762,7 @@ const CreateTableModal: React.FC<CreateTableModalProps> = ({
                                 </div>
 
                                 <div className="space-y-4">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 italic">Discovered_Nodes</label>
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 italic">Available Tables</label>
                                     <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                                         {allTables.map((table: any) => (
                                             <button

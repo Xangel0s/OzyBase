@@ -288,7 +288,7 @@ const EssentialApiKeysPanel: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-700">
+    <div className="space-y-6 animate-in fade-in duration-150">
       <div className="bg-black/20 border border-white/5 rounded-md p-8 shadow-[0_20px_40px_rgba(0,0,0,0.6)] relative overflow-hidden transition-all hover:border-white/10 group">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/2 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between relative z-10">
@@ -380,7 +380,7 @@ const EssentialApiKeysPanel: React.FC = () => {
                     <p className="text-[10px] font-medium text-zinc-500 mb-2">{roleMeta.valueLabel}</p>
                     <div className="flex items-center justify-between gap-4">
                       <code data-testid={`essential-key-secret-${role}`} className="text-xs text-white break-all">
-                        {revealed?.key || roleMeta.valuePlaceholder}
+                        {revealed?.key || (role === "anon" && summary?.copy_value ? summary.copy_value : roleMeta.valuePlaceholder)}
                       </code>
                       <button
                         onClick={() => {
@@ -414,15 +414,20 @@ const EssentialApiKeysPanel: React.FC = () => {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => void copyValue(revealed?.key, `${role}-secret`)}
-                    disabled={!revealed?.key}
-                    data-testid={`essential-key-copy-${role}`}
-                    className={`px-4 py-2 rounded-md border text-[10px] font-medium disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 transition-all ${roleMeta.actionClass}`}
-                  >
-                    {copiedKey === `${role}-secret` ? <Check size={12} /> : <Copy size={12} />}
-                    {copiedKey === `${role}-secret` ? "Copied" : "Copy"}
-                  </button>
+                  {(() => {
+                    const activeKeyVal = revealed?.key || (role === "anon" && summary?.copy_value ? summary.copy_value : undefined);
+                    return (
+                      <button
+                        onClick={() => void copyValue(activeKeyVal, `${role}-secret`)}
+                        disabled={!activeKeyVal}
+                        data-testid={`essential-key-copy-${role}`}
+                        className={`px-4 py-2 rounded-md border text-[10px] font-medium disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 transition-all ${roleMeta.actionClass}`}
+                      >
+                        {copiedKey === `${role}-secret` ? <Check size={12} /> : <Copy size={12} />}
+                        {copiedKey === `${role}-secret` ? "Copied" : "Copy"}
+                      </button>
+                    );
+                  })()}
                   <button
                     onClick={() => {
                       if (!ensureVerified()) return;

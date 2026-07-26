@@ -2191,7 +2191,7 @@ const TableEditor: React.FC<TableEditorProps> = ({
                 <div className="flex items-center gap-3 p-2 rounded-lg bg-amber-500/5 border border-amber-500/10">
                     <AlertTriangle size={12} className="text-amber-500 shrink-0" />
                     <p className="flex-1 text-[10px] text-zinc-500 leading-none uppercase tracking-tight">
-                        <span className="font-bold text-amber-500 italic mr-2">READ_ONLY:</span>
+                        <span className="font-bold text-amber-500 italic mr-2">Read Only:</span>
                         {readOnlyCompatibilityMessage}
                     </p>
                     <div className="flex items-center gap-2 shrink-0">
@@ -2199,7 +2199,7 @@ const TableEditor: React.FC<TableEditorProps> = ({
                             onClick={() => onOpenSqlEditor?.(tableName, `-- Fix: Enable editing by adding a primary key...`)}
                             className="px-2 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[8px] font-bold uppercase tracking-wider rounded transition-all hover:bg-amber-500 hover:text-black"
                         >
-                            SQL_FIX
+                            Fix with SQL
                         </button>
                         <button
                             onClick={() => setDismissedBanners((prev) => new Set(prev).add(tableName))}
@@ -2325,8 +2325,8 @@ const TableEditor: React.FC<TableEditorProps> = ({
                     <CheckSquare size={12} />
                 </div>
                 <div>
-                    <p className="text-[10px] font-bold text-white uppercase tracking-widest italic leading-none">{selectedCount} Selected_Manifest</p>
-                    <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest mt-0.5">Vector: {currentTableCopy} // Active_Page</p>
+                    <p className="text-[10px] font-bold text-white uppercase tracking-widest italic leading-none">{selectedCount} selected</p>
+                    <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest mt-0.5">Table: {currentTableCopy}</p>
                 </div>
             </div>
             <div className="flex items-center gap-1.5">

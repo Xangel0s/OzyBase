@@ -201,6 +201,27 @@ func IsValidIdentifier(name string) bool {
 	return true
 }
 
+// IsValidFunctionName checks if a function name is valid (allowing hyphens)
+func IsValidFunctionName(name string) bool {
+	if len(name) == 0 || len(name) > 63 {
+		return false
+	}
+
+	for i, r := range name {
+		if i == 0 {
+			if !unicode.IsLetter(r) && r != '_' {
+				return false
+			}
+		} else {
+			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r != '-' {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 // formatDefault formats a default value for SQL
 func formatDefault(value any, _ string) string {
 	switch v := value.(type) {

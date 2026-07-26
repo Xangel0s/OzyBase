@@ -134,16 +134,16 @@ export function AgentSummaryCard({
                     </div>
                     <div>
                         <div className="flex items-center gap-3">
-                            <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-white">Motor de Agentes</h3>
+                            <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-white">Agent Engine</h3>
                             <span className={`h-1.5 w-1.5 rounded-full ${isHealthy ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                         </div>
                         <div className="mt-1 flex items-center gap-3">
                             <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-600">
-                                <span className="text-zinc-300">{activeAgents}</span> Activos
+                                <span className="text-zinc-300">{activeAgents}</span> Active
                             </p>
                             <span className="h-1 w-1 rounded-full bg-zinc-800" />
                             <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-600">
-                                <span className={pendingApprovals > 0 ? 'text-amber-500' : 'text-zinc-300'}>{pendingApprovals}</span> Pendientes
+                                <span className={pendingApprovals > 0 ? 'text-amber-500' : 'text-zinc-300'}>{pendingApprovals}</span> Pending
                             </p>
                             <span className="h-1 w-1 rounded-full bg-zinc-800" />
                             <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-600">
@@ -375,7 +375,7 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
     const loadData = useCallback(async (
         isActive: () => boolean = () => true,
         signal?: AbortSignal,
-    ) => {
+    ): Promise<boolean> => {
         try {
             const [infoResult, healthResult] = await Promise.allSettled([
                 fetchWithAuth('/api/project/info', { signal }),
@@ -383,39 +383,58 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
             ]);
 
             if (infoResult.status === 'fulfilled') {
-                const info = await readJsonIfOk<ProjectInfo>(infoResult.value);
+                const res = infoResult.value;
+                if (res.status === 401 || res.status === 403) {
+                    return false; // Unauthorized/forbidden - stop polling
+                }
+                const info = await readJsonIfOk<ProjectInfo>(res);
                 if (info && isActive()) {
                     setProjectInfo(info);
                 }
             }
 
             if (healthResult.status === 'fulfilled') {
-                const health = await readJsonIfOk<any>(healthResult.value);
+                const res = healthResult.value;
+                if (res.status === 401 || res.status === 403) {
+                    return false;
+                }
+                const health = await readJsonIfOk<any>(res);
                 if (isActive()) {
                     setHealthIssues(Array.isArray(health) ? health : []);
                 }
             }
+            return true;
         } catch (err) {
             if (!isAbortLikeError(err) && isActive()) {
                 setHealthIssues((current) => current);
             }
+            return true;
         }
     }, []);
 
     useEffect(() => {
         let active = true;
+        let timerId: number | null = null;
         const abortController = new AbortController();
         const isActive = () => active;
 
-        void loadData(isActive, abortController.signal);
-        const interval = window.setInterval(() => {
-            void loadData(isActive, abortController.signal);
-        }, 5000);
+        const runPoll = async () => {
+            const shouldContinue = await loadData(isActive, abortController.signal);
+            if (shouldContinue && active) {
+                timerId = window.setTimeout(() => {
+                    void runPoll();
+                }, 5000);
+            }
+        };
+
+        void runPoll();
 
         return () => {
             active = false;
             abortController.abort();
-            window.clearInterval(interval);
+            if (timerId !== null) {
+                window.clearTimeout(timerId);
+            }
         };
     }, [loadData]);
 
@@ -597,6 +616,51 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                         >
                             Infrastructure
                         </button>
+                    </div>
+
+                    <div className="mt-8 rounded-md border border-border bg-zinc-900/50 p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                                <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-black/40 text-zinc-300">
+                                    <Cpu size={18} />
+                                    <span className="absolute -bottom-0.5 -right-0.5 flex h-2 w-2">
+                                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                                    </span>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-white">
+                                            MCP Integration <span className="text-zinc-400 italic">Native AI</span>
+                                        </h4>
+                                        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-emerald-400">
+                                            Active
+                                        </span>
+                                    </div>
+                                    <p className="mt-1 text-xs text-zinc-400 font-mono tracking-tight">
+                                        Model Context Protocol // Zero-trust AI bridge for Cursor & Claude
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={async () => {
+                                        const mcpCmd = `npx ozybase connect --url ${apiUrl}/api/project/mcp`;
+                                        await navigator.clipboard.writeText(mcpCmd);
+                                        setCopied(true);
+                                        window.setTimeout(() => setCopied(false), 1500);
+                                    }}
+                                    className={`inline-flex items-center gap-2 rounded-md border px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                                        copied
+                                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                                            : 'border-border bg-zinc-900 text-zinc-200 hover:border-zinc-500 hover:text-white'
+                                    }`}
+                                >
+                                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                                    {copied ? 'Command Copied' : 'Copy MCP Connection'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </section>
 

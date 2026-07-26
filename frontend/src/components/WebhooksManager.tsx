@@ -85,7 +85,7 @@ const WebhooksManager = () => {
     };
 
     return (
-        <div className="flex flex-col h-full bg-background animate-in fade-in duration-700 overflow-hidden relative">
+        <div className="flex flex-col h-full bg-background animate-in fade-in duration-150 overflow-hidden relative">
             <div className="absolute inset-x-0 top-0 h-96 bg-linear-to-b from-primary/5 to-transparent pointer-events-none" />
             {/* Header */}
             <header className="px-10 py-16 border-b border-white/5 bg-linear-to-b from-zinc-900/50 to-transparent relative z-10 overflow-hidden">
@@ -96,7 +96,7 @@ const WebhooksManager = () => {
                             <Webhook size={40} strokeWidth={1} />
                         </div>
                         <div className="relative z-10">
-                            <p className="text-[10px] font-bold tracking-[0.4em] text-zinc-500 uppercase italic mb-3">Ozy_Kernel :: Event_Dispatcher</p>
+                            <p className="text-[10px] font-bold tracking-[0.4em] text-zinc-500 uppercase italic mb-3">Event Dispatcher</p>
                             <h1 className="text-5xl font-bold text-white uppercase tracking-tighter italic leading-none">Webhooks</h1>
                             <div className="mt-6 flex items-center gap-6">
                                 <div className="flex items-center gap-3 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 group cursor-help">
@@ -104,7 +104,7 @@ const WebhooksManager = () => {
                                     <span className="text-primary text-[9px] font-bold uppercase tracking-widest italic">Outbound_Event_Pipeline_Stable</span>
                                 </div>
                                 <div className="w-1.5 h-1.5 rounded-full bg-white/10" />
-                                <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.2em] italic tabular-nums">{webhooks.length}_REGISTERED_NODES</span>
+                                <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.2em] italic tabular-nums">{webhooks.length} Registered Webhooks</span>
                             </div>
                         </div>
                     </div>

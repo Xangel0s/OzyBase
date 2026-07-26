@@ -454,6 +454,46 @@ func (h *Handler) HandleMcpJsonRpc(c echo.Context) error {
 						"required": []string{"query"},
 					},
 				},
+				{
+					"name":        "storage.create_bucket",
+					"description": "Create a new storage bucket in OzyBase",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"name": map[string]any{
+								"type":        "string",
+								"description": "The bucket name (unique)",
+							},
+							"public": map[string]any{
+								"type":        "boolean",
+								"description": "Whether the bucket is publicly readable",
+							},
+						},
+						"required": []string{"name"},
+					},
+				},
+				{
+					"name":        "functions.deploy",
+					"description": "Deploy or create an edge function in OzyBase",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"name": map[string]any{
+								"type":        "string",
+								"description": "The function name",
+							},
+							"script": map[string]any{
+								"type":        "string",
+								"description": "The JavaScript or Go code script for the function",
+							},
+							"runtime": map[string]any{
+								"type":        "string",
+								"description": "Runtime environment (e.g. 'js', 'wasm')",
+							},
+						},
+						"required": []string{"name", "script"},
+					},
+				},
 			},
 		}
 		return c.JSON(http.StatusOK, resp)
@@ -557,15 +597,80 @@ func (h *Handler) HandleMcpJsonRpc(c echo.Context) error {
 				results = []map[string]any{}
 			}
 
-			resultsJSON, _ := json.MarshalIndent(results, "", "  ")
+			jsonBytes, _ := json.Marshal(results)
+			if results == nil {
+				jsonBytes = []byte("[]")
+			}
+
+			upper := strings.ToUpper(queryArgs.Query)
+			if strings.Contains(upper, "CREATE TABLE") || strings.Contains(upper, "ALTER TABLE") || strings.Contains(upper, "DROP TABLE") {
+				h.invalidateProjectInfoCache()
+				h.invalidateHealthIssuesCache()
+				workspaceID, _ := c.Get("workspace_id").(string)
+				if userTables, tblErr := h.DB.ListTables(ctx); tblErr == nil {
+					for _, tName := range userTables {
+						_ = h.upsertCollectionMetadataForTable(ctx, tName, workspaceID)
+					}
+				}
+			}
+
 			resp.Result = map[string]any{
 				"content": []map[string]any{
 					{
 						"type": "text",
-						"text": string(resultsJSON),
+						"text": string(jsonBytes),
 					},
 				},
 			}
+			return c.JSON(http.StatusOK, resp)
+
+		case "storage.create_bucket":
+			var bucketArgs struct {
+				Name   string `json:"name"`
+				Public bool   `json:"public"`
+			}
+			if err := json.Unmarshal(callParams.Arguments, &bucketArgs); err != nil || strings.TrimSpace(bucketArgs.Name) == "" {
+				resp.Error = &MCPError{Code: -32602, Message: "Invalid arguments, expected 'name' string"}
+				return c.JSON(http.StatusOK, resp)
+			}
+			_, err := h.DB.Pool.Exec(ctx, `
+				INSERT INTO _v_buckets (name, public, rls_enabled, rls_rule, max_file_size_bytes, max_total_size_bytes, lifecycle_delete_after_days)
+				VALUES ($1, $2, true, 'public', 52428800, 5368709120, 0)
+				ON CONFLICT (name) DO UPDATE SET public = EXCLUDED.public
+			`, strings.TrimSpace(bucketArgs.Name), bucketArgs.Public)
+			if err != nil {
+				resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Error creating bucket: %v", err)}}, "isError": true}
+				return c.JSON(http.StatusOK, resp)
+			}
+			h.invalidateProjectInfoCache()
+			resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Bucket '%s' created successfully.", bucketArgs.Name)}}}
+			return c.JSON(http.StatusOK, resp)
+
+		case "functions.deploy":
+			var fnArgs struct {
+				Name    string `json:"name"`
+				Script  string `json:"script"`
+				Runtime string `json:"runtime"`
+			}
+			if err := json.Unmarshal(callParams.Arguments, &fnArgs); err != nil || strings.TrimSpace(fnArgs.Name) == "" || strings.TrimSpace(fnArgs.Script) == "" {
+				resp.Error = &MCPError{Code: -32602, Message: "Invalid arguments, expected 'name' and 'script' strings"}
+				return c.JSON(http.StatusOK, resp)
+			}
+			runtime := strings.TrimSpace(fnArgs.Runtime)
+			if runtime == "" {
+				runtime = "js"
+			}
+			_, err := h.DB.Pool.Exec(ctx, `
+				INSERT INTO _v_functions (name, script, runtime, entrypoint, timeout_ms, updated_at)
+				VALUES ($1, $2, $3, 'handler', 5000, NOW())
+				ON CONFLICT (name) DO UPDATE SET script = EXCLUDED.script, runtime = EXCLUDED.runtime, updated_at = NOW()
+			`, strings.TrimSpace(fnArgs.Name), fnArgs.Script, runtime)
+			if err != nil {
+				resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Error deploying function: %v", err)}}, "isError": true}
+				return c.JSON(http.StatusOK, resp)
+			}
+			h.invalidateProjectInfoCache()
+			resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Edge function '%s' deployed successfully.", fnArgs.Name)}}}
 			return c.JSON(http.StatusOK, resp)
 
 		default:

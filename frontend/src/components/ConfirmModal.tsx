@@ -104,7 +104,7 @@ const ConfirmModal = ({
                             } ${confirmButtonClassName}`}
                     >
                         {submitting && <Loader2 size={12} className="animate-spin" />}
-                        {confirmText || 'Execute_Commit'}
+                        {confirmText || 'Confirm'}
                     </button>
                 </div>
             </div>

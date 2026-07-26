@@ -360,7 +360,7 @@ func (h *FunctionsHandler) Create(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
 	}
 	req.Name = strings.TrimSpace(req.Name)
-	if req.Name == "" || !data.IsValidIdentifier(req.Name) {
+	if req.Name == "" || !data.IsValidFunctionName(req.Name) {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid function name"})
 	}
 
@@ -471,7 +471,7 @@ func (h *FunctionsHandler) Create(c echo.Context) error {
 func (h *FunctionsHandler) Invoke(c echo.Context) error {
 	name := c.Param("name")
 	name = strings.TrimSpace(name)
-	if name == "" || !data.IsValidIdentifier(name) {
+	if name == "" || !data.IsValidFunctionName(name) {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid function name"})
 	}
 
@@ -508,8 +508,11 @@ func (h *FunctionsHandler) Invoke(c echo.Context) error {
 		})
 	}
 	payload := map[string]any{}
-	if bindErr := json.NewDecoder(c.Request().Body).Decode(&payload); bindErr != nil && bindErr != io.EOF {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid function payload"})
+	if c.Request().Body != nil {
+		bodyBytes, _ := io.ReadAll(c.Request().Body)
+		if len(bodyBytes) > 0 {
+			_ = json.Unmarshal(bodyBytes, &payload)
+		}
 	}
 	secrets, secretsErr := h.loadFunctionSecrets(c.Request().Context(), name, workspaceID)
 	if secretsErr != nil {
@@ -548,7 +551,7 @@ func (h *FunctionsHandler) Invoke(c echo.Context) error {
 
 func (h *FunctionsHandler) Delete(c echo.Context) error {
 	name := strings.TrimSpace(c.Param("name"))
-	if name == "" || !data.IsValidIdentifier(name) {
+	if name == "" || !data.IsValidFunctionName(name) {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid function name"})
 	}
 

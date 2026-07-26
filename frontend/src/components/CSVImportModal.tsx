@@ -136,13 +136,13 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
                 <div className="flex-1 min-h-0 p-6 flex flex-col gap-6 overflow-hidden bg-zinc-900">
                     <div className="flex flex-wrap gap-2 text-[9px] font-bold uppercase tracking-widest">
                         <div className="rounded-md border border-border bg-zinc-950 px-3 py-1.5 text-zinc-500">
-                            <span className="font-mono text-zinc-400">{headers.length}</span>_Fields_Detected
+                            <span className="font-mono text-zinc-400">{headers.length}</span> columns detected
                         </div>
                         <div className="rounded-md border border-border bg-zinc-950 px-3 py-1.5 text-zinc-500">
-                            <span className="font-mono text-zinc-400">{totalRows}</span>_Nodes_Loaded
+                            <span className="font-mono text-zinc-400">{totalRows}</span> rows loaded
                         </div>
                         <div className={`rounded-md border px-3 py-1.5 transition-all ${mappedCount > 0 ? 'border-primary/30 bg-primary/10 text-primary shadow-[0_0_15px_rgba(254,254,0,0.1)]' : 'border-border bg-zinc-950 text-zinc-600'}`}>
-                            <span className="font-mono">{mappedCount}</span>_Active_Mappings
+                            <span className="font-mono">{mappedCount}</span> mapped
                         </div>
                     </div>
 
@@ -157,7 +157,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
                     )}
 
                     <div className="flex flex-wrap items-center justify-between gap-4">
-                        <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 italic">Mapping_Matrix</h4>
+                        <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600 italic">Column Mapping</h4>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleAutoMap}
@@ -169,7 +169,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
                                 onClick={handleClear}
                                 className="rounded-md border border-border bg-zinc-800 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-zinc-500 transition-all hover:border-zinc-600 hover:text-zinc-300"
                             >
-                                Reset_Flow
+                                Reset
                             </button>
                         </div>
                     </div>
@@ -278,7 +278,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
                             </div>
                             <div className="mt-4 flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-zinc-700">
                                 <CheckCircle2 size={12} className="text-primary" />
-                                Node_Integrity: Filtered_Insertion_Active
+                                Duplicates filtered
                             </div>
                         </div>
                     </div>

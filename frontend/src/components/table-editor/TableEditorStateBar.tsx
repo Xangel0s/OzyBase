@@ -45,30 +45,30 @@ const TableEditorStateBar: React.FC<TableEditorStateBarProps> = ({
     return (
         <div className="border-b border-border bg-zinc-950 px-6 py-1.5">
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar text-[9px] font-bold uppercase tracking-widest text-zinc-600">
-                <span className="mr-1 italic shrink-0">State_Vector:</span>
+                <span className="mr-1 italic shrink-0">Active:</span>
                 {activeViewId && (
                     <span className="shrink-0 rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">
-                        Persisted_View_Active
+                        Saved View
                     </span>
                 )}
                 {searchTerm.trim() !== '' && (
                     <span className="shrink-0 rounded-md border border-border bg-zinc-900 px-2.5 py-1 text-zinc-300">
-                        Scanner: {searchTerm.trim()}
+                        Search: {searchTerm.trim()}
                     </span>
                 )}
                 {hiddenColumnCount > 0 && (
                     <span className="shrink-0 rounded-md border border-border bg-zinc-900 px-2.5 py-1 text-zinc-400">
-                        {hiddenColumnCount}_Masked_Fields
+                        {hiddenColumnCount} hidden columns
                     </span>
                 )}
                 {pinnedColumnNames.length > 0 && (
                     <span className="shrink-0 rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">
-                        Locked: {pinnedLabel}
+                        Pinned: {pinnedLabel}
                     </span>
                 )}
                 {filtersCount > 0 && (
                     <span className="shrink-0 rounded-md border border-border bg-zinc-900 px-2.5 py-1 text-zinc-300">
-                        {filtersCount}_Constraints
+                        {filtersCount} {filtersCount === 1 ? 'filter' : 'filters'}
                     </span>
                 )}
                 {visibleSorts.map((sort) => (
@@ -76,19 +76,19 @@ const TableEditorStateBar: React.FC<TableEditorStateBarProps> = ({
                         key={`${sort.column}-${sort.direction}`}
                         className="shrink-0 rounded-md border border-border bg-zinc-900 px-2.5 py-1 text-zinc-300"
                     >
-                        Order: {sort.column} {sort.direction}
+                        Sort: {sort.column} {sort.direction}
                     </span>
                 ))}
                 {selectedCount > 0 && (
                     <span className="shrink-0 rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">
-                        {selectedCount}_Selected_Nodes
+                        {selectedCount} selected
                     </span>
                 )}
                 <button
                     onClick={onReset}
                     className="ml-auto shrink-0 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-zinc-500 transition-all hover:text-white hover:border-zinc-600 uppercase tracking-widest"
                 >
-                    Flush_State
+                    Clear All
                 </button>
             </div>
         </div>

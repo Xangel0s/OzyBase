@@ -1,35 +1,35 @@
-# Sistema de Notificaciones de Seguridad - OzyBase
+# Security Notifications System - OzyBase
 
-## 📧 Descripción General
+## 📧 Overview
 
-El Sistema de Notificaciones de Seguridad de OzyBase proporciona alertas en tiempo real por correo electrónico cuando se detectan eventos críticos de seguridad, permitiendo una respuesta inmediata a amenazas potenciales.
+The OzyBase Security Notification System provides real-time email alerts when critical security events are detected, enabling immediate incident response.
 
-## 🎯 Características Principales
+## 🎯 Key Features
 
-### 1. **Detección Automática de Amenazas**
-- **Geo-Fencing Breaches**: Alertas cuando se detecta acceso desde países no autorizados
-- **Unauthorized Access**: Notificaciones de intentos de acceso no autorizados
-- **Rate Limit Exceeded**: Avisos de patrones de solicitudes sospechosos
+### 1. **Automated Threat Detection**
+- **Geo-Fencing Breaches**: Alerts when access is detected from unauthorized countries.
+- **Unauthorized Access**: Notifications for suspicious or unauthenticated requests.
+- **Rate Limit Exceeded**: Alerts for request throttling violations.
 
-### 2. **Notificaciones Multi-Destinatario**
-- Soporte para múltiples destinatarios de email
-- Configuración granular de tipos de alerta por destinatario
-- Activación/desactivación individual de destinatarios
+### 2. **Multi-Recipient Notifications**
+- Support for multiple email notification recipients.
+- Granular configuration of alert types per recipient.
+- Individual activation/deactivation of recipients.
 
-### 3. **Envío Asíncrono**
-- Las notificaciones se envían en segundo plano sin afectar el rendimiento
-- Sistema de cola para garantizar la entrega
-- Logs detallados de cada notificación enviada
+### 3. **Asynchronous Dispatch**
+- Notifications run in background goroutines without impacting API performance.
+- Internal queuing mechanism for reliable delivery.
+- Detailed execution logs for each dispatched alert.
 
-## 🚀 Configuración
+## 🚀 Setup
 
 ### Backend
 
-#### 1. Migraciones de Base de Datos
-Las tablas necesarias se crean automáticamente al iniciar OzyBase:
+#### 1. Database Schema
+Notification tables are created automatically on boot:
 
 ```sql
--- Tabla de destinatarios de notificaciones
+-- Security notification recipients table
 _v_security_notification_recipients (
     id UUID PRIMARY KEY,
     email VARCHAR(255) NOT NULL,
@@ -39,32 +39,30 @@ _v_security_notification_recipients (
 )
 ```
 
-#### 2. Configurar Mailer
-Por defecto, OzyBase usa `LogMailer` que imprime los emails en la consola. Para producción, implementa un mailer real:
+#### 2. Mailer Configuration
+By default, OzyBase uses `LogMailer` which logs alerts to stdout. For production, configure SMTP settings in the dashboard or via environment variables.
 
 ```go
-// Ejemplo con SendGrid, AWS SES, etc.
 type ProductionMailer struct {
     apiKey string
 }
 
 func (m *ProductionMailer) SendSecurityAlert(to, alertType, details string) error {
-    // Implementar lógica de envío real
     return sendEmail(to, alertType, details)
 }
 ```
 
 ### Frontend
 
-#### Acceso a la Configuración
-1. Navega a **Authentication > Alert Notifications**
-2. Agrega emails de destinatarios
-3. Configura los tipos de alerta por destinatario
+#### Accessing Settings
+1. Navigate to **Authentication > Alert Notifications**.
+2. Add recipient emails.
+3. Configure target alert types per recipient.
 
 ## 📊 API Endpoints
 
 ### GET /api/project/security/notifications
-Obtiene la lista de destinatarios configurados.
+Fetch configured recipients.
 
 **Response:**
 ```json
@@ -80,7 +78,7 @@ Obtiene la lista de destinatarios configurados.
 ```
 
 ### POST /api/project/security/notifications
-Agrega un nuevo destinatario de notificaciones.
+Add a new alert recipient.
 
 **Request:**
 ```json
@@ -91,33 +89,33 @@ Agrega un nuevo destinatario de notificaciones.
 ```
 
 ### DELETE /api/project/security/notifications/:id
-Elimina un destinatario de notificaciones.
+Remove an alert recipient.
 
-## 🔔 Tipos de Alertas
+## 🔔 Alert Types
 
-### 1. Geo Breach (geo_breach)
-**Trigger**: Cuando se detecta acceso desde un país no autorizado en la política de Geo-Fencing.
+### 1. Geo Breach (`geo_breach`)
+**Trigger**: Access detected from an unauthorized country under the Geo-Fencing policy.
 
-**Contenido del Email**:
+**Sample Email**:
 ```
 Subject: ⚠️ SECURITY ALERT: Geographic Access Breach
 
 A critical security event has been detected:
 
 Type: Geographic Access Breach
-Details: IP: 185.20.12.3 from Russia, Moscow attempted to access POST /api/collections/users/records
+Details: IP 185.20.12.3 from Russia attempted to access POST /api/collections/users/records
 
 Date: Mon, 03 Feb 2026 14:30:00 EST
 Action Required: Check your OzyBase Dashboard immediately.
 ```
 
-### 2. Unauthorized Access (unauthorized_access)
-**Trigger**: Múltiples intentos fallidos de autenticación.
+### 2. Unauthorized Access (`unauthorized_access`)
+**Trigger**: Multiple unauthenticated or failed access attempts.
 
-### 3. Rate Limit Exceeded (rate_limit_exceeded)
-**Trigger**: Cuando un cliente excede los límites de tasa configurados.
+### 3. Rate Limit Exceeded (`rate_limit_exceeded`)
+**Trigger**: Client exceeds defined request rate thresholds.
 
-## 🛠️ Flujo de Trabajo
+## 🛠️ Execution Workflow
 
 ```mermaid
 graph LR
@@ -129,66 +127,21 @@ graph LR
     C -->|OK| G[Continue]
 ```
 
-1. **Request Interceptado**: El middleware captura cada petición
-2. **Validación de Seguridad**: Se ejecutan las políticas (Geo-Fencing, RBAC, etc.)
-3. **Detección de Brecha**: Si se detecta una violación, se registra en `_v_security_alerts`
-4. **Consulta de Destinatarios**: Se obtienen todos los emails activos para ese tipo de alerta
-5. **Envío Asíncrono**: Se envían las notificaciones en goroutines separadas
-6. **Logging**: Cada email enviado se registra en la consola (LogMailer) o sistema de logs
+1. **Intercepted Request**: Middleware captures incoming HTTP request.
+2. **Security Validation**: Policies (Geo-Fencing, RBAC, Rate Limiting) are evaluated.
+3. **Breach Detection**: Logged to `_v_security_alerts`.
+4. **Recipient Query**: Queries active notification recipients matching alert type.
+5. **Async Delivery**: Dispatches email alerts in goroutines.
+6. **Audit Log**: Dispatches entry to system logs.
 
-## 📈 Mejores Prácticas
+## 📈 Best Practices
 
-### 1. **Configuración de Destinatarios**
-- Usa emails de equipos (security@, devops@) en lugar de individuales
-- Mantén al menos 2 destinatarios activos para redundancia
-- Revisa periódicamente la lista de destinatarios
-
-### 2. **Gestión de Alertas**
-- No ignores las alertas de geo_breach - investiga cada una
-- Configura filtros en tu cliente de email para priorizar alertas de OzyBase
-- Establece un SLA de respuesta (ej: 15 minutos para alertas críticas)
-
-### 3. **Integración con Sistemas Externos**
-- Considera integrar con PagerDuty, Slack o Microsoft Teams
-- Usa webhooks para enviar alertas a sistemas SIEM
-- Implementa un dashboard de monitoreo 24/7
-
-### 4. **Testing**
-```bash
-# Simular una brecha de geo-fencing
-curl -X POST http://localhost:5342/api/collections/test/records \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "X-Forwarded-For: 185.20.12.3"
-```
-
-## 🔐 Seguridad
-
-- Los emails de notificación **NO** contienen información sensible (tokens, passwords)
-- Solo se envían detalles necesarios para la investigación (IP, país, endpoint)
-- Los destinatarios deben tener acceso al dashboard para ver detalles completos
-
-## 🐛 Troubleshooting
-
-### Las notificaciones no se envían
-1. Verifica que hay destinatarios activos: `SELECT * FROM _v_security_notification_recipients WHERE is_active = true`
-2. Revisa los logs del servidor para errores de mailer
-3. Confirma que la política de Geo-Fencing está habilitada
-
-### Emails duplicados
-- Verifica que no hay destinatarios duplicados en la base de datos
-- Revisa que el middleware no está siendo llamado múltiples veces
-
-### Formato incorrecto
-- Asegúrate de que el Mailer implementa correctamente la interfaz `SendSecurityAlert`
-
-## 📚 Recursos Adicionales
-
-- [Documentación de Geo-Fencing](./GEO_FENCING.md)
-- [RBAC Configuration](./RBAC.md)
-- [Security Dashboard](./SECURITY_DASHBOARD.md)
+1. Use team distribution emails (e.g. `security@company.com`).
+2. Maintain at least 2 active recipients for redundancy.
+3. Regularly review active notification recipients in the dashboard.
 
 ---
 
-**Versión**: 1.0.0  
-**Última actualización**: 2026-02-03  
-**Autor**: OzyBase Security Team
+**Version**: 1.0.0  
+**Updated**: 2026-07-26  
+**Author**: OzyBase Security Team
