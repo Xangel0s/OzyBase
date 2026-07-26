@@ -23,7 +23,7 @@ jobs:
       - name: Verify Go Modules & Build
         run: |
           go mod verify
-          go build -v ./cmd/OzyBase
+          go build -v ./cmd/ozybase
 
   frontend-build:
     name: Build Frontend (Vite / React)

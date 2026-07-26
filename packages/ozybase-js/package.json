@@ -17,7 +17,10 @@
     "url": "https://github.com/Xangel0s/ozybase-sdk-js.git"
   },
   "scripts": {
-    "build": "npx -p typescript tsc"
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
   },
   "keywords": [
     "ozybase",
