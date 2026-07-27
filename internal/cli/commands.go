@@ -65,7 +65,7 @@ func handleUpgrade(args []string) error {
 		targetRepo = updater.DefaultRepo()
 	}
 
-	fmt.Printf("🔍 Checking for updates from %s (current: %s)...\n", targetRepo, version.Version)
+	fmt.Printf("[INFO] Checking for updates from %s (current: %s)...\n", targetRepo, version.Version)
 
 	result, err := updater.Upgrade(updater.Options{
 		Repo:    *repo,
@@ -75,7 +75,7 @@ func handleUpgrade(args []string) error {
 		return fmt.Errorf("upgrade failed: %w", err)
 	}
 
-	fmt.Printf("✨ Success: %s\n", result)
+	fmt.Printf("[OK] Success: %s\n", result)
 	if strings.Contains(result, ".new.exe") {
 		fmt.Println("  Windows note: Replace current executable with .new.exe if background instance was running.")
 	}
