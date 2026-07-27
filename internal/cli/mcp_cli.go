@@ -63,7 +63,7 @@ func generateMcpConfig(targetURL string, outPath string) error {
 		if err := os.WriteFile(outPath, jsonBytes, 0o644); err != nil {
 			return fmt.Errorf("failed to write mcp config file: %w", err)
 		}
-		fmt.Printf("✅ MCP configuration saved to %s\n", outPath)
+		fmt.Printf("[OK] MCP configuration saved to %s\n", outPath)
 		return nil
 	}
 
@@ -80,27 +80,27 @@ func checkMcpStatus(targetURL string) error {
 	}
 	b, _ := json.Marshal(reqBody)
 
-	fmt.Printf("🔍 Testing MCP endpoint at %s...\n", targetURL)
+	fmt.Printf("[INFO] Testing MCP endpoint at %s...\n", targetURL)
 	resp, err := http.Post(targetURL, "application/json", bytes.NewBuffer(b))
 	if err != nil {
-		return fmt.Errorf("❌ Failed to reach MCP endpoint: %w", err)
+		return fmt.Errorf("[ERROR] Failed to reach MCP endpoint: %w", err)
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {
-		fmt.Printf("⚠️ MCP Endpoint responded with HTTP %d: %s\n", resp.StatusCode, string(bodyBytes))
+		fmt.Printf("[WARN] MCP Endpoint responded with HTTP %d: %s\n", resp.StatusCode, string(bodyBytes))
 		return nil
 	}
 
-	fmt.Printf("✅ OzyBase MCP Endpoint is LIVE and responsive (HTTP 200).\n")
+	fmt.Printf("[OK] OzyBase MCP Endpoint is LIVE and responsive (HTTP 200).\n")
 	fmt.Printf("Response: %s\n", string(bodyBytes))
 	return nil
 }
 
 func printMcpConnectInstructions(targetURL string) error {
 	fmt.Println("==================================================")
-	fmt.Println("🚀 OZYBASE MCP IDE QUICK CONNECT GUIDE")
+	fmt.Println("OZYBASE MCP IDE QUICK CONNECT GUIDE")
 	fmt.Println("==================================================")
 	fmt.Printf("Endpoint URL : %s\n\n", targetURL)
 	fmt.Println("To connect Cursor, Windsurf, or VS Code AI Agents:")
