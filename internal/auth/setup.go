@@ -192,7 +192,7 @@ func ResetAdminPassword(ctx context.Context, db *data.DB, email, password string
 	}
 
 	tag, err := db.Pool.Exec(ctx,
-		"UPDATE _v_users SET password_hash = $1 WHERE email = $2 AND role = 'admin'",
+		"UPDATE _v_users SET password_hash = $1 WHERE LOWER(email) = LOWER($2) AND role = 'admin'",
 		string(hashed), email,
 	)
 	if err != nil {
@@ -213,7 +213,7 @@ func ResetAdminPassword(ctx context.Context, db *data.DB, email, password string
 		if len(existing) > 0 {
 			return fmt.Errorf("no admin found with email %q. Existing admin email(s): %s", email, strings.Join(existing, ", "))
 		}
-		return fmt.Errorf("no admin found with email %s", email)
+		return fmt.Errorf("no admin found with email %q. No admin accounts exist in database — run 'ozybase admin create' to create one", email)
 	}
 	return nil
 }
