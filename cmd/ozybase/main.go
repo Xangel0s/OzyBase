@@ -119,21 +119,21 @@ func run() error {
 		return err
 	}
 
-	// Optional admin bootstrap from ENV vars.
-	// If no ENV vars are set, print a banner and let the user run `admin create`.
-	if shouldBootstrapAdminFromEnv() {
-		ozyauth.EnsureAdminUser(db)
-	} else {
-		printNotInitializedBanner()
-	}
-
-	// CLI Commands handling
+	// CLI Commands handling (admin create, admin reset, etc.)
 	handledCLI, err := handleCLI(db)
 	if err != nil {
 		return err
 	}
 	if handledCLI {
 		return nil
+	}
+
+	// Optional admin bootstrap from ENV vars.
+	// If no ENV vars are set and no admin user exists, print setup banner.
+	if shouldBootstrapAdminFromEnv() {
+		ozyauth.EnsureAdminUser(db)
+	} else if !hasAdminUser(ctx, db) {
+		printNotInitializedBanner()
 	}
 
 	// Initialize Realtime components
@@ -244,6 +244,17 @@ func printNotInitializedBanner() {
 	fmt.Println("│  in your .env and restart.                                      │")
 	fmt.Println("└─────────────────────────────────────────────────────────────────┘")
 	fmt.Println()
+}
+
+func hasAdminUser(ctx context.Context, db *data.DB) bool {
+	if db == nil || db.Pool == nil {
+		return false
+	}
+	var count int
+	if err := db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_users WHERE role = 'admin'").Scan(&count); err != nil {
+		return false
+	}
+	return count > 0
 }
 
 func logDatabaseIdentity(ctx context.Context, db *data.DB) {

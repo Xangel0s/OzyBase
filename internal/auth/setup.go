@@ -135,6 +135,20 @@ func CreateAdminWithWorkspace(ctx context.Context, db *data.DB, email, password 
 		return fmt.Errorf("failed to check existing admins: %w", err)
 	}
 	if count > 0 {
+		rows, _ := tx.Query(ctx, "SELECT email FROM _v_users WHERE role = 'admin' ORDER BY created_at LIMIT 5")
+		var existing []string
+		if rows != nil {
+			for rows.Next() {
+				var e string
+				if err := rows.Scan(&e); err == nil {
+					existing = append(existing, e)
+				}
+			}
+			rows.Close()
+		}
+		if len(existing) > 0 {
+			return fmt.Errorf("an admin account already exists (%s). Use 'admin reset --email %s' to change password, or 'admin delete-all' to reset", strings.Join(existing, ", "), existing[0])
+		}
 		return errors.New("an admin account already exists. Use 'admin reset' to change the password")
 	}
 
@@ -185,6 +199,20 @@ func ResetAdminPassword(ctx context.Context, db *data.DB, email, password string
 		return fmt.Errorf("failed to update password: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
+		rows, _ := db.Pool.Query(ctx, "SELECT email FROM _v_users WHERE role = 'admin' ORDER BY created_at LIMIT 5")
+		var existing []string
+		if rows != nil {
+			for rows.Next() {
+				var e string
+				if err := rows.Scan(&e); err == nil {
+					existing = append(existing, e)
+				}
+			}
+			rows.Close()
+		}
+		if len(existing) > 0 {
+			return fmt.Errorf("no admin found with email %q. Existing admin email(s): %s", email, strings.Join(existing, ", "))
+		}
 		return fmt.Errorf("no admin found with email %s", email)
 	}
 	return nil
