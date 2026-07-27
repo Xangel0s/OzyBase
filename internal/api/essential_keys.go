@@ -753,8 +753,32 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 
 		prefix := managedAPIKeyPrefix(spec.role, targetKey)
 
-		// 7. Update existing role key or insert new essential key row
-		if currentID != "" {
+		var existingHashID string
+		if targetHash != "" {
+			_ = tx.QueryRow(ctx, `SELECT id::text FROM _v_api_keys WHERE key_hash = $1 LIMIT 1`, targetHash).Scan(&existingHashID)
+		}
+
+		// 7. Update existing hash row, existing role key, or insert new essential key row
+		if existingHashID != "" {
+			if _, execErr := tx.Exec(ctx, `
+				UPDATE _v_api_keys
+				SET is_active = TRUE,
+				    revoked_at = NULL,
+				    valid_after = NOW(),
+				    managed_kind = $2,
+				    secret_ciphertext = $3,
+				    prefix = $4
+				WHERE id = $1
+			`, existingHashID, apiKeyManagedKindEssential, ciphertext, prefix); execErr != nil {
+				return execErr
+			}
+			_, _ = tx.Exec(ctx, `
+				UPDATE _v_api_keys
+				SET is_active = FALSE,
+				    revoked_at = NOW()
+				WHERE role = $1 AND id != $2
+			`, spec.role, existingHashID)
+		} else if currentID != "" {
 			// Update the existing key record to match the active target hash and role
 			if _, execErr := tx.Exec(ctx, `
 				UPDATE _v_api_keys
@@ -769,6 +793,12 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 			`, currentID, targetHash, prefix, apiKeyManagedKindEssential, ciphertext); execErr != nil {
 				return execErr
 			}
+			_, _ = tx.Exec(ctx, `
+				UPDATE _v_api_keys
+				SET is_active = FALSE,
+				    revoked_at = NOW()
+				WHERE role = $1 AND id != $2
+			`, spec.role, currentID)
 		} else {
 			newID := uuid.NewString()
 			newVersion := currentVersion + 1
@@ -780,16 +810,6 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 			`, newID, apiKeyLabel(spec.role), targetHash, prefix, spec.role, keyGroupID, newVersion, apiKeyManagedKindEssential, ciphertext); execErr != nil {
 				return execErr
 			}
-		}
-
-		// Ensure all other rows for this role are deactivated
-		if currentID != "" {
-			_, _ = tx.Exec(ctx, `
-				UPDATE _v_api_keys
-				SET is_active = FALSE,
-				    revoked_at = NOW()
-				WHERE role = $1 AND id != $2
-			`, spec.role, currentID)
 		}
 
 		// Update local secret file
