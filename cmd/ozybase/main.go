@@ -175,6 +175,7 @@ func run() error {
 		AnonKey:        cfg.AnonKey,
 		ServiceRoleKey: cfg.ServiceRoleKey,
 	}); err != nil {
+		logger.Log.Error().Err(err).Msg("failed to ensure essential api keys")
 		return fmt.Errorf("failed to ensure essential api keys: %w", err)
 	}
 

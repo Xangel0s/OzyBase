@@ -677,16 +677,36 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 			return execErr
 		}
 
-		newID := uuid.NewString()
-		newVersion := currentVersion + 1
-		keyGroupID := newID
 		prefix := managedAPIKeyPrefix(spec.role, targetKey)
 
-		if _, execErr := tx.Exec(ctx, `
-			INSERT INTO _v_api_keys (id, name, key_hash, prefix, role, is_active, key_group_id, key_version, valid_after, managed_kind, secret_ciphertext)
-			VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7, NOW(), $8, $9)
-		`, newID, apiKeyLabel(spec.role), targetHash, prefix, spec.role, keyGroupID, newVersion, apiKeyManagedKindEssential, ciphertext); execErr != nil {
-			return execErr
+		// Check if a row with key_hash already exists (active or inactive)
+		var existingID string
+		_ = tx.QueryRow(ctx, `SELECT id::text FROM _v_api_keys WHERE key_hash = $1 LIMIT 1`, targetHash).Scan(&existingID)
+
+		if existingID != "" {
+			if _, execErr := tx.Exec(ctx, `
+				UPDATE _v_api_keys
+				SET is_active = TRUE,
+				    revoked_at = NULL,
+				    valid_after = NOW(),
+				    managed_kind = $2,
+				    secret_ciphertext = $3,
+				    prefix = $4
+				WHERE id = $1
+			`, existingID, apiKeyManagedKindEssential, ciphertext, prefix); execErr != nil {
+				return execErr
+			}
+		} else {
+			newID := uuid.NewString()
+			newVersion := currentVersion + 1
+			keyGroupID := newID
+
+			if _, execErr := tx.Exec(ctx, `
+				INSERT INTO _v_api_keys (id, name, key_hash, prefix, role, is_active, key_group_id, key_version, valid_after, managed_kind, secret_ciphertext)
+				VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7, NOW(), $8, $9)
+			`, newID, apiKeyLabel(spec.role), targetHash, prefix, spec.role, keyGroupID, newVersion, apiKeyManagedKindEssential, ciphertext); execErr != nil {
+				return execErr
+			}
 		}
 
 		// Update local secret file
