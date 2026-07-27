@@ -621,6 +621,13 @@ func RotateEssentialAPIKeyCore(ctx context.Context, db *data.DB, role string) (s
 		workspaceIDVal = *workspaceID
 	}
 
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO _v_api_keys (id, name, key_hash, prefix, role, is_active, key_group_id, key_version, valid_after, workspace_id, managed_kind, secret_ciphertext)
+		VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7, NOW(), $8, $9, $10)
+	`, newID, apiKeyLabel(role), keyHash, prefix, role, keyGroupID, newVersion, workspaceIDVal, apiKeyManagedKindEssential, ciphertext); err != nil {
+		return "", fmt.Errorf("failed to create rotated key: %w", err)
+	}
+
 	if currentID != "" {
 		if _, err := tx.Exec(ctx, `
 			UPDATE _v_api_keys
@@ -632,13 +639,6 @@ func RotateEssentialAPIKeyCore(ctx context.Context, db *data.DB, role string) (s
 		`, currentID, newID); err != nil {
 			return "", fmt.Errorf("failed to revoke previous key: %w", err)
 		}
-	}
-
-	if _, err := tx.Exec(ctx, `
-		INSERT INTO _v_api_keys (id, name, key_hash, prefix, role, is_active, key_group_id, key_version, valid_after, workspace_id, managed_kind, secret_ciphertext)
-		VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7, NOW(), $8, $9, $10)
-	`, newID, apiKeyLabel(role), keyHash, prefix, role, keyGroupID, newVersion, workspaceIDVal, apiKeyManagedKindEssential, ciphertext); err != nil {
-		return "", fmt.Errorf("failed to create rotated key: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {

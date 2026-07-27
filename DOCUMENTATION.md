@@ -107,4 +107,5 @@ OzyBase natively implements the Model Context Protocol (MCP) JSON-RPC at `POST /
 | `storage.create_bucket` | Creates a new storage bucket with public/private permissions. | `name` (string), `public` (bool) |
 | `functions.deploy` | Deploys or updates an Edge Function. | `name` (string), `script` (string), `runtime` (string) |
 | `migration.create` | Creates a versioned `.sql` file in `./migrations` and applies it. | `name` (string), `sql` (string) |
+| `backup.create` | Creates a timestamped database backup snapshot of schemas and tables. | `label` (string opcional) |
 

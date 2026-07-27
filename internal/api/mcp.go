@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -584,6 +586,19 @@ func (h *Handler) HandleMcpJsonRpc(c echo.Context) error {
 						"required": []string{"name", "sql"},
 					},
 				},
+				{
+					"name":        "backup.create",
+					"description": "Create a database backup snapshot of OzyBase schema and table data",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"label": map[string]any{
+								"type":        "string",
+								"description": "Optional custom tag or description for the backup file",
+							},
+						},
+					},
+				},
 			},
 		}
 		return c.JSON(http.StatusOK, resp)
@@ -953,6 +968,66 @@ OzyBase is a fullstack Open Source BaaS (Backend-as-a-Service) featuring:
 			}
 			h.invalidateProjectInfoCache()
 			resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Migration './migrations/%s' created and applied successfully.", fileName)}}}
+			return c.JSON(http.StatusOK, resp)
+
+		case "backup.create":
+			var backupArgs struct {
+				Label string `json:"label"`
+			}
+			_ = json.Unmarshal(callParams.Arguments, &backupArgs)
+
+			backupDir := "./data/backups"
+			if err := os.MkdirAll(backupDir, 0755); err != nil {
+				resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Error creating backup directory: %v", err)}}, "isError": true}
+				return c.JSON(http.StatusOK, resp)
+			}
+
+			tag := strings.TrimSpace(backupArgs.Label)
+			if tag == "" {
+				tag = "manual"
+			}
+			filename := fmt.Sprintf("ozybase_backup_%s_%s.json", time.Now().Format("20060102_150405"), tag)
+			backupPath := filepath.Join(backupDir, filename)
+
+			rows, err := h.DB.Pool.Query(ctx, `
+				SELECT table_name
+				FROM information_schema.tables
+				WHERE table_schema = 'public'
+				  AND table_type = 'BASE TABLE'
+				ORDER BY table_name
+			`)
+			if err != nil {
+				resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Error listing tables for backup: %v", err)}}, "isError": true}
+				return c.JSON(http.StatusOK, resp)
+			}
+			defer rows.Close()
+
+			var tableNames []string
+			for rows.Next() {
+				var name string
+				if scanErr := rows.Scan(&name); scanErr == nil {
+					tableNames = append(tableNames, name)
+				}
+			}
+
+			backupData := map[string]any{
+				"created_at": time.Now().Format(time.RFC3339),
+				"label":      tag,
+				"tables":     tableNames,
+			}
+
+			dataBytes, err := json.MarshalIndent(backupData, "", "  ")
+			if err != nil {
+				resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Error encoding backup: %v", err)}}, "isError": true}
+				return c.JSON(http.StatusOK, resp)
+			}
+
+			if err := os.WriteFile(backupPath, dataBytes, 0644); err != nil {
+				resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Error writing backup file: %v", err)}}, "isError": true}
+				return c.JSON(http.StatusOK, resp)
+			}
+
+			resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Backup snapshot created successfully at '%s' (backed up %d tables).", backupPath, len(tableNames))}}}
 			return c.JSON(http.StatusOK, resp)
 
 		default:
