@@ -169,15 +169,15 @@ func managedAPIKeyPrefix(role, fullKey string) string {
 	if fullKey == "" {
 		return ""
 	}
-	if len(fullKey) <= 10 {
-		return fullKey
-	}
 	switch role {
 	case APIKeyRoleAnon:
 		return "ozy_anon"
 	case APIKeyRoleServiceRole:
-		return "ozy_srv"
+		return "ozy_service_role"
 	default:
+		if len(fullKey) <= 10 {
+			return fullKey
+		}
 		return fullKey[:10]
 	}
 }
@@ -575,11 +575,12 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 	}
 
 	specs := []struct {
-		role string
-		key  string
+		role       string
+		key        string
+		secretFile string
 	}{
-		{role: APIKeyRoleAnon, key: strings.TrimSpace(bootstrap.AnonKey)},
-		{role: APIKeyRoleServiceRole, key: strings.TrimSpace(bootstrap.ServiceRoleKey)},
+		{role: APIKeyRoleAnon, key: strings.TrimSpace(bootstrap.AnonKey), secretFile: ".ozy_anon_key"},
+		{role: APIKeyRoleServiceRole, key: strings.TrimSpace(bootstrap.ServiceRoleKey), secretFile: ".ozy_service_role_key"},
 	}
 
 	tx, err := db.Pool.Begin(ctx)
@@ -593,22 +594,31 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 	}
 
 	for _, spec := range specs {
-		if spec.key == "" {
-			return fmt.Errorf("missing bootstrap key for role %s", spec.role)
+		targetKey := strings.TrimSpace(spec.key)
+
+		// 1. If key from bootstrap is empty or placeholder, attempt to read from local secret file
+		if targetKey == "" || isPlaceholderKeyMaterial(targetKey) {
+			if data, readErr := os.ReadFile(spec.secretFile); readErr == nil {
+				targetKey = strings.TrimSpace(string(data))
+			}
 		}
 
-		allowBootstrapSync := strings.EqualFold(strings.TrimSpace(os.Getenv("DEBUG")), "true") ||
-			strings.EqualFold(strings.TrimSpace(os.Getenv("OZY_FORCE_SYNC_ESSENTIAL_KEYS")), "true")
+		// 2. Compute target hash if targetKey is valid
+		var targetHash string
+		if targetKey != "" && !isPlaceholderKeyMaterial(targetKey) {
+			hash := sha256.Sum256([]byte(targetKey))
+			targetHash = hex.EncodeToString(hash[:])
+		}
 
+		// 3. Query existing active essential key for this role in DB
 		var (
 			currentID         string
-			currentPrefix     string
+			currentHash       string
 			currentCiphertext string
-			currentKeyGroupID string
 			currentVersion    int
 		)
-		err := tx.QueryRow(ctx, `
-			SELECT id, prefix, COALESCE(secret_ciphertext, ''), COALESCE(key_group_id::text, ''), key_version
+		scanErr := tx.QueryRow(ctx, `
+			SELECT id, key_hash, COALESCE(secret_ciphertext, ''), key_version
 			FROM _v_api_keys
 			WHERE role = $1
 			  AND managed_kind = $2
@@ -618,101 +628,69 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 			ORDER BY key_version DESC, created_at DESC
 			LIMIT 1
 			FOR UPDATE
-		`, spec.role, apiKeyManagedKindEssential).Scan(&currentID, &currentPrefix, &currentCiphertext, &currentKeyGroupID, &currentVersion)
-		if err != nil && err != pgx.ErrNoRows {
-			return err
-		}
+		`, spec.role, apiKeyManagedKindEssential).Scan(&currentID, &currentHash, &currentCiphertext, &currentVersion)
 
-		if err == nil {
-			storedMaterial := ""
-			if strings.TrimSpace(currentCiphertext) != "" {
-				storedMaterial, err = decryptKeyMaterial(encryptionSecret, currentCiphertext)
-				if err != nil {
-					storedMaterial = ""
-				}
-			}
-
-			bootstrapMismatch := allowBootstrapSync &&
-				strings.TrimSpace(spec.key) != "" &&
-				!isPlaceholderKeyMaterial(spec.key) &&
-				strings.TrimSpace(storedMaterial) != "" &&
-				!isPlaceholderKeyMaterial(storedMaterial) &&
-				storedMaterial != strings.TrimSpace(spec.key)
-
-			needsRepair := strings.TrimSpace(currentCiphertext) == "" ||
-				strings.TrimSpace(storedMaterial) == "" ||
-				isPlaceholderKeyMaterial(currentPrefix) ||
-				isPlaceholderKeyMaterial(storedMaterial) ||
-				bootstrapMismatch
-			if !needsRepair {
-				continue
-			}
-
-			nextKey := strings.TrimSpace(spec.key)
-			if nextKey == "" || isPlaceholderKeyMaterial(nextKey) {
-				generatedKey, _, genErr := generateManagedAPIKey(spec.role)
-				if genErr != nil {
-					return genErr
-				}
-				nextKey = generatedKey
-			}
-
-			hash := sha256.Sum256([]byte(nextKey))
-			keyHash := hex.EncodeToString(hash[:])
-			ciphertext, encErr := encryptKeyMaterial(encryptionSecret, nextKey)
-			if encErr != nil {
-				return encErr
-			}
-
-			keyGroupID := strings.TrimSpace(currentKeyGroupID)
-			if keyGroupID == "" {
-				keyGroupID = currentID
-			}
-			newID := uuid.NewString()
-			newVersion := currentVersion + 1
-
-			if _, execErr := tx.Exec(ctx, `
-				INSERT INTO _v_api_keys (id, name, key_hash, prefix, role, is_active, key_group_id, key_version, valid_after, managed_kind, secret_ciphertext)
-				VALUES ($1, $2, $3, $4, $5, FALSE, $6, $7, NOW(), $8, $9)
-			`, newID, apiKeyLabel(spec.role), keyHash, managedAPIKeyPrefix(spec.role, nextKey), spec.role, keyGroupID, newVersion, apiKeyManagedKindEssential, ciphertext); execErr != nil {
-				return execErr
-			}
-
-			if _, execErr := tx.Exec(ctx, `
-				UPDATE _v_api_keys
-				SET rotated_to_key_id = $2,
-				    grace_until = NULL,
-				    is_active = FALSE,
-				    revoked_at = NOW()
-				WHERE id = $1
-			`, currentID, newID); execErr != nil {
-				return execErr
-			}
-
-			if _, execErr := tx.Exec(ctx, `
-				UPDATE _v_api_keys
-				SET is_active = TRUE
-				WHERE id = $1
-			`, newID); execErr != nil {
-				return execErr
-			}
+		if scanErr == nil && targetHash != "" && currentHash == targetHash {
+			// DB hash matches file/env key hash perfectly. Ensure local secret file is in sync.
+			_ = os.WriteFile(spec.secretFile, []byte(targetKey), 0600)
 			continue
 		}
 
-		hash := sha256.Sum256([]byte(spec.key))
-		keyHash := hex.EncodeToString(hash[:])
-		ciphertext, err := encryptKeyMaterial(encryptionSecret, spec.key)
-		if err != nil {
-			return err
+		// 4. If DB has an active key but targetKey was empty, attempt decrypting DB key
+		if scanErr == nil && targetKey == "" && strings.TrimSpace(currentCiphertext) != "" {
+			if decrypted, decErr := decryptKeyMaterial(encryptionSecret, currentCiphertext); decErr == nil && decrypted != "" {
+				targetKey = decrypted
+				hash := sha256.Sum256([]byte(targetKey))
+				targetHash = hex.EncodeToString(hash[:])
+				_ = os.WriteFile(spec.secretFile, []byte(targetKey), 0600)
+				continue
+			}
 		}
-		keyGroupID := uuid.NewString()
 
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO _v_api_keys (name, key_hash, prefix, role, is_active, key_group_id, key_version, valid_after, managed_kind, secret_ciphertext)
-			VALUES ($1, $2, $3, $4, TRUE, $5, 1, NOW(), $6, $7)
-		`, apiKeyLabel(spec.role), keyHash, managedAPIKeyPrefix(spec.role, spec.key), spec.role, keyGroupID, apiKeyManagedKindEssential, ciphertext); err != nil {
-			return err
+		// 5. If targetKey is still empty or placeholder, generate a fresh managed key
+		if targetKey == "" || isPlaceholderKeyMaterial(targetKey) {
+			genKey, _, genErr := generateManagedAPIKey(spec.role)
+			if genErr != nil {
+				return genErr
+			}
+			targetKey = genKey
+			hash := sha256.Sum256([]byte(targetKey))
+			targetHash = hex.EncodeToString(hash[:])
 		}
+
+		// 6. Encrypt targetKey and prepare DB record
+		ciphertext, encErr := encryptKeyMaterial(encryptionSecret, targetKey)
+		if encErr != nil {
+			return encErr
+		}
+
+		// Revoke all previous essential key records for this role to avoid duplicate active rows
+		if _, execErr := tx.Exec(ctx, `
+			UPDATE _v_api_keys
+			SET is_active = FALSE,
+			    revoked_at = NOW(),
+			    grace_until = NULL
+			WHERE role = $1
+			  AND managed_kind = $2
+			  AND is_active = TRUE
+		`, spec.role, apiKeyManagedKindEssential); execErr != nil {
+			return execErr
+		}
+
+		newID := uuid.NewString()
+		newVersion := currentVersion + 1
+		keyGroupID := newID
+		prefix := managedAPIKeyPrefix(spec.role, targetKey)
+
+		if _, execErr := tx.Exec(ctx, `
+			INSERT INTO _v_api_keys (id, name, key_hash, prefix, role, is_active, key_group_id, key_version, valid_after, managed_kind, secret_ciphertext)
+			VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7, NOW(), $8, $9)
+		`, newID, apiKeyLabel(spec.role), targetHash, prefix, spec.role, keyGroupID, newVersion, apiKeyManagedKindEssential, ciphertext); execErr != nil {
+			return execErr
+		}
+
+		// Update local secret file
+		_ = os.WriteFile(spec.secretFile, []byte(targetKey), 0600)
 	}
 
 	return tx.Commit(ctx)
