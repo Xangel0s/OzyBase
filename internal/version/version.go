@@ -4,7 +4,7 @@ import "fmt"
 
 var (
 	// Version is set at build time by goreleaser.
-	Version = "1.3.3"
+	Version = "1.3.4"
 	// Commit is set at build time by goreleaser.
 	Commit = "none"
 	// Date is set at build time by goreleaser.

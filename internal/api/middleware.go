@@ -72,25 +72,16 @@ func AuthMiddleware(db *data.DB, jwtSecret string, optional bool) echo.Middlewar
 			})
 
 			if err != nil || !token.Valid {
-				if optional {
-					return next(c)
-				}
 				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid or expired token"})
 			}
 
 			claims, ok := token.Claims.(jwt.MapClaims)
 			if !ok {
-				if optional {
-					return next(c)
-				}
 				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token claims"})
 			}
 
 			userID := extractUserIDFromClaims(claims)
 			if userID == "" {
-				if optional {
-					return next(c)
-				}
 				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token user"})
 			}
 
@@ -98,9 +89,6 @@ func AuthMiddleware(db *data.DB, jwtSecret string, optional bool) echo.Middlewar
 			var isVerified bool
 			err = resolveActiveSessionIdentity(c.Request().Context(), db, tokenString, userID, &email, &role, &isVerified)
 			if err != nil {
-				if optional {
-					return next(c)
-				}
 				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid or expired session"})
 			}
 
@@ -208,11 +196,12 @@ func WorkspaceMiddleware(db *data.DB, jwtSecret string, isSingleTenant bool) ech
 			if workspaceID == "" {
 				workspaceID = strings.TrimSpace(boundWorkspaceID)
 			}
-			if workspaceID == "" && isSingleTenant {
-				// In single-tenant mode, auto-resolve to the default workspace
-				defaultID, err := db.EnsureDefaultWorkspace(c.Request().Context())
-				if err == nil && defaultID != "" {
-					workspaceID = defaultID
+			if isSingleTenant {
+				if workspaceID == "" || !workspaceExists(c.Request().Context(), db, workspaceID) {
+					defaultID, err := db.EnsureDefaultWorkspace(c.Request().Context())
+					if err == nil && defaultID != "" {
+						workspaceID = defaultID
+					}
 				}
 			}
 			if workspaceID == "" {

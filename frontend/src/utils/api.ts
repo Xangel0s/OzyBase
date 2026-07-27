@@ -141,7 +141,7 @@ const fetchWithAuthInternal = async (url: string, options: AuthFetchOptions = {}
         return fetchWithAuthInternal(url, options, true);
     }
 
-    if (res.status === 401 && authenticatedRequest && unauthorizedMode !== 'passthrough') {
+    if ((res.status === 401 || res.status === 403) && authenticatedRequest && unauthorizedMode !== 'passthrough') {
         clearAuthStorage();
         window.location.reload();
         throw new Error('Unauthorized');
