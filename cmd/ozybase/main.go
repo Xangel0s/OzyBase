@@ -999,7 +999,7 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 	}
 
 	// Standard Supabase / PostgREST compatible REST API (/rest/v1/*)
-	restGroup := e.Group("/rest/v1", api.MetricsMiddleware(h), api.WorkspaceMiddleware(h.DB, cfg.JWTSecret, cfg.IsSingleTenant()))
+	restGroup := e.Group("/rest/v1", api.MetricsMiddleware(h), api.APIKeyMiddleware(h.DB), api.RLSMiddleware(h.DB), api.WorkspaceMiddleware(h.DB, cfg.JWTSecret, cfg.IsSingleTenant()))
 	{
 		restGroup.GET("/:name", h.ListRecords, authOptional, accessList)
 		restGroup.POST("/:name", h.CreateRecord, authOptional, accessCreate)
