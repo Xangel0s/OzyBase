@@ -88,3 +88,23 @@ Connect via WebSocket to subscribe to live DML events (`INSERT`, `UPDATE`, `DELE
 
 - **Storage API:** `/api/files/buckets`
 - **Edge Functions:** `/api/functions` (Deploy JS/WASM handlers that respond to HTTP or DB triggers).
+
+---
+
+## 🤖 6. AI Agent Integration & MCP Tools (Model Context Protocol)
+
+OzyBase natively implements the Model Context Protocol (MCP) JSON-RPC at `POST /api/project/mcp`. AI agents (Cursor, VSCode, Claude Desktop, custom agents) connected via MCP receive full self-discovery capabilities through the following tools:
+
+| MCP Tool Name | Description | Required Arguments |
+| :--- | :--- | :--- |
+| `system.guide` | Returns complete architectural guide, API specs, and agent operational best practices. | *None* |
+| `system.health` | Returns system status, database connection state, and uptime. | *None* |
+| `sql.query` | Executes arbitrary SQL queries on PostgreSQL as Super Admin. | `query` (string) |
+| `schema.list_tables` | Lists all database tables with their RLS and Realtime status. | *None* |
+| `rls.configure` | Enables/disables RLS on a table and sets security policies. | `table` (string), `enabled` (bool), `rule` (string opcional) |
+| `realtime.toggle` | Enables/disables WebSocket change events for a table. | `table` (string), `enabled` (bool) |
+| `keys.rotate` | Rotates essential API keys (`anon` or `service_role`). | `role` (string: `'anon'` or `'service_role'`) |
+| `storage.create_bucket` | Creates a new storage bucket with public/private permissions. | `name` (string), `public` (bool) |
+| `functions.deploy` | Deploys or updates an Edge Function. | `name` (string), `script` (string), `runtime` (string) |
+| `migration.create` | Creates a versioned `.sql` file in `./migrations` and applies it. | `name` (string), `sql` (string) |
+
