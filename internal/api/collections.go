@@ -615,6 +615,10 @@ func (h *Handler) upsertCollectionMetadataForTable(ctx context.Context, tableNam
 	}
 	schemaJSON := string(schemaJSONBytes)
 
+	if strings.TrimSpace(workspaceID) == "" {
+		_ = h.DB.Pool.QueryRow(ctx, "SELECT id::text FROM _v_workspaces ORDER BY created_at ASC LIMIT 1").Scan(&workspaceID)
+	}
+
 	var workspace any
 	if strings.TrimSpace(workspaceID) != "" {
 		workspace = workspaceID
@@ -628,7 +632,7 @@ func (h *Handler) upsertCollectionMetadataForTable(ctx context.Context, tableNam
 		ON CONFLICT (name) DO UPDATE SET
 			display_name = COALESCE(NULLIF(_v_collections.display_name, ''), EXCLUDED.display_name),
 			schema_def = EXCLUDED.schema_def,
-			workspace_id = COALESCE(_v_collections.workspace_id, EXCLUDED.workspace_id),
+			workspace_id = COALESCE(EXCLUDED.workspace_id, _v_collections.workspace_id),
 			updated_at = NOW()
 	`, tableName, tableName, schemaJSON, workspace)
 	if err == nil {
@@ -644,7 +648,7 @@ func (h *Handler) upsertCollectionMetadataForTable(ctx context.Context, tableNam
 			VALUES ($1, $2, 'auth', 'admin', FALSE, '', FALSE, $3, NOW())
 			ON CONFLICT (name) DO UPDATE SET
 				schema_def = EXCLUDED.schema_def,
-				workspace_id = COALESCE(_v_collections.workspace_id, EXCLUDED.workspace_id),
+				workspace_id = COALESCE(EXCLUDED.workspace_id, _v_collections.workspace_id),
 				updated_at = NOW()
 		`, tableName, schemaJSON, workspace)
 	}
@@ -1382,10 +1386,20 @@ func (h *Handler) ListCollections(c echo.Context) error {
 			if workspaceID != "" {
 				// We are in a specific workspace context.
 				if meta.WorkspaceID != "" && meta.WorkspaceID != workspaceID {
-					// Table belongs to another specific workspace
 					// Exception: Always show internal system tables to admins
 					if !isSystem {
-						continue
+						var wsExists bool
+						_ = h.DB.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM _v_workspaces WHERE id = $1)", meta.WorkspaceID).Scan(&wsExists)
+						if wsExists {
+							var count int
+							_ = h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_workspaces").Scan(&count)
+							if count > 1 {
+								continue
+							}
+						}
+						// If the workspace does not exist or system has only 1 workspace, heal metadata binding
+						meta.WorkspaceID = workspaceID
+						_ = h.upsertCollectionMetadataForTable(ctx, tableName, workspaceID)
 					}
 				}
 			}
@@ -1821,7 +1835,15 @@ func (h *Handler) GetProjectInfo(c echo.Context) error {
 			}
 
 			if ws, ok := metaWsMap[tableName]; ok && workspaceID != "" && ws != "" && ws != workspaceID {
-				continue
+				var wsExists bool
+				_ = h.DB.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM _v_workspaces WHERE id = $1)", ws).Scan(&wsExists)
+				if wsExists {
+					var count int
+					_ = h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_workspaces").Scan(&count)
+					if count > 1 {
+						continue
+					}
+				}
 			}
 
 			info.UserTableCount++

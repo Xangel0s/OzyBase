@@ -607,6 +607,9 @@ func (h *Handler) HandleMcpJsonRpc(c echo.Context) error {
 				h.invalidateProjectInfoCache()
 				h.invalidateHealthIssuesCache()
 				workspaceID, _ := c.Get("workspace_id").(string)
+				if strings.TrimSpace(workspaceID) == "" {
+					_ = h.DB.Pool.QueryRow(ctx, "SELECT id::text FROM _v_workspaces ORDER BY created_at ASC LIMIT 1").Scan(&workspaceID)
+				}
 				if userTables, tblErr := h.DB.ListTables(ctx); tblErr == nil {
 					for _, tName := range userTables {
 						_ = h.upsertCollectionMetadataForTable(ctx, tName, workspaceID)

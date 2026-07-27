@@ -1043,6 +1043,7 @@ $$`,
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_query_explain_samples_endpoint_time ON _v_query_explain_samples(endpoint, recorded_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_query_explain_samples_table_time ON _v_query_explain_samples(table_name, recorded_at DESC)`,
+		`UPDATE _v_collections SET workspace_id = (SELECT id FROM _v_workspaces ORDER BY created_at ASC LIMIT 1) WHERE (workspace_id IS NULL OR workspace_id NOT IN (SELECT id FROM _v_workspaces)) AND EXISTS (SELECT 1 FROM _v_workspaces)`,
 	}
 
 	conn, err := db.Pool.Acquire(ctx)

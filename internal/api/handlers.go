@@ -214,11 +214,14 @@ func (h *Handler) runCollectionAutoDiscoveryPass(parentCtx context.Context, prun
 	added := 0
 	removed := 0
 
+	var defaultWS string
+	_ = h.DB.Pool.QueryRow(ctx, "SELECT id::text FROM _v_workspaces ORDER BY created_at ASC LIMIT 1").Scan(&defaultWS)
+
 	for tableName := range sqlTables {
 		if _, exists := collections[tableName]; exists {
 			continue
 		}
-		if err := h.upsertCollectionMetadataForTable(ctx, tableName, ""); err != nil {
+		if err := h.upsertCollectionMetadataForTable(ctx, tableName, defaultWS); err != nil {
 			fmt.Printf("[Collection Auto-Discovery] failed to register %s: %v\n", tableName, err)
 			continue
 		}
