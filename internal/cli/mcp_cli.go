@@ -100,13 +100,31 @@ func checkMcpStatus(targetURL string) error {
 
 func printMcpConnectInstructions(targetURL string) error {
 	fmt.Println("==================================================")
-	fmt.Println("OZYBASE MCP IDE QUICK CONNECT GUIDE")
+	fmt.Println("OZYBASE MCP AUTO-CONFIGURATOR")
 	fmt.Println("==================================================")
-	fmt.Printf("Endpoint URL : %s\n\n", targetURL)
-	fmt.Println("To connect Cursor, Windsurf, or VS Code AI Agents:")
-	fmt.Println("1. Run: ozybase mcp config --out .cursor/mcp.json")
-	fmt.Println("2. Or add to your IDE's MCP Server settings:")
-	fmt.Printf("   URL: %s\n", targetURL)
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8090"
+	}
+	if targetURL == "http://localhost:8090/api/project/mcp" && port != "8090" {
+		targetURL = fmt.Sprintf("http://localhost:%s/api/project/mcp", port)
+	}
+
+	fmt.Printf("[INFO] Target MCP Endpoint: %s\n\n", targetURL)
+
+	// Auto-create workspace configuration files
+	errCursor := generateMcpConfig(targetURL, ".cursor/mcp.json")
+	errVscode := generateMcpConfig(targetURL, ".vscode/mcp.json")
+
+	if errCursor == nil || errVscode == nil {
+		fmt.Println("\n✨ [SUCCESS] MCP auto-configured for your IDE!")
+		fmt.Println("Created/updated .cursor/mcp.json & .vscode/mcp.json automatically.")
+		fmt.Println("Reload your IDE or MCP servers to start using OzyBase MCP tools.")
+	} else {
+		fmt.Println("\nTo connect manually in Cursor, Windsurf, or VS Code:")
+		fmt.Printf("   MCP Server URL: %s\n", targetURL)
+	}
 	fmt.Println("==================================================")
 	return nil
 }

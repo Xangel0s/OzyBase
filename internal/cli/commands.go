@@ -45,6 +45,8 @@ func HandleGlobalCommands(args []string) (bool, error) {
 		return true, handleFunctions(args[2:])
 	case "mcp":
 		return true, handleMcp(args[2:])
+	case "connect":
+		return true, handleMcp(append([]string{"connect"}, args[2:]...))
 	default:
 		return false, nil
 	}
