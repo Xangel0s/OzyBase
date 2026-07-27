@@ -565,6 +565,94 @@ func (h *Handler) RotateEssentialAPIKey(c echo.Context) error {
 	return c.JSON(http.StatusOK, payload)
 }
 
+func RotateEssentialAPIKeyCore(ctx context.Context, db *data.DB, role string) (string, error) {
+	if db == nil || db.Pool == nil {
+		return "", errors.New("database connection is required")
+	}
+	role = strings.ToLower(strings.TrimSpace(role))
+	if role != APIKeyRoleAnon && role != APIKeyRoleServiceRole {
+		return "", fmt.Errorf("invalid essential key role: %s", role)
+	}
+
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var currentID, currentPrefix, keyGroupID string
+	var currentVersion int
+	var workspaceID *string
+	if err := tx.QueryRow(ctx, `
+		SELECT id, prefix, COALESCE(key_group_id::text, ''), key_version, workspace_id
+		FROM _v_api_keys
+		WHERE role = $1
+		  AND managed_kind = $2
+		  AND is_active = TRUE
+		  AND revoked_at IS NULL
+		  AND rotated_to_key_id IS NULL
+		ORDER BY key_version DESC, created_at DESC
+		LIMIT 1
+		FOR UPDATE
+	`, role, apiKeyManagedKindEssential).Scan(&currentID, &currentPrefix, &keyGroupID, &currentVersion, &workspaceID); err != nil {
+		if err == pgx.ErrNoRows {
+			return "", errors.New("essential api key not found")
+		}
+		return "", fmt.Errorf("failed to lock essential api key: %w", err)
+	}
+	if strings.TrimSpace(keyGroupID) == "" {
+		keyGroupID = currentID
+	}
+
+	newKey, prefix, err := generateManagedAPIKey(role)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate key: %w", err)
+	}
+	ciphertext, err := encryptKeyMaterial(apiKeySecretEncryptionSecret(), newKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to protect key material: %w", err)
+	}
+	hash := sha256.Sum256([]byte(newKey))
+	keyHash := hex.EncodeToString(hash[:])
+	newVersion := currentVersion + 1
+	newID := uuid.NewString()
+
+	var workspaceIDVal any
+	if workspaceID != nil && strings.TrimSpace(*workspaceID) != "" {
+		workspaceIDVal = *workspaceID
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO _v_api_keys (id, name, key_hash, prefix, role, is_active, key_group_id, key_version, valid_after, workspace_id, managed_kind, secret_ciphertext)
+		VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7, NOW(), $8, $9, $10)
+	`, newID, apiKeyLabel(role), keyHash, prefix, role, keyGroupID, newVersion, workspaceIDVal, apiKeyManagedKindEssential, ciphertext); err != nil {
+		return "", fmt.Errorf("failed to create rotated key: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE _v_api_keys
+		SET rotated_to_key_id = $2,
+		    grace_until = NULL,
+		    is_active = FALSE,
+		    revoked_at = NOW()
+		WHERE id = $1
+	`, currentID, newID); err != nil {
+		return "", fmt.Errorf("failed to revoke previous key: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return "", fmt.Errorf("failed to commit key rotation: %w", err)
+	}
+
+	secretFile := ".ozy_anon_key"
+	if role == APIKeyRoleServiceRole {
+		secretFile = ".ozy_service_role_key"
+	}
+	_ = os.WriteFile(secretFile, []byte(newKey), 0600)
+
+	return newKey, nil
+}
+
 func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap EssentialAPIKeyBootstrap) error {
 	if db == nil || db.Pool == nil {
 		return errors.New("database is required")

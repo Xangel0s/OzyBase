@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Xangel0s/OzyBase/internal/data"
 	"github.com/Xangel0s/OzyBase/internal/migrations"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -522,6 +523,50 @@ func (h *Handler) HandleMcpJsonRpc(c echo.Context) error {
 					},
 				},
 				{
+					"name":        "system.guide",
+					"description": "Get comprehensive operational guide, architecture overview, API model, and best practices for managing OzyBase as an AI agent",
+					"inputSchema": map[string]any{
+						"type":       "object",
+						"properties": map[string]any{},
+					},
+				},
+				{
+					"name":        "rls.configure",
+					"description": "Configure Row Level Security (RLS) policy and toggle RLS enforcement on a database table",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"table": map[string]any{
+								"type":        "string",
+								"description": "Target table name",
+							},
+							"enabled": map[string]any{
+								"type":        "boolean",
+								"description": "True to enable RLS, false to disable",
+							},
+							"rule": map[string]any{
+								"type":        "string",
+								"description": "Optional SQL RLS expression (e.g. 'auth.uid() = owner_id')",
+							},
+						},
+						"required": []string{"table", "enabled"},
+					},
+				},
+				{
+					"name":        "keys.rotate",
+					"description": "Rotate essential API keys (anon or service_role) while preserving system stability",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"role": map[string]any{
+								"type":        "string",
+								"description": "Essential key role to rotate ('anon' or 'service_role')",
+							},
+						},
+						"required": []string{"role"},
+					},
+				},
+				{
 					"name":        "migration.create",
 					"description": "Create a new versioned SQL migration file in ./migrations directory and apply it",
 					"inputSchema": map[string]any{
@@ -786,6 +831,104 @@ func (h *Handler) HandleMcpJsonRpc(c echo.Context) error {
 			}
 			jsonBytes, _ := json.Marshal(list)
 			resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": string(jsonBytes)}}}
+			return c.JSON(http.StatusOK, resp)
+
+		case "system.guide":
+			guideMarkdown := `# OzyBase AI Agent Operational Guide & Specification
+
+## Architecture Overview
+OzyBase is a fullstack Open Source BaaS (Backend-as-a-Service) featuring:
+- **Go Engine**: Embedded PostgreSQL 18, Echo HTTP Server, Async Audit Logging, PubSub, Realtime WebSockets.
+- **Data Layer**: PostgREST-compatible REST API at /rest/v1/*, SQL engine, RLS policy enforcement.
+
+## Authentication & API Keys
+- **anon key** (ozy_anon_...): For public clients (browser, mobile). Subject to RLS restrictions.
+- **service_role key** (ozy_service_role_...): For backend services and admin tasks. Bypasses RLS automatically.
+- **MCP token** (ozy_...): For AI Agents and IDE extensions. Grants full service_role capabilities over MCP tools and SQL.
+
+## Headers & REST API (/rest/v1/*)
+- **Authentication**: Pass header 'apikey: <KEY>' or 'Authorization: Bearer <KEY>'.
+- **Workspace Context**: Pass 'X-Workspace-Id: <UUID>' (or resolved automatically in single-tenant mode).
+
+## Recommended Agent Workflow
+1. Use 'schema.list_tables' to explore the database tables and RLS/Realtime configurations.
+2. Use 'sql.query' or 'migration.create' to alter schemas or manage records.
+3. Use 'rls.configure' to secure user-facing tables.
+4. Use 'realtime.toggle' to broadcast change events to frontend subscribers.
+5. Use 'keys.rotate' when key rotation is required.
+`
+			resp.Result = map[string]any{
+				"content": []map[string]any{
+					{
+						"type": "text",
+						"text": guideMarkdown,
+					},
+				},
+			}
+			return c.JSON(http.StatusOK, resp)
+
+		case "rls.configure":
+			var rlsArgs struct {
+				Table   string `json:"table"`
+				Enabled bool   `json:"enabled"`
+				Rule    string `json:"rule"`
+			}
+			if err := json.Unmarshal(callParams.Arguments, &rlsArgs); err != nil || strings.TrimSpace(rlsArgs.Table) == "" {
+				resp.Error = &MCPError{Code: -32602, Message: "Invalid arguments, expected 'table' string and 'enabled' boolean"}
+				return c.JSON(http.StatusOK, resp)
+			}
+			tableName := strings.TrimSpace(rlsArgs.Table)
+			workspaceID, _ := c.Get("workspace_id").(string)
+			_ = h.upsertCollectionMetadataForTable(ctx, tableName, workspaceID)
+
+			ruleVal := strings.TrimSpace(rlsArgs.Rule)
+			if ruleVal == "" {
+				ruleVal = "auth.uid() = owner_id"
+			}
+
+			_, err := h.DB.Pool.Exec(ctx, `
+				UPDATE _v_collections SET rls_enabled = $1, rls_rule = $2, updated_at = NOW() WHERE name = $3
+			`, rlsArgs.Enabled, ruleVal, tableName)
+			if err != nil {
+				resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Error configuring RLS for '%s': %v", tableName, err)}}, "isError": true}
+				return c.JSON(http.StatusOK, resp)
+			}
+
+			var sql string
+			if rlsArgs.Enabled {
+				sql = fmt.Sprintf("ALTER TABLE %s ENABLE ROW LEVEL SECURITY;", data.QuoteIdentifier(tableName))
+			} else {
+				sql = fmt.Sprintf("ALTER TABLE %s DISABLE ROW LEVEL SECURITY;", data.QuoteIdentifier(tableName))
+			}
+			_, _ = h.DB.Pool.Exec(ctx, sql)
+
+			h.invalidateProjectInfoCache()
+			statusStr := "disabled"
+			if rlsArgs.Enabled {
+				statusStr = "enabled"
+			}
+			resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("RLS successfully %s for table '%s' with rule '%s'.", statusStr, tableName, ruleVal)}}}
+			return c.JSON(http.StatusOK, resp)
+
+		case "keys.rotate":
+			var rotArgs struct {
+				Role string `json:"role"`
+			}
+			if err := json.Unmarshal(callParams.Arguments, &rotArgs); err != nil || strings.TrimSpace(rotArgs.Role) == "" {
+				resp.Error = &MCPError{Code: -32602, Message: "Invalid arguments, expected 'role' string ('anon' or 'service_role')"}
+				return c.JSON(http.StatusOK, resp)
+			}
+			role := strings.ToLower(strings.TrimSpace(rotArgs.Role))
+			if role != "anon" && role != "service_role" {
+				resp.Error = &MCPError{Code: -32602, Message: "Role must be 'anon' or 'service_role'"}
+				return c.JSON(http.StatusOK, resp)
+			}
+			newKey, err := RotateEssentialAPIKeyCore(ctx, h.DB, role)
+			if err != nil {
+				resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Error rotating %s key: %v", role, err)}}, "isError": true}
+				return c.JSON(http.StatusOK, resp)
+			}
+			resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Essential %s API key rotated successfully. New Key: %s", role, newKey)}}}
 			return c.JSON(http.StatusOK, resp)
 
 		case "migration.create":
