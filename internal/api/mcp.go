@@ -494,6 +494,32 @@ func (h *Handler) HandleMcpJsonRpc(c echo.Context) error {
 						"required": []string{"name", "script"},
 					},
 				},
+				{
+					"name":        "realtime.toggle",
+					"description": "Enable or disable Realtime WebSocket events for a specific database table",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"table": map[string]any{
+								"type":        "string",
+								"description": "The target table name",
+							},
+							"enabled": map[string]any{
+								"type":        "boolean",
+								"description": "True to enable realtime, false to disable",
+							},
+						},
+						"required": []string{"table", "enabled"},
+					},
+				},
+				{
+					"name":        "schema.list_tables",
+					"description": "List all user database tables along with their Realtime and RLS configuration",
+					"inputSchema": map[string]any{
+						"type":       "object",
+						"properties": map[string]any{},
+					},
+				},
 			},
 		}
 		return c.JSON(http.StatusOK, resp)
@@ -674,6 +700,73 @@ func (h *Handler) HandleMcpJsonRpc(c echo.Context) error {
 			}
 			h.invalidateProjectInfoCache()
 			resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Edge function '%s' deployed successfully.", fnArgs.Name)}}}
+			return c.JSON(http.StatusOK, resp)
+
+		case "realtime.toggle":
+			var rtArgs struct {
+				Table   string `json:"table"`
+				Enabled bool   `json:"enabled"`
+			}
+			if err := json.Unmarshal(callParams.Arguments, &rtArgs); err != nil || strings.TrimSpace(rtArgs.Table) == "" {
+				resp.Error = &MCPError{Code: -32602, Message: "Invalid arguments, expected 'table' string and 'enabled' boolean"}
+				return c.JSON(http.StatusOK, resp)
+			}
+			tableName := strings.TrimSpace(rtArgs.Table)
+			workspaceID, _ := c.Get("workspace_id").(string)
+			_ = h.upsertCollectionMetadataForTable(ctx, tableName, workspaceID)
+
+			_, err := h.DB.Pool.Exec(ctx, `
+				UPDATE _v_collections SET realtime_enabled = $1, updated_at = NOW() WHERE name = $2
+			`, rtArgs.Enabled, tableName)
+			if err != nil {
+				resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Error toggling realtime for '%s': %v", tableName, err)}}, "isError": true}
+				return c.JSON(http.StatusOK, resp)
+			}
+			h.invalidateProjectInfoCache()
+			statusStr := "disabled"
+			if rtArgs.Enabled {
+				statusStr = "enabled"
+			}
+			resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Realtime successfully %s for table '%s'.", statusStr, tableName)}}}
+			return c.JSON(http.StatusOK, resp)
+
+		case "schema.list_tables":
+			userTables, err := h.DB.ListTables(ctx)
+			if err != nil {
+				resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Error listing tables: %v", err)}}, "isError": true}
+				return c.JSON(http.StatusOK, resp)
+			}
+			metaRows, _ := h.DB.Pool.Query(ctx, "SELECT name, realtime_enabled, rls_enabled FROM _v_collections")
+			rtMap := make(map[string]bool)
+			rlsMap := make(map[string]bool)
+			if metaRows != nil {
+				for metaRows.Next() {
+					var n string
+					var rt, rls bool
+					if err := metaRows.Scan(&n, &rt, &rls); err == nil {
+						rtMap[n] = rt
+						rlsMap[n] = rls
+					}
+				}
+				metaRows.Close()
+			}
+			var list []map[string]any
+			for _, t := range userTables {
+				lower := strings.ToLower(t)
+				if strings.HasPrefix(lower, "_v_") || strings.HasPrefix(lower, "_ozy_") {
+					continue
+				}
+				list = append(list, map[string]any{
+					"name":             t,
+					"realtime_enabled": rtMap[t],
+					"rls_enabled":      rlsMap[t],
+				})
+			}
+			if list == nil {
+				list = []map[string]any{}
+			}
+			jsonBytes, _ := json.Marshal(list)
+			resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": string(jsonBytes)}}}
 			return c.JSON(http.StatusOK, resp)
 
 		default:
