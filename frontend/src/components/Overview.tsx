@@ -449,7 +449,9 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
 
     const databaseName = projectInfo?.database || projectInfo?.name || 'Primary Database';
     const domainLabel = resolveDomain(projectInfo);
-    const apiUrl = projectInfo?.api_url || `https://${domainLabel}`;
+    const apiUrl = projectInfo?.api_url || (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : `http://localhost:8090`);
+    const rawVersion = String(projectInfo?.version || '1.3.0').trim();
+    const appVersion = rawVersion.startsWith('v') ? rawVersion : `v${rawVersion}`;
     const databaseSizeLabel = useMemo(() => {
         const computed = formatBytes(projectInfo?.db_size_bytes);
         return computed || projectInfo?.db_size || 'Unknown size';
@@ -531,7 +533,7 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                             {databaseName}
                         </h1>
                         <span className="text-xs font-mono text-zinc-600">
-                            v{projectInfo?.version || '0.0.1'}
+                            {appVersion}
                         </span>
                     </div>
 
@@ -645,7 +647,7 @@ const Overview: React.FC<OverviewProps> = ({ onViewSelect }) => {
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={async () => {
-                                        const mcpCmd = `npx ozybase connect --url ${apiUrl}/api/project/mcp`;
+                                        const mcpCmd = `ozybase connect --url ${apiUrl}/api/project/mcp`;
                                         await navigator.clipboard.writeText(mcpCmd);
                                         setCopied(true);
                                         window.setTimeout(() => setCopied(false), 1500);
