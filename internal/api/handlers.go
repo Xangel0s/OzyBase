@@ -178,7 +178,9 @@ func (h *Handler) StartCollectionAutoDiscovery(ctx context.Context) {
 	defer ticker.Stop()
 
 	if err := h.runCollectionAutoDiscoveryPass(ctx, pruneMissing); err != nil {
-		fmt.Printf("[Collection Auto-Discovery] startup pass failed: %v\n", err)
+		if !strings.Contains(err.Error(), "closed pool") && ctx.Err() == nil {
+			fmt.Printf("[Collection Auto-Discovery] startup pass failed: %v\n", err)
+		}
 	}
 
 	for {
@@ -187,6 +189,9 @@ func (h *Handler) StartCollectionAutoDiscovery(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if err := h.runCollectionAutoDiscoveryPass(ctx, pruneMissing); err != nil {
+				if strings.Contains(err.Error(), "closed pool") || ctx.Err() != nil {
+					return
+				}
 				fmt.Printf("[Collection Auto-Discovery] periodic pass failed: %v\n", err)
 			}
 		}
