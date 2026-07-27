@@ -191,20 +191,31 @@ func ResetAdminPassword(ctx context.Context, db *data.DB, email, password string
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// 1. Try updating existing user by email (case-insensitive) and ensuring admin role
 	tag, err := db.Pool.Exec(ctx,
-		"UPDATE _v_users SET password_hash = $1, role = 'admin', updated_at = NOW() WHERE LOWER(email) = LOWER($2)",
+		"UPDATE _v_users SET password_hash = $1 WHERE email = $2 AND role = 'admin'",
 		string(hashed), email,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
 	}
-	if tag.RowsAffected() > 0 {
-		return nil
+	if tag.RowsAffected() == 0 {
+		rows, _ := db.Pool.Query(ctx, "SELECT email FROM _v_users WHERE role = 'admin' ORDER BY created_at LIMIT 5")
+		var existing []string
+		if rows != nil {
+			for rows.Next() {
+				var e string
+				if err := rows.Scan(&e); err == nil {
+					existing = append(existing, e)
+				}
+			}
+			rows.Close()
+		}
+		if len(existing) > 0 {
+			return fmt.Errorf("no admin found with email %q. Existing admin email(s): %s", email, strings.Join(existing, ", "))
+		}
+		return fmt.Errorf("no admin found with email %s", email)
 	}
-
-	// 2. If no user exists with this email, create a new admin account seamlessly
-	return CreateAdminWithWorkspace(ctx, db, email, password)
+	return nil
 }
 
 // DeleteAllAdmins removes every admin user from the database.
