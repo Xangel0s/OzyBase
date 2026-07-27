@@ -587,18 +587,17 @@ func RotateEssentialAPIKeyCore(ctx context.Context, db *data.DB, role string) (s
 		SELECT id, prefix, COALESCE(key_group_id::text, ''), key_version, workspace_id
 		FROM _v_api_keys
 		WHERE role = $1
-		  AND managed_kind = $2
-		  AND is_active = TRUE
-		  AND revoked_at IS NULL
-		  AND rotated_to_key_id IS NULL
-		ORDER BY key_version DESC, created_at DESC
+		  AND (is_active = TRUE OR revoked_at IS NULL)
+		ORDER BY is_active DESC, key_version DESC, created_at DESC
 		LIMIT 1
 		FOR UPDATE
-	`, role, apiKeyManagedKindEssential).Scan(&currentID, &currentPrefix, &keyGroupID, &currentVersion, &workspaceID); err != nil {
+	`, role).Scan(&currentID, &currentPrefix, &keyGroupID, &currentVersion, &workspaceID); err != nil {
 		if err == pgx.ErrNoRows {
-			return "", errors.New("essential api key not found")
+			// If no row exists at all for this role, we can create an initial essential key
+			currentVersion = 0
+		} else {
+			return "", fmt.Errorf("failed to lock essential api key: %w", err)
 		}
-		return "", fmt.Errorf("failed to lock essential api key: %w", err)
 	}
 	if strings.TrimSpace(keyGroupID) == "" {
 		keyGroupID = currentID
@@ -622,22 +621,24 @@ func RotateEssentialAPIKeyCore(ctx context.Context, db *data.DB, role string) (s
 		workspaceIDVal = *workspaceID
 	}
 
+	if currentID != "" {
+		if _, err := tx.Exec(ctx, `
+			UPDATE _v_api_keys
+			SET is_active = FALSE,
+			    revoked_at = NOW(),
+			    grace_until = NULL,
+			    rotated_to_key_id = $2
+			WHERE id = $1
+		`, currentID, newID); err != nil {
+			return "", fmt.Errorf("failed to revoke previous key: %w", err)
+		}
+	}
+
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO _v_api_keys (id, name, key_hash, prefix, role, is_active, key_group_id, key_version, valid_after, workspace_id, managed_kind, secret_ciphertext)
 		VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7, NOW(), $8, $9, $10)
 	`, newID, apiKeyLabel(role), keyHash, prefix, role, keyGroupID, newVersion, workspaceIDVal, apiKeyManagedKindEssential, ciphertext); err != nil {
 		return "", fmt.Errorf("failed to create rotated key: %w", err)
-	}
-
-	if _, err := tx.Exec(ctx, `
-		UPDATE _v_api_keys
-		SET rotated_to_key_id = $2,
-		    grace_until = NULL,
-		    is_active = FALSE,
-		    revoked_at = NOW()
-		WHERE id = $1
-	`, currentID, newID); err != nil {
-		return "", fmt.Errorf("failed to revoke previous key: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -698,7 +699,7 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 			targetHash = hex.EncodeToString(hash[:])
 		}
 
-		// 3. Query existing active essential key for this role in DB
+		// 3. Query existing active essential key for this role in DB (matching by role)
 		var (
 			currentID         string
 			currentHash       string
@@ -709,17 +710,15 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 			SELECT id, key_hash, COALESCE(secret_ciphertext, ''), key_version
 			FROM _v_api_keys
 			WHERE role = $1
-			  AND managed_kind = $2
-			  AND is_active = TRUE
-			  AND revoked_at IS NULL
-			  AND rotated_to_key_id IS NULL
-			ORDER BY key_version DESC, created_at DESC
+			  AND (is_active = TRUE OR revoked_at IS NULL)
+			ORDER BY is_active DESC, key_version DESC, created_at DESC
 			LIMIT 1
 			FOR UPDATE
-		`, spec.role, apiKeyManagedKindEssential).Scan(&currentID, &currentHash, &currentCiphertext, &currentVersion)
+		`, spec.role).Scan(&currentID, &currentHash, &currentCiphertext, &currentVersion)
 
 		if scanErr == nil && targetHash != "" && currentHash == targetHash {
-			// DB hash matches file/env key hash perfectly. Ensure local secret file is in sync.
+			// DB hash matches file/env key hash perfectly. Ensure managed_kind and local secret file are in sync.
+			_, _ = tx.Exec(ctx, `UPDATE _v_api_keys SET managed_kind = $2, is_active = TRUE, revoked_at = NULL WHERE id = $1`, currentID, apiKeyManagedKindEssential)
 			_ = os.WriteFile(spec.secretFile, []byte(targetKey), 0600)
 			continue
 		}
@@ -752,36 +751,22 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 			return encErr
 		}
 
-		// Revoke all previous essential key records for this role to avoid duplicate active rows
-		if _, execErr := tx.Exec(ctx, `
-			UPDATE _v_api_keys
-			SET is_active = FALSE,
-			    revoked_at = NOW(),
-			    grace_until = NULL
-			WHERE role = $1
-			  AND managed_kind = $2
-			  AND is_active = TRUE
-		`, spec.role, apiKeyManagedKindEssential); execErr != nil {
-			return execErr
-		}
-
 		prefix := managedAPIKeyPrefix(spec.role, targetKey)
 
-		// Check if a row with key_hash already exists (active or inactive)
-		var existingID string
-		_ = tx.QueryRow(ctx, `SELECT id::text FROM _v_api_keys WHERE key_hash = $1 LIMIT 1`, targetHash).Scan(&existingID)
-
-		if existingID != "" {
+		// 7. Update existing role key or insert new essential key row
+		if currentID != "" {
+			// Update the existing key record to match the active target hash and role
 			if _, execErr := tx.Exec(ctx, `
 				UPDATE _v_api_keys
-				SET is_active = TRUE,
+				SET key_hash = $2,
+				    prefix = $3,
+				    is_active = TRUE,
 				    revoked_at = NULL,
 				    valid_after = NOW(),
-				    managed_kind = $2,
-				    secret_ciphertext = $3,
-				    prefix = $4
+				    managed_kind = $4,
+				    secret_ciphertext = $5
 				WHERE id = $1
-			`, existingID, apiKeyManagedKindEssential, ciphertext, prefix); execErr != nil {
+			`, currentID, targetHash, prefix, apiKeyManagedKindEssential, ciphertext); execErr != nil {
 				return execErr
 			}
 		} else {
@@ -795,6 +780,16 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 			`, newID, apiKeyLabel(spec.role), targetHash, prefix, spec.role, keyGroupID, newVersion, apiKeyManagedKindEssential, ciphertext); execErr != nil {
 				return execErr
 			}
+		}
+
+		// Ensure all other rows for this role are deactivated
+		if currentID != "" {
+			_, _ = tx.Exec(ctx, `
+				UPDATE _v_api_keys
+				SET is_active = FALSE,
+				    revoked_at = NOW()
+				WHERE role = $1 AND id != $2
+			`, spec.role, currentID)
 		}
 
 		// Update local secret file
