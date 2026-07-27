@@ -40,9 +40,13 @@ func primaryRole(roles []string) string {
 
 // InjectUserContext sets local variables in the current transaction for RLS policies to use.
 func (db *DB) InjectUserContext(ctx context.Context, rls RLSContext) error {
+	isAdminStr := "false"
+	if rls.IsAdmin {
+		isAdminStr = "true"
+	}
 	_, err := db.Pool.Exec(ctx,
-		"SET LOCAL request.jwt.claim.sub = $1; SET LOCAL request.jwt.claim.email = $2; SET LOCAL request.jwt.claim.role = $3; SET LOCAL request.jwt.claim.roles = $4; SET LOCAL request.jwt.claim.is_admin = $5",
-		rls.UserID, rls.Email, primaryRole(rls.Roles), strings.Join(rls.Roles, ","), rls.IsAdmin,
+		"SELECT set_config('request.jwt.claim.sub', $1, true), set_config('request.jwt.claim.email', $2, true), set_config('request.jwt.claim.role', $3, true), set_config('request.jwt.claim.roles', $4, true), set_config('request.jwt.claim.is_admin', $5, true)",
+		rls.UserID, rls.Email, primaryRole(rls.Roles), strings.Join(rls.Roles, ","), isAdminStr,
 	)
 	return err
 }
@@ -54,9 +58,13 @@ func (db *DB) WithTransactionAndRLS(ctx context.Context, fn func(tx pgx.Tx) erro
 
 	return pgx.BeginFunc(ctx, db.Pool, func(tx pgx.Tx) error {
 		if ok {
+			isAdminStr := "false"
+			if rls.IsAdmin {
+				isAdminStr = "true"
+			}
 			_, err := tx.Exec(ctx,
-				"SET LOCAL request.jwt.claim.sub = $1; SET LOCAL request.jwt.claim.email = $2; SET LOCAL request.jwt.claim.role = $3; SET LOCAL request.jwt.claim.roles = $4; SET LOCAL request.jwt.claim.is_admin = $5",
-				rls.UserID, rls.Email, primaryRole(rls.Roles), strings.Join(rls.Roles, ","), rls.IsAdmin,
+				"SELECT set_config('request.jwt.claim.sub', $1, true), set_config('request.jwt.claim.email', $2, true), set_config('request.jwt.claim.role', $3, true), set_config('request.jwt.claim.roles', $4, true), set_config('request.jwt.claim.is_admin', $5, true)",
+				rls.UserID, rls.Email, primaryRole(rls.Roles), strings.Join(rls.Roles, ","), isAdminStr,
 			)
 			if err != nil {
 				return err
