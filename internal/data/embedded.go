@@ -110,14 +110,17 @@ func (e *EmbeddedDB) Stop() error {
 }
 
 func canConnectToPostgres(ctx context.Context, connURL string) bool {
-	connCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	conn, err := pgx.Connect(connCtx, connURL)
-	if err != nil {
-		return false
+	for attempt := 0; attempt < 5; attempt++ {
+		connCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+		conn, err := pgx.Connect(connCtx, connURL)
+		cancel()
+		if err == nil {
+			_ = conn.Close(context.Background())
+			return true
+		}
+		time.Sleep(300 * time.Millisecond)
 	}
-	_ = conn.Close(connCtx)
-	return true
+	return false
 }
 
 // GetConnectionString returns the DSN for the embedded instance
