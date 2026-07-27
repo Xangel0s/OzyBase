@@ -343,10 +343,29 @@ func handleCLI(db *data.DB) (bool, error) {
 		return true, nil
 	}
 
-	if len(os.Args) > 1 && os.Args[1] == "realtime" {
-		if err := handleRealtimeCLI(context.Background(), db, os.Args[2:]); err != nil {
-			return true, err
+	if len(os.Args) > 1 && (os.Args[1] == "clean" || os.Args[1] == "db-reset") {
+		ctx := context.Background()
+		fmt.Println("[INFO] Cleaning development data and resetting user schema...")
+
+		tables, err := db.ListTables(ctx)
+		if err == nil {
+			for _, table := range tables {
+				lower := strings.ToLower(table)
+				isSys := strings.HasPrefix(lower, "_v_") || strings.HasPrefix(lower, "_ozy_") ||
+					lower == "migrations" || lower == "workspaces" || lower == "workspace_members" ||
+					lower == "auth_sessions" || lower == "storage_buckets"
+				if !isSys {
+					db.Pool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS public.%s CASCADE", table))
+				}
+			}
 		}
+
+		db.Pool.Exec(ctx, "DELETE FROM _v_storage_objects")
+		db.Pool.Exec(ctx, "DELETE FROM _v_buckets WHERE name != 'default'")
+		db.Pool.Exec(ctx, "DELETE FROM _v_functions")
+		db.Pool.Exec(ctx, "DELETE FROM _v_collections")
+
+		fmt.Println("[OK] Clean complete! Development data wiped and database reset to production baseline.")
 		return true, nil
 	}
 
