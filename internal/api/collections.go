@@ -1388,16 +1388,21 @@ func (h *Handler) ListCollections(c echo.Context) error {
 				if meta.WorkspaceID != "" && meta.WorkspaceID != workspaceID {
 					// Exception: Always show internal system tables to admins
 					if !isSystem {
-						var wsExists bool
-						_ = h.DB.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM _v_workspaces WHERE id = $1)", meta.WorkspaceID).Scan(&wsExists)
-						if wsExists {
-							var count int
-							_ = h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_workspaces").Scan(&count)
-							if count > 1 {
+						role, _ := c.Get("workspace_role").(string)
+						isServiceRole, _ := c.Get("is_service_role").(bool)
+						userRole, _ := c.Get("user_role").(string)
+						isAdmin := isServiceRole || role == "owner" || role == "admin" || strings.ToLower(userRole) == "admin"
+
+						var count int
+						_ = h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_workspaces").Scan(&count)
+						if count > 1 && !isAdmin {
+							var wsExists bool
+							_ = h.DB.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM _v_workspaces WHERE id = $1)", meta.WorkspaceID).Scan(&wsExists)
+							if wsExists {
 								continue
 							}
 						}
-						// If the workspace does not exist or system has only 1 workspace, heal metadata binding
+						// If the workspace does not exist, system has 1 workspace, or user is admin: heal metadata binding
 						meta.WorkspaceID = workspaceID
 						_ = h.upsertCollectionMetadataForTable(ctx, tableName, workspaceID)
 					}
@@ -1835,15 +1840,22 @@ func (h *Handler) GetProjectInfo(c echo.Context) error {
 			}
 
 			if ws, ok := metaWsMap[tableName]; ok && workspaceID != "" && ws != "" && ws != workspaceID {
-				var wsExists bool
-				_ = h.DB.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM _v_workspaces WHERE id = $1)", ws).Scan(&wsExists)
-				if wsExists {
-					var count int
-					_ = h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_workspaces").Scan(&count)
-					if count > 1 {
+				role, _ := c.Get("workspace_role").(string)
+				isServiceRole, _ := c.Get("is_service_role").(bool)
+				userRole, _ := c.Get("user_role").(string)
+				isAdmin := isServiceRole || role == "owner" || role == "admin" || strings.ToLower(userRole) == "admin"
+
+				var count int
+				_ = h.DB.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_workspaces").Scan(&count)
+				if count > 1 && !isAdmin {
+					var wsExists bool
+					_ = h.DB.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM _v_workspaces WHERE id = $1)", ws).Scan(&wsExists)
+					if wsExists {
 						continue
 					}
 				}
+				// Heal metadata binding to current workspace
+				_, _ = h.DB.Pool.Exec(ctx, "UPDATE _v_collections SET workspace_id = $1 WHERE name = $2", workspaceID, tableName)
 			}
 
 			info.UserTableCount++

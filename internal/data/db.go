@@ -289,6 +289,12 @@ func (db *DB) EnsureDefaultWorkspace(ctx context.Context) (string, error) {
 	var workspaceID string
 	err := db.Pool.QueryRow(ctx, `SELECT id::text FROM _v_workspaces ORDER BY created_at LIMIT 1`).Scan(&workspaceID)
 	if err == nil {
+		// Auto-heal any orphaned collection metadata to the primary workspace ID
+		_, _ = db.Pool.Exec(ctx, `
+			UPDATE _v_collections 
+			SET workspace_id = $1 
+			WHERE workspace_id IS NULL OR workspace_id = '' OR workspace_id NOT IN (SELECT id::text FROM _v_workspaces)
+		`, workspaceID)
 		return workspaceID, nil
 	}
 
