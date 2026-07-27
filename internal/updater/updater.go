@@ -337,6 +337,17 @@ func installBinary(newBinaryPath, currentExecutablePath string) (string, error) 
 	}
 
 	if runtime.GOOS == "windows" {
+		oldPath := currentExecutablePath + ".old"
+		_ = os.Remove(oldPath)
+
+		if err := os.Rename(currentExecutablePath, oldPath); err == nil {
+			if err := os.WriteFile(currentExecutablePath, data, 0o755); err == nil {
+				_ = os.Remove(oldPath)
+				return currentExecutablePath, nil
+			}
+			_ = os.Rename(oldPath, currentExecutablePath)
+		}
+
 		newPath := currentExecutablePath + ".new.exe"
 		if err := os.WriteFile(newPath, data, 0o755); err != nil {
 			return "", fmt.Errorf("write replacement binary: %w", err)

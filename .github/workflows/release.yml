@@ -41,9 +41,10 @@ jobs:
       - name: Build Binaries (Linux, Windows, macOS)
         run: |
           mkdir -p release_dist
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o release_dist/ozybase-linux-amd64 ./cmd/ozybase
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o release_dist/ozybase-windows-amd64.exe ./cmd/ozybase
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o release_dist/ozybase-darwin-arm64 ./cmd/ozybase
+          TAG_NAME="${{ github.ref_name }}"
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X 'github.com/Xangel0s/OzyBase/internal/version.Version=${TAG_NAME}'" -o release_dist/ozybase-linux-amd64 ./cmd/ozybase
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X 'github.com/Xangel0s/OzyBase/internal/version.Version=${TAG_NAME}'" -o release_dist/ozybase-windows-amd64.exe ./cmd/ozybase
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X 'github.com/Xangel0s/OzyBase/internal/version.Version=${TAG_NAME}'" -o release_dist/ozybase-darwin-arm64 ./cmd/ozybase
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
