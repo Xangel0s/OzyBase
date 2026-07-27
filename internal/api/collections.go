@@ -16,6 +16,7 @@ import (
 
 	"github.com/Xangel0s/OzyBase/internal/data"
 	"github.com/Xangel0s/OzyBase/internal/mailer"
+	"github.com/Xangel0s/OzyBase/internal/version"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/labstack/echo/v4"
@@ -1779,11 +1780,8 @@ func (h *Handler) GetProjectInfo(c echo.Context) error {
 		info.Database = "unknown"
 	}
 
-	// Get PostgreSQL version
-	err = h.DB.Pool.QueryRow(ctx, `SHOW server_version`).Scan(&info.Version)
-	if err != nil {
-		info.Version = "unknown"
-	}
+	// Set OzyBase application version
+	info.Version = version.Version
 	info.Production = h.runtimeProductionReadiness(ctx)
 	info.ProjectScopeMode = "logical_shared_db"
 	info.Capabilities = ProjectCapabilities{
