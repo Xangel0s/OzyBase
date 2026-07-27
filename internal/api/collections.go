@@ -1793,18 +1793,40 @@ func (h *Handler) GetProjectInfo(c echo.Context) error {
 		SupportsFailoverUI:        false,
 	}
 
-	// Get table counts using the same logic as ListCollections
+	// Get table counts aligned with active workspace and Table Editor
+	workspaceID, _ := c.Get("workspace_id").(string)
 	tables, err := h.DB.ListTables(ctx)
 	if err == nil {
-		info.TableCount = len(tables)
+		metaRows, _ := h.DB.Pool.Query(ctx, "SELECT name, COALESCE(workspace_id::text, '') FROM _v_collections")
+		metaWsMap := make(map[string]string)
+		if metaRows != nil {
+			for metaRows.Next() {
+				var name, ws string
+				if err := metaRows.Scan(&name, &ws); err == nil {
+					metaWsMap[name] = ws
+				}
+			}
+			metaRows.Close()
+		}
+
 		for _, tableName := range tables {
 			lowerName := strings.ToLower(tableName)
-			if strings.HasPrefix(lowerName, "_v_") || strings.HasPrefix(lowerName, "_ozy_") {
+			isSys := strings.HasPrefix(lowerName, "_v_") || strings.HasPrefix(lowerName, "_ozy_") ||
+				lowerName == "migrations" || lowerName == "workspaces" || lowerName == "workspace_members" ||
+				lowerName == "auth_sessions" || lowerName == "storage_buckets"
+
+			if isSys {
 				info.SystemTableCount++
-			} else {
-				info.UserTableCount++
+				continue
 			}
+
+			if ws, ok := metaWsMap[tableName]; ok && workspaceID != "" && ws != "" && ws != workspaceID {
+				continue
+			}
+
+			info.UserTableCount++
 		}
+		info.TableCount = info.UserTableCount
 	}
 
 	// Get total public function count (legacy metric kept for compatibility)
