@@ -520,6 +520,24 @@ func (h *Handler) HandleMcpJsonRpc(c echo.Context) error {
 						"properties": map[string]any{},
 					},
 				},
+				{
+					"name":        "migration.create",
+					"description": "Create a new versioned SQL migration file in ./migrations directory and apply it",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"name": map[string]any{
+								"type":        "string",
+								"description": "Migration title/slug (e.g. 'add_users_table')",
+							},
+							"sql": map[string]any{
+								"type":        "string",
+								"description": "SQL DDL statements to execute and persist as migration",
+							},
+						},
+						"required": []string{"name", "sql"},
+					},
+				},
 			},
 		}
 		return c.JSON(http.StatusOK, resp)
@@ -767,6 +785,30 @@ func (h *Handler) HandleMcpJsonRpc(c echo.Context) error {
 			}
 			jsonBytes, _ := json.Marshal(list)
 			resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": string(jsonBytes)}}}
+			return c.JSON(http.StatusOK, resp)
+
+		case "migration.create":
+			var migArgs struct {
+				Name string `json:"name"`
+				SQL  string `json:"sql"`
+			}
+			if err := json.Unmarshal(callParams.Arguments, &migArgs); err != nil || strings.TrimSpace(migArgs.Name) == "" || strings.TrimSpace(migArgs.SQL) == "" {
+				resp.Error = &MCPError{Code: -32602, Message: "Invalid arguments, expected 'name' and 'sql' strings"}
+				return c.JSON(http.StatusOK, resp)
+			}
+			if h.Migrations == nil {
+				h.Migrations = migrations.NewGenerator("./migrations")
+			}
+			fileName, err := h.Migrations.CreateMigration(migArgs.Name, migArgs.SQL)
+			if err != nil {
+				resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Error creating migration: %v", err)}}, "isError": true}
+				return c.JSON(http.StatusOK, resp)
+			}
+			if h.Applier != nil {
+				_ = h.Applier.ApplyPendingMigrations(ctx)
+			}
+			h.invalidateProjectInfoCache()
+			resp.Result = map[string]any{"content": []map[string]any{{"type": "text", "text": fmt.Sprintf("Migration './migrations/%s' created and applied successfully.", fileName)}}}
 			return c.JSON(http.StatusOK, resp)
 
 		default:

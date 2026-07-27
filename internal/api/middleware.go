@@ -330,8 +330,9 @@ func APIKeyMiddleware(db *data.DB) echo.MiddlewareFunc {
 				authHeader := strings.TrimSpace(c.Request().Header.Get("Authorization"))
 				if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
 					candidate := strings.TrimSpace(authHeader[7:])
-					// Treat Bearer as API key when it matches Ozy key shape.
-					if strings.HasPrefix(candidate, "ozy_") {
+					parts := strings.Split(candidate, ".")
+					// If it is not a 3-part JWT or starts with key prefixes, try as API key
+					if len(parts) != 3 || strings.HasPrefix(candidate, "ozy_") || strings.HasPrefix(candidate, "sbp_") || strings.HasPrefix(candidate, "sb_") {
 						key = candidate
 					}
 				}
@@ -369,8 +370,8 @@ func APIKeyMiddleware(db *data.DB) echo.MiddlewareFunc {
 			}
 
 			// Formal API key model:
-			// - anon: public-capable key (must NOT satisfy auth-required rules)
-			// - service_role: trusted server key with admin-level capabilities
+			// - anon: public-capable key (sets role anon and user_id anon)
+			// - service_role: trusted server key with admin-level capabilities (bypasses RLS, full admin)
 			switch role {
 			case "service_role":
 				c.Set("user_id", "service_role_"+id)
@@ -378,6 +379,7 @@ func APIKeyMiddleware(db *data.DB) echo.MiddlewareFunc {
 				c.Set("api_key_role", role)
 				c.Set("is_service_role", true)
 			case "anon":
+				c.Set("user_id", "anon_"+id)
 				c.Set("role", "anon")
 				c.Set("api_key_role", role)
 			default:

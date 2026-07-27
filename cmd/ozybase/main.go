@@ -154,6 +154,9 @@ func run() error {
 	// Initialize migrations generator and applier
 	migrator := migrations.NewGenerator("./migrations")
 	applier := migrations.NewApplier(db.Pool, "./migrations")
+	if err := applier.ApplyPendingMigrations(ctx); err != nil {
+		logger.Log.Warn().Err(err).Msg("automatic pending migrations application warning")
+	}
 
 	// Initialize Server Components
 	h := api.NewHandler(
@@ -330,7 +333,29 @@ func handleCLI(db *data.DB) (bool, error) {
 		return true, runAdminCommand(db, os.Args[2:])
 	}
 
-	if len(os.Args) > 1 && os.Args[1] == "migrate-apply" {
+	if len(os.Args) > 1 && (os.Args[1] == "migrate" || os.Args[1] == "migrate-create") {
+		sub := "apply"
+		if len(os.Args) > 2 {
+			sub = os.Args[2]
+		}
+		if sub == "create" || os.Args[1] == "migrate-create" {
+			name := "custom_migration"
+			if len(os.Args) > 3 {
+				name = os.Args[3]
+			} else if len(os.Args) > 2 && os.Args[1] == "migrate-create" {
+				name = os.Args[2]
+			}
+			gen := migrations.NewGenerator("./migrations")
+			fileName, err := gen.CreateMigration(name, "-- Write your SQL migration statements here\n")
+			if err != nil {
+				return true, fmt.Errorf("failed to create migration: %w", err)
+			}
+			fmt.Printf("✓ Created migration file: ./migrations/%s\n", fileName)
+			return true, nil
+		}
+	}
+
+	if len(os.Args) > 1 && (os.Args[1] == "migrate-apply" || (len(os.Args) > 2 && os.Args[1] == "migrate" && os.Args[2] == "apply")) {
 		ctx := context.Background()
 		applier := migrations.NewApplier(db.Pool, "./migrations")
 
@@ -970,6 +995,17 @@ func setupEcho(ctx context.Context, h *api.Handler, cfg *config.Config, cronMgr 
 		apiGroup.POST("/tables/:name/views", h.CreateTableView, authRequired)
 		apiGroup.PATCH("/tables/:name/views/:id", h.UpdateTableView, authRequired)
 		apiGroup.DELETE("/tables/:name/views/:id", h.DeleteTableView, authRequired)
+	}
+
+	// Standard Supabase / PostgREST compatible REST API (/rest/v1/*)
+	restGroup := e.Group("/rest/v1", api.MetricsMiddleware(h), api.WorkspaceMiddleware(h.DB, cfg.JWTSecret, cfg.IsSingleTenant()))
+	{
+		restGroup.GET("/:name", h.ListRecords, authOptional, accessList)
+		restGroup.POST("/:name", h.CreateRecord, authOptional, accessCreate)
+		restGroup.GET("/:name/:id", h.GetRecord, authOptional, accessList)
+		restGroup.PATCH("/:name/:id", h.UpdateRecord, authOptional, accessUpdate)
+		restGroup.DELETE("/:name/:id", h.DeleteRecord, authOptional, accessDelete)
+		restGroup.POST("/rpc/:name", functionsHandler.Invoke, authOptional)
 	}
 
 	// Static Frontend (SPA)
