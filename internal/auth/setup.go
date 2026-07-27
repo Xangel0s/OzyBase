@@ -83,6 +83,9 @@ func EnsureAdminUser(db *data.DB) {
 		return
 	}
 
+	// Ensure default workspace is created and collections are bound
+	_, _ = db.EnsureDefaultWorkspace(ctx)
+
 	fmt.Println("\n*************************************************")
 	fmt.Println("*  OZYBASE INITIAL ADMIN CREDENTIALS            *")
 	fmt.Printf("*  Email: %-37s *\n", email)
@@ -166,9 +169,17 @@ func CreateAdminWithWorkspace(ctx context.Context, db *data.DB, email, password 
 		return fmt.Errorf("failed to create admin: %w", err)
 	}
 
-	if _, err := core.CreateWorkspaceTx(ctx, tx, "Primary Project", userID); err != nil {
+	wsID, err := core.CreateWorkspaceTx(ctx, tx, "Primary Project", userID)
+	if err != nil {
 		return fmt.Errorf("failed to create workspace: %w", err)
 	}
+
+	// Auto-bind any existing or orphaned collections to the newly created primary workspace
+	_, _ = tx.Exec(ctx, `
+		UPDATE _v_collections 
+		SET workspace_id = $1 
+		WHERE workspace_id IS NULL OR workspace_id = '' OR workspace_id NOT IN (SELECT id::text FROM _v_workspaces)
+	`, wsID)
 
 	return tx.Commit(ctx)
 }
