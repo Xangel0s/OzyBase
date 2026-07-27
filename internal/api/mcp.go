@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Xangel0s/OzyBase/internal/migrations"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
