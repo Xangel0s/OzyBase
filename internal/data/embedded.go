@@ -1,23 +1,27 @@
 package data
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Xangel0s/OzyBase/internal/logger"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
+	"github.com/jackc/pgx/v5"
 )
 
 // EmbeddedDB handles the lifecycle of an embedded PostgreSQL instance
 type EmbeddedDB struct {
-	postgres *embeddedpostgres.EmbeddedPostgres
-	config   embeddedpostgres.Config
-	dataPath string
-	binPath  string
-	port     uint32
+	postgres          *embeddedpostgres.EmbeddedPostgres
+	config            embeddedpostgres.Config
+	dataPath          string
+	binPath           string
+	port              uint32
+	wasAlreadyRunning bool
 }
 
 // NewEmbeddedDB creates a new embedded PostgreSQL instance configuration
@@ -67,6 +71,13 @@ func NewEmbeddedDB() *EmbeddedDB {
 func (e *EmbeddedDB) Start() error {
 	logger.Log.Info().Msg("[OzyBase] No external DB detected. Starting embedded PostgreSQL engine...")
 
+	connURL := e.GetConnectionString()
+	if canConnectToPostgres(context.Background(), connURL) {
+		e.wasAlreadyRunning = true
+		logger.Log.Info().Uint32("port", e.port).Msg("[OzyBase] Embedded PostgreSQL is already running on port 5433. Reusing existing instance.")
+		return nil
+	}
+
 	// Check if bin folder is empty to notify about first start
 	// Note: embedded-postgres might create subfolders inside binPath
 	binDir, err := os.ReadDir(e.binPath)
@@ -77,6 +88,11 @@ func (e *EmbeddedDB) Start() error {
 	e.postgres = embeddedpostgres.NewDatabase(e.config)
 
 	if err := e.postgres.Start(); err != nil {
+		if canConnectToPostgres(context.Background(), connURL) {
+			e.wasAlreadyRunning = true
+			logger.Log.Info().Uint32("port", e.port).Msg("[OzyBase] Embedded PostgreSQL is already listening on port 5433. Reusing existing instance.")
+			return nil
+		}
 		return fmt.Errorf("failed to start embedded postgres: %w", err)
 	}
 
@@ -86,11 +102,22 @@ func (e *EmbeddedDB) Start() error {
 
 // Stop gracefully shuts down the embedded PostgreSQL engine
 func (e *EmbeddedDB) Stop() error {
-	if e.postgres != nil {
+	if e.postgres != nil && !e.wasAlreadyRunning {
 		logger.Log.Info().Msg("[OzyBase] Stopping embedded PostgreSQL")
 		return e.postgres.Stop()
 	}
 	return nil
+}
+
+func canConnectToPostgres(ctx context.Context, connURL string) bool {
+	connCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	conn, err := pgx.Connect(connCtx, connURL)
+	if err != nil {
+		return false
+	}
+	_ = conn.Close(connCtx)
+	return true
 }
 
 // GetConnectionString returns the DSN for the embedded instance
