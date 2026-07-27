@@ -178,7 +178,7 @@ func (h *Handler) StartCollectionAutoDiscovery(ctx context.Context) {
 	defer ticker.Stop()
 
 	if err := h.runCollectionAutoDiscoveryPass(ctx, pruneMissing); err != nil {
-		if !strings.Contains(err.Error(), "closed pool") && ctx.Err() == nil {
+		if !strings.Contains(err.Error(), "closed pool") && !strings.Contains(err.Error(), "canceled") && ctx.Err() == nil {
 			fmt.Printf("[Collection Auto-Discovery] startup pass failed: %v\n", err)
 		}
 	}
@@ -366,7 +366,9 @@ func (h *Handler) cleanOldLogs(ctx context.Context) {
 	// 30 days retention
 	res, err := h.DB.Pool.Exec(ctx, "DELETE FROM _v_audit_logs WHERE created_at < NOW() - INTERVAL '30 days'")
 	if err != nil {
-		fmt.Printf("[Log Cleaner] Failed to purge old logs: %v\n", err)
+		if !strings.Contains(err.Error(), "closed pool") && !strings.Contains(err.Error(), "canceled") && ctx.Err() == nil {
+			fmt.Printf("[Log Cleaner] Failed to purge old logs: %v\n", err)
+		}
 		return
 	}
 	count := res.RowsAffected()
