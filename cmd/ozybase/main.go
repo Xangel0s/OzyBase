@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -219,17 +221,28 @@ func printStartupBanner() {
 }
 
 func printNotInitializedBanner() {
+	execName := filepath.Base(os.Args[0])
+	var cmdExample string
+	if runtime.GOOS == "windows" {
+		if !strings.HasSuffix(strings.ToLower(execName), ".exe") {
+			execName += ".exe"
+		}
+		cmdExample = fmt.Sprintf(".\\%s admin create --email x --password y", execName)
+	} else {
+		cmdExample = fmt.Sprintf("./%s admin create --email x --password y", execName)
+	}
+
 	fmt.Println()
-	fmt.Println("┌─────────────────────────────────────────────────────┐")
-	fmt.Println("│  OzyBase is not initialized.                        │")
-	fmt.Println("│  No admin account found.                            │")
-	fmt.Println("│                                                     │")
-	fmt.Println("│  To create the first admin, run:                    │")
-	fmt.Println("│    ./ozybase admin create --email x --password y    │")
-	fmt.Println("│                                                     │")
-	fmt.Println("│  Or set INITIAL_ADMIN_EMAIL + INITIAL_ADMIN_PASSWORD│")
-	fmt.Println("│  in your .env and restart.                          │")
-	fmt.Println("└─────────────────────────────────────────────────────┘")
+	fmt.Println("┌─────────────────────────────────────────────────────────────────┐")
+	fmt.Println("│  OzyBase is not initialized.                                    │")
+	fmt.Println("│  No admin account found.                                        │")
+	fmt.Println("│                                                                 │")
+	fmt.Println("│  To create the first admin, run:                                │")
+	fmt.Printf("│    %-60s │\n", cmdExample)
+	fmt.Println("│                                                                 │")
+	fmt.Println("│  Or set INITIAL_ADMIN_EMAIL + INITIAL_ADMIN_PASSWORD            │")
+	fmt.Println("│  in your .env and restart.                                      │")
+	fmt.Println("└─────────────────────────────────────────────────────────────────┘")
 	fmt.Println()
 }
 
@@ -355,8 +368,9 @@ func shouldBootstrapAdminFromEnv() bool {
 
 // runAdminCommand dispatches admin sub-commands: create, reset, delete-all
 func runAdminCommand(db *data.DB, args []string) error {
+	binName := filepath.Base(os.Args[0])
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: ozybase admin <create|reset|delete-all>")
+		fmt.Fprintf(os.Stderr, "usage: %s admin <create|reset|delete-all>\n", binName)
 		fmt.Fprintln(os.Stderr, "  admin create   [--email EMAIL] [--password PASSWORD]")
 		fmt.Fprintln(os.Stderr, "  admin reset    --email EMAIL [--password PASSWORD]")
 		fmt.Fprintln(os.Stderr, "  admin delete-all")

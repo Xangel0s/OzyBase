@@ -82,9 +82,6 @@ func Upgrade(opts Options) (message string, err error) {
 
 	assetName, archiveName := expectedAssetNames(release.TagName)
 	assetURL := findAssetURL(release.Assets, archiveName)
-	if assetURL == "" {
-		return "", fmt.Errorf("release %s has no asset %q", release.TagName, archiveName)
-	}
 
 	tmpDir, err := os.MkdirTemp("", "ozybase-upgrade-*")
 	if err != nil {
@@ -92,14 +89,30 @@ func Upgrade(opts Options) (message string, err error) {
 	}
 	defer removeAllIntoErr(tmpDir, &err)
 
-	archivePath := filepath.Join(tmpDir, archiveName)
-	if err := downloadFile(assetURL, archivePath); err != nil {
-		return "", err
-	}
+	var binPath string
+	if assetURL != "" {
+		archivePath := filepath.Join(tmpDir, archiveName)
+		if err := downloadFile(assetURL, archivePath); err != nil {
+			return "", err
+		}
 
-	binPath, err := extractBinary(archivePath, tmpDir, assetName)
-	if err != nil {
-		return "", err
+		binPath, err = extractBinary(archivePath, tmpDir, assetName)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		directName := fmt.Sprintf("ozybase-%s-%s", runtime.GOOS, runtime.GOARCH)
+		if runtime.GOOS == "windows" {
+			directName += ".exe"
+		}
+		assetURL = findAssetURL(release.Assets, directName)
+		if assetURL == "" {
+			return "", fmt.Errorf("release %s has no asset matching %q or %q", release.TagName, archiveName, directName)
+		}
+		binPath = filepath.Join(tmpDir, directName)
+		if err := downloadFile(assetURL, binPath); err != nil {
+			return "", err
+		}
 	}
 
 	exePath, err := os.Executable()
