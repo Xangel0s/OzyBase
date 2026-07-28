@@ -7,6 +7,7 @@
 <p align="center">
   <a href="#-ibm-skillsbuild-challenge-july-2026"><img src="https://img.shields.io/badge/IBM_SkillsBuild-July_2026-blue.svg?style=for-the-badge&logo=ibm" alt="IBM SkillsBuild"></a>
   <a href="#-ai-approach--architecture"><img src="https://img.shields.io/badge/AI-MCP_Protocol-purple.svg?style=for-the-badge" alt="MCP Protocol"></a>
+  <a href="https://github.com/ibm-granite-community"><img src="https://img.shields.io/badge/IBM_Granite-Embeddings-0F62FE.svg?style=for-the-badge&logo=ibm" alt="IBM Granite"></a>
   <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.25-00ADD8.svg?style=for-the-badge&logo=go" alt="Go"></a>
   <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19-61DAFB.svg?style=for-the-badge&logo=react" alt="React"></a>
   <a href="https://www.postgresql.org"><img src="https://img.shields.io/badge/PostgreSQL-15-4169E1.svg?style=for-the-badge&logo=postgresql" alt="PostgreSQL"></a>
@@ -22,24 +23,25 @@ Operating at **~56 MB total RAM footprint** (~4% of Supabase's memory requiremen
 ## 🏆 IBM SkillsBuild Challenge (July 2026)
 
 ### 📌 Selected Challenge Theme
-> **Artificial Intelligence Innovation & Autonomous Agents for Resilient Cloud Infrastructure**
+> **Reinventing Creative Industries with AI** — Empowering creators, developers, and studios to build AI-native content platforms faster, smarter, and at a fraction of the infrastructure cost.
 
 ---
 
 ### 1. Problem Statement
-Modern Backend-as-a-Service (BaaS) platforms like Supabase or Firebase present three critical bottlenecks for production deployments and AI agent integration:
+The creative industry is undergoing an AI revolution — but the infrastructure powering creative platforms has not kept up. Developers building AI-assisted tools for content creation, storytelling, semantic search, and multimedia experiences face three critical bottlenecks:
 
-1. **Heavy Resource Footprint**: Traditional multi-container setups require over 1.2 GB of RAM even in idle states, making them expensive to deploy on VPS edge infrastructure or embedded devices.
-2. **DevOps & Human Intervention Bottleneck**: Schema migrations, Row Level Security (RLS) policies, API key rotations, and database backups require continuous manual developer commands.
-3. **Lack of Native Agentic Protocols**: Large Language Models (LLMs) lack a standardized, safe, and structured protocol to manage backend infrastructure as autonomous administrators without risking database corruption, deadlocks, or constraint violations.
+1. **Heavy Infrastructure Costs**: Traditional BaaS platforms (Supabase, Firebase) require over 1.2 GB of RAM at idle, making it prohibitively expensive for indie developers, creative studios, and startups to self-host AI-enabled backends.
+2. **DevOps Complexity Kills Creative Flow**: Schema migrations, Row Level Security (RLS) policies, API key rotations, and backups require constant manual developer intervention — pulling engineers away from building creative features.
+3. **No Native AI-Agent Control Layer**: There is no standardized, safe protocol for AI agents (like IBM Bob or IBM Granite models) to autonomously manage backend infrastructure for creative platforms — without risking data corruption, security misconfigurations, or deployment failures.
 
 ---
 
 ### 2. Solution Overview
-**OzyBase** solves this by pairing a high-performance Go engine with a **native Agentic Control Layer via MCP**:
+**OzyBase** is the agentic backend engine that enables the next generation of AI-powered creative platforms. By running entirely as a single Go binary at ~56 MB RAM, it removes the infrastructure barrier so developers can focus on building creative experiences:
 
-* **Unified ~56 MB RAM Engine**: Delivers REST APIs, Realtime WebSockets, JavaScript Edge Functions, S3-compatible Storage, and JWT Auth in a single binary.
-* **Autonomous AI Operations via MCP (Model Context Protocol)**: Exposes an HTTP/JSON-RPC 2.0 endpoint at `/api/project/mcp` providing a self-discoverable tool catalog for AI agents to:
+* **Unified ~56 MB RAM Engine**: Delivers REST APIs, Realtime WebSockets, JavaScript Edge Functions, S3-compatible Storage, and JWT Auth in a single binary — the ideal foundation for creative content platforms.
+* **Native Semantic Search for Creative Content**: Built-in `pgvector` extension enables AI-powered embedding search over creative assets, scripts, media metadata, and user-generated content — compatible with **IBM Granite Embedding models** for semantic retrieval.
+* **Autonomous AI Operations via MCP (Model Context Protocol)**: Exposes an HTTP/JSON-RPC 2.0 endpoint at `/api/project/mcp` providing a self-discoverable tool catalog for AI agents (IBM Bob, Claude, Cursor) to autonomously manage the backend of creative platforms:
   - 🛠️ Safely execute SQL & DDL queries (`sql.query`).
   - 📜 Generate & apply versioned SQL migrations (`migration.create`).
   - 🔒 Configure Row Level Security (RLS) policies on the fly (`rls.configure`).
@@ -81,30 +83,40 @@ Modern Backend-as-a-Service (BaaS) platforms like Supabase or Firebase present t
 ```
 
 #### Core AI Architectural Pillars:
-1. **Model Context Protocol (MCP)**: Open standard JSON-RPC 2.0 interface at `/api/project/mcp` enabling dynamic tool discovery and real-time self-documentation (`system.guide`).
+1. **Model Context Protocol (MCP)**: Open standard JSON-RPC 2.0 interface at `/api/project/mcp` enabling dynamic tool discovery and real-time self-documentation (`system.guide`). Allows IBM Bob to autonomously build and manage creative platform backends.
 2. **Self-Healing Idempotent Engine**:
    - Automatically handles PostgreSQL uniqueness constraints (`SQLSTATE 23505`) and foreign key constraints (`SQLSTATE 23503`) during autonomous agent actions.
    - Enforces an atomic 3-step credential rotation pipeline: **Deactivate previous -> Insert new -> Link rotation**.
 3. **Domain Isolation (`managed_kind`)**:
    - Strictly isolates infrastructure keys (`essential`: `anon` / `service_role`) from custom developer keys (`custom`). Server restarts and key rotations never revoke developer API keys or MCP client tokens.
-4. **Vector Search Engine**: Native embedding support and semantic search powered by `pgvector`.
+4. **Vector Search Engine for Creative Content**: Native embedding support via `pgvector`, enabling AI-powered semantic search over creative assets, scripts, and media. Compatible with **IBM Granite Embedding** models for high-quality semantic retrieval without external dependencies.
+5. **Edge Functions for AI Inference**: Embedded Goja JS engine and Wazero WASM runtime allow creative AI logic (content generation, recommendation, style transfer) to run as serverless functions directly in the database layer.
 
 ---
 
 ### 4. How IBM Bob Was Used
 
-**IBM Bob** served as the advanced AI pair programming copilot throughout the development and hardening lifecycle of OzyBase:
+**IBM Bob** served as the primary AI development partner throughout the entire design, implementation, and hardening lifecycle of OzyBase:
 
-1. **Agentic Security Architecture**: Co-designed the self-healing key sync engine in `internal/api/essential_keys.go`.
-2. **PostgreSQL Transaction Hardening**: Diagnosed and defensively resolved PostgreSQL constraint edge cases (`idx_api_keys_active_essential_role` and `rotated_to_key_id_fkey`).
-3. **Self-Documentation & Tooling Integration**: Created the dynamic system guide generator (`system.guide`) enabling LLMs to understand table structures and security models without human assistance.
-4. **Resilience Testing & Refactoring**: Refactored REST/RLS middleware to guarantee OWASP and RFC compliance.
+1. **Agentic Security Architecture**: Co-designed the self-healing key sync engine in `internal/api/essential_keys.go`, including the idempotent 3-step API key rotation pipeline.
+2. **PostgreSQL Transaction Hardening**: Diagnosed and resolved critical PostgreSQL constraint conflicts (`idx_api_keys_active_essential_role` unique index, `rotated_to_key_id_fkey` foreign key race conditions) through iterative spec-driven development with IBM Bob.
+3. **Self-Documentation & MCP Tooling**: Created the dynamic `system.guide` tool and the full MCP JSON-RPC 2.0 handler (`internal/api/mcp.go`) — enabling AI agents to self-discover the OzyBase architecture and manage creative backends autonomously.
+4. **Resilience Testing & Security Refactoring**: Refactored REST/RLS middleware to guarantee OWASP and RFC compliance, and stress-tested key rotation flows under concurrent load.
+5. **Creative Platform Use Case Design**: IBM Bob helped architect the vector search layer and Edge Function runtime, enabling OzyBase to serve as the AI-native backend for creative industry applications.
 
 ---
 
-### 5. Challenge Context: IBM SkillsBuild (July)
+### 5. Challenge Context: IBM SkillsBuild (July 2026) — Creative Industries
 
-Developed and submitted for the **July 2026 Edition** of the **IBM SkillsBuild** program, demonstrating practical cloud architecture in Go, enterprise security, LLM integration via MCP, and DevSecOps best practices.
+Developed and submitted for the **July 2026 Edition** of the **IBM SkillsBuild AI Builders Challenge**, under the theme **"Reinventing Creative Industries with AI"**.
+
+OzyBase empowers creative developers and studios by delivering:
+- A zero-friction backend they can deploy in one command (`docker compose up -d`).
+- Native AI integration via MCP, so IBM Bob and Granite models can manage the entire backend autonomously.
+- Built-in semantic search (`pgvector`) for creative asset discovery and recommendation.
+- Serverless Edge Functions for running AI inference logic at the database layer.
+
+The project demonstrates practical application of Go systems programming, enterprise-grade PostgreSQL security, LLM agentic integration via the Model Context Protocol, and DevSecOps best practices — all in service of accelerating creative AI workflows.
 
 ---
 
@@ -179,6 +191,8 @@ npm run dev
 |---|---|
 | **Backend Core** | Go 1.25, Echo Framework, pgx pool |
 | **Agentic Protocol** | MCP (Model Context Protocol JSON-RPC 2.0) |
+| **AI Development Partner** | IBM Bob (primary development tool) |
+| **AI Embeddings (Recommended)** | [IBM Granite](https://github.com/ibm-granite-community) (via pgvector integration) |
 | **Dashboard UI** | React 19, Vite, Tailwind CSS, shadcn/ui |
 | **Database Engine** | PostgreSQL 15 + pgvector extension |
 | **JS Engine (Edge)** | Goja (embedded V8-like engine) |
