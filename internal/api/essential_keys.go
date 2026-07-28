@@ -621,6 +621,18 @@ func RotateEssentialAPIKeyCore(ctx context.Context, db *data.DB, role string) (s
 		workspaceIDVal = *workspaceID
 	}
 
+	if currentID != "" {
+		if _, err := tx.Exec(ctx, `
+			UPDATE _v_api_keys
+			SET is_active = FALSE,
+			    revoked_at = NOW(),
+			    grace_until = NULL
+			WHERE id = $1
+		`, currentID); err != nil {
+			return "", fmt.Errorf("failed to deactivate previous key: %w", err)
+		}
+	}
+
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO _v_api_keys (id, name, key_hash, prefix, role, is_active, key_group_id, key_version, valid_after, workspace_id, managed_kind, secret_ciphertext)
 		VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7, NOW(), $8, $9, $10)
@@ -631,13 +643,10 @@ func RotateEssentialAPIKeyCore(ctx context.Context, db *data.DB, role string) (s
 	if currentID != "" {
 		if _, err := tx.Exec(ctx, `
 			UPDATE _v_api_keys
-			SET is_active = FALSE,
-			    revoked_at = NOW(),
-			    grace_until = NULL,
-			    rotated_to_key_id = $2
+			SET rotated_to_key_id = $2
 			WHERE id = $1
 		`, currentID, newID); err != nil {
-			return "", fmt.Errorf("failed to revoke previous key: %w", err)
+			return "", fmt.Errorf("failed to link rotated key: %w", err)
 		}
 	}
 
@@ -683,23 +692,22 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 	}
 
 	for _, spec := range specs {
-		targetKey := strings.TrimSpace(spec.key)
-
-		// 1. If key from bootstrap is empty or placeholder, attempt to read from local secret file
+		// 1. Determine effective key material
+		targetKey := spec.key
 		if targetKey == "" || isPlaceholderKeyMaterial(targetKey) {
 			if data, readErr := os.ReadFile(spec.secretFile); readErr == nil {
 				targetKey = strings.TrimSpace(string(data))
 			}
 		}
 
-		// 2. Compute target hash if targetKey is valid
+		// 2. Compute hash if targetKey is non-empty
 		var targetHash string
-		if targetKey != "" && !isPlaceholderKeyMaterial(targetKey) {
+		if targetKey != "" {
 			hash := sha256.Sum256([]byte(targetKey))
 			targetHash = hex.EncodeToString(hash[:])
 		}
 
-		// 3. Query existing active essential key for this role in DB (matching by role)
+		// 3. Query existing active essential key for this role in DB (matching by role and essential kind)
 		var (
 			currentID         string
 			currentHash       string
@@ -710,11 +718,12 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 			SELECT id, key_hash, COALESCE(secret_ciphertext, ''), key_version
 			FROM _v_api_keys
 			WHERE role = $1
+			  AND managed_kind = $2
 			  AND (is_active = TRUE OR revoked_at IS NULL)
 			ORDER BY is_active DESC, key_version DESC, created_at DESC
 			LIMIT 1
 			FOR UPDATE
-		`, spec.role).Scan(&currentID, &currentHash, &currentCiphertext, &currentVersion)
+		`, spec.role, apiKeyManagedKindEssential).Scan(&currentID, &currentHash, &currentCiphertext, &currentVersion)
 
 		if scanErr == nil && targetHash != "" && currentHash == targetHash {
 			// DB hash matches file/env key hash perfectly. Ensure managed_kind and local secret file are in sync.
@@ -758,28 +767,20 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 			_ = tx.QueryRow(ctx, `SELECT id::text FROM _v_api_keys WHERE key_hash = $1 LIMIT 1`, targetHash).Scan(&existingHashID)
 		}
 
-		// 7. Update existing hash row, existing role key, or insert new essential key row
-		if existingHashID != "" {
-			if _, execErr := tx.Exec(ctx, `
-				UPDATE _v_api_keys
-				SET is_active = TRUE,
-				    revoked_at = NULL,
-				    valid_after = NOW(),
-				    managed_kind = $2,
-				    secret_ciphertext = $3,
-				    prefix = $4
-				WHERE id = $1
-			`, existingHashID, apiKeyManagedKindEssential, ciphertext, prefix); execErr != nil {
-				return execErr
-			}
+		targetID := existingHashID
+		if targetID == "" {
+			targetID = currentID
+		}
+
+		// 7. Deactivate all OTHER essential keys for this role first to respect idx_api_keys_active_essential_role
+		if targetID != "" {
 			_, _ = tx.Exec(ctx, `
 				UPDATE _v_api_keys
 				SET is_active = FALSE,
 				    revoked_at = NOW()
-				WHERE role = $1 AND id != $2
-			`, spec.role, existingHashID)
-		} else if currentID != "" {
-			// Update the existing key record to match the active target hash and role
+				WHERE role = $1 AND managed_kind = $2 AND id != $3
+			`, spec.role, apiKeyManagedKindEssential, targetID)
+
 			if _, execErr := tx.Exec(ctx, `
 				UPDATE _v_api_keys
 				SET key_hash = $2,
@@ -790,16 +791,17 @@ func EnsureEssentialAPIKeys(ctx context.Context, db *data.DB, bootstrap Essentia
 				    managed_kind = $4,
 				    secret_ciphertext = $5
 				WHERE id = $1
-			`, currentID, targetHash, prefix, apiKeyManagedKindEssential, ciphertext); execErr != nil {
+			`, targetID, targetHash, prefix, apiKeyManagedKindEssential, ciphertext); execErr != nil {
 				return execErr
 			}
+		} else {
 			_, _ = tx.Exec(ctx, `
 				UPDATE _v_api_keys
 				SET is_active = FALSE,
 				    revoked_at = NOW()
-				WHERE role = $1 AND id != $2
-			`, spec.role, currentID)
-		} else {
+				WHERE role = $1 AND managed_kind = $2
+			`, spec.role, apiKeyManagedKindEssential)
+
 			newID := uuid.NewString()
 			newVersion := currentVersion + 1
 			keyGroupID := newID
