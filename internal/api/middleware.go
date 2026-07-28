@@ -270,6 +270,19 @@ func WorkspaceMiddleware(db *data.DB, jwtSecret string, isSingleTenant bool) ech
 				return next(c)
 			}
 
+			// API Key Bypass / Scope Guard:
+			isAPIKey, _ := c.Get("is_api_key").(bool)
+			apiKeyWorkspaceID, _ := c.Get("api_key_workspace_id").(string)
+
+			if isAPIKey {
+				if apiKeyWorkspaceID == "" || apiKeyWorkspaceID == workspaceID {
+					c.Set("workspace_id", workspaceID)
+					c.Set("workspace_role", workspaceRoleOwner)
+					return next(c)
+				}
+				return c.JSON(http.StatusForbidden, map[string]string{"error": "access to this workspace is denied by API key scope"})
+			}
+
 			// Check membership
 			var role string
 			err := db.Pool.QueryRow(c.Request().Context(), `

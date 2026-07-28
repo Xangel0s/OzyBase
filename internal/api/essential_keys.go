@@ -621,16 +621,15 @@ func RotateEssentialAPIKeyCore(ctx context.Context, db *data.DB, role string) (s
 		workspaceIDVal = *workspaceID
 	}
 
-	if currentID != "" {
-		if _, err := tx.Exec(ctx, `
-			UPDATE _v_api_keys
-			SET is_active = FALSE,
-			    revoked_at = NOW(),
-			    grace_until = NULL
-			WHERE id = $1
-		`, currentID); err != nil {
-			return "", fmt.Errorf("failed to deactivate previous key: %w", err)
-		}
+	// Deactivate ALL existing active essential keys for this role to satisfy idx_api_keys_active_essential_role
+	if _, err := tx.Exec(ctx, `
+		UPDATE _v_api_keys
+		SET is_active = FALSE,
+		    revoked_at = NOW(),
+		    grace_until = NULL
+		WHERE role = $1 AND managed_kind = $2 AND (is_active = TRUE OR revoked_at IS NULL)
+	`, role, apiKeyManagedKindEssential); err != nil {
+		return "", fmt.Errorf("failed to deactivate previous key(s): %w", err)
 	}
 
 	if _, err := tx.Exec(ctx, `
