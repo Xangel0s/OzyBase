@@ -25,7 +25,7 @@ jobs:
       - name: Build Frontend
         run: |
           cd frontend
-          npm install
+          npm ci
           npm run build
 
       - name: Copy Frontend Assets for Go Embed
@@ -36,20 +36,38 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.25'
 
-      - name: Build Binaries (Linux, Windows, macOS)
+      - name: Build Binaries (Linux, Windows, macOS Intel + Apple Silicon)
         run: |
           mkdir -p release_dist
-          TAG_NAME="${{ github.ref_name }}"
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X 'github.com/Xangel0s/OzyBase/internal/version.Version=${TAG_NAME}'" -o release_dist/ozybase-linux-amd64 ./cmd/ozybase
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X 'github.com/Xangel0s/OzyBase/internal/version.Version=${TAG_NAME}'" -o release_dist/ozybase-windows-amd64.exe ./cmd/ozybase
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X 'github.com/Xangel0s/OzyBase/internal/version.Version=${TAG_NAME}'" -o release_dist/ozybase-darwin-arm64 ./cmd/ozybase
+          TAG="${{ github.ref_name }}"
+          LDFLAGS="-s -w -X 'github.com/Xangel0s/OzyBase/internal/version.Version=${TAG}'"
 
-      - name: Create GitHub Release
+          echo "Building Linux amd64..."
+          GOOS=linux   GOARCH=amd64  go build -ldflags="$LDFLAGS" -o release_dist/ozybase-linux-amd64        ./cmd/ozybase
+
+          echo "Building Linux arm64..."
+          GOOS=linux   GOARCH=arm64  go build -ldflags="$LDFLAGS" -o release_dist/ozybase-linux-arm64        ./cmd/ozybase
+
+          echo "Building Windows amd64..."
+          GOOS=windows GOARCH=amd64  go build -ldflags="$LDFLAGS" -o release_dist/ozybase-windows-amd64.exe  ./cmd/ozybase
+
+          echo "Building macOS Intel (amd64)..."
+          GOOS=darwin  GOARCH=amd64  go build -ldflags="$LDFLAGS" -o release_dist/ozybase-darwin-amd64       ./cmd/ozybase
+
+          echo "Building macOS Apple Silicon (arm64)..."
+          GOOS=darwin  GOARCH=arm64  go build -ldflags="$LDFLAGS" -o release_dist/ozybase-darwin-arm64       ./cmd/ozybase
+
+          echo "Generating SHA256 checksums..."
+          cd release_dist
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload Binaries to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: release_dist/*
           draft: false
           prerelease: false
-          generate_release_notes: true
+          fail_on_unmatched_files: true
