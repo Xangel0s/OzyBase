@@ -122,23 +122,10 @@ func CreateAdminWithWorkspace(ctx context.Context, db *data.DB, email, password 
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	tx, err := db.Pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	// Serialize to prevent concurrent double-init
-	if _, err := tx.Exec(ctx, "LOCK TABLE _v_users IN ACCESS EXCLUSIVE MODE"); err != nil {
-		return fmt.Errorf("failed to acquire lock: %w", err)
-	}
-
-	var count int
-	if err := tx.QueryRow(ctx, "SELECT COUNT(*) FROM _v_users WHERE role = 'admin'").Scan(&count); err != nil {
-		return fmt.Errorf("failed to check existing admins: %w", err)
-	}
-	if count > 0 {
-		rows, _ := tx.Query(ctx, "SELECT email FROM _v_users WHERE role = 'admin' ORDER BY created_at LIMIT 5")
+	// Fast-path: check without a transaction first to give a clear error message early
+	var existingCount int
+	if err := db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM _v_users WHERE role = 'admin'").Scan(&existingCount); err == nil && existingCount > 0 {
+		rows, _ := db.Pool.Query(ctx, "SELECT email FROM _v_users WHERE role = 'admin' ORDER BY created_at LIMIT 5")
 		var existing []string
 		if rows != nil {
 			for rows.Next() {
@@ -150,8 +137,30 @@ func CreateAdminWithWorkspace(ctx context.Context, db *data.DB, email, password 
 			rows.Close()
 		}
 		if len(existing) > 0 {
-			return fmt.Errorf("an admin account already exists (%s). Use 'admin reset --email %s' to change password, or 'admin delete-all' to reset", strings.Join(existing, ", "), existing[0])
+			return fmt.Errorf("an admin account already exists (%s). Use 'admin reset --email %s' to change the password, or 'admin delete-all' to reset", strings.Join(existing, ", "), existing[0])
 		}
+		return errors.New("an admin account already exists. Use 'admin reset' to change the password")
+	}
+
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	// Use a session-level advisory lock to serialize concurrent admin creation
+	// This avoids LOCK TABLE which is incompatible with pgx DescribeExec mode.
+	const adminCreateLockKey = int64(20260101)
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", adminCreateLockKey); err != nil {
+		return fmt.Errorf("failed to acquire creation lock: %w", err)
+	}
+
+	// Re-check inside the lock to guard against races
+	var count int
+	if err := tx.QueryRow(ctx, "SELECT COUNT(*) FROM _v_users WHERE role = 'admin'").Scan(&count); err != nil {
+		return fmt.Errorf("failed to check existing admins: %w", err)
+	}
+	if count > 0 {
 		return errors.New("an admin account already exists. Use 'admin reset' to change the password")
 	}
 
@@ -175,13 +184,19 @@ func CreateAdminWithWorkspace(ctx context.Context, db *data.DB, email, password 
 	}
 
 	// Auto-bind any existing or orphaned collections to the newly created primary workspace
-	_, _ = tx.Exec(ctx, `
-		UPDATE _v_collections 
-		SET workspace_id = $1 
+	if _, err := tx.Exec(ctx, `
+		UPDATE _v_collections
+		SET workspace_id = $1
 		WHERE workspace_id IS NULL OR workspace_id = '' OR workspace_id NOT IN (SELECT id::text FROM _v_workspaces)
-	`, wsID)
+	`, wsID.ID); err != nil {
+		// Non-fatal: collections binding failure should not abort admin creation
+		_ = err
+	}
 
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to finalize admin creation: %w", err)
+	}
+	return nil
 }
 
 // ResetAdminPassword updates the password for an existing admin user.
