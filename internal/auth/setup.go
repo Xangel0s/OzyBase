@@ -183,19 +183,22 @@ func CreateAdminWithWorkspace(ctx context.Context, db *data.DB, email, password 
 		return fmt.Errorf("failed to create workspace: %w", err)
 	}
 
-	// Auto-bind any existing or orphaned collections to the newly created primary workspace
-	if _, err := tx.Exec(ctx, `
-		UPDATE _v_collections
-		SET workspace_id = $1
-		WHERE workspace_id IS NULL OR workspace_id = '' OR workspace_id NOT IN (SELECT id::text FROM _v_workspaces)
-	`, wsID.ID); err != nil {
-		// Non-fatal: collections binding failure should not abort admin creation
-		_ = err
-	}
-
+	// Commit the core transaction (user + workspace) first.
+	// The _v_collections bind is optional and must happen OUTSIDE this tx —
+	// any statement error inside a PostgreSQL transaction sets it to ABORTED state,
+	// making the subsequent COMMIT always fail even if the Go error is ignored.
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to finalize admin creation: %w", err)
 	}
+
+	// Non-fatal post-commit: bind any orphaned collections to the new workspace.
+	// Runs on a fresh pool connection, completely isolated from the tx above.
+	_, _ = db.Pool.Exec(ctx, `
+		UPDATE _v_collections
+		SET workspace_id = $1
+		WHERE workspace_id IS NULL OR workspace_id = '' OR workspace_id NOT IN (SELECT id::text FROM _v_workspaces)
+	`, wsID.ID)
+
 	return nil
 }
 
